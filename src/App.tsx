@@ -8,6 +8,7 @@ import Articles from "./pages/admin/Articles";
 import Authors from "./pages/admin/Authors";
 import Settings from "./pages/admin/Settings";
 import ArticleEditor from "./pages/admin/ArticleEditor";
+import BlogArticle from "./pages/BlogArticle";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/admin" replace />} />
+          <Route path="/blog/:slug" element={<BlogArticle />} />
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/articles" element={<Articles />} />
           <Route path="/admin/articles/new" element={<ArticleEditor />} />

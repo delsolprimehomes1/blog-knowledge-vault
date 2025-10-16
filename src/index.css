@@ -152,3 +152,49 @@ All colors MUST be HSL.
     @apply border border-border p-2;
   }
 }
+
+/* Article content specific styles */
+.article-content {
+  @apply prose max-w-none;
+}
+
+.article-content h2 {
+  @apply text-2xl font-bold mt-12 mb-4 scroll-mt-24;
+}
+
+.article-content h3 {
+  @apply text-xl font-bold mt-8 mb-3 scroll-mt-24;
+}
+
+.article-content p {
+  @apply text-lg leading-relaxed mb-4;
+}
+
+.article-content img {
+  @apply rounded-lg my-6;
+}
+
+.article-content .internal-link {
+  @apply text-[#667eea] hover:underline;
+}
+
+.article-content .external-link {
+  @apply text-[#764ba2] hover:underline;
+}
+
+.article-content ul,
+.article-content ol {
+  @apply my-4 space-y-2;
+}
+
+.article-content table {
+  @apply w-full border-collapse my-6;
+}
+
+.article-content table th {
+  @apply bg-accent p-3 text-left font-semibold border;
+}
+
+.article-content table td {
+  @apply p-3 border;
+}
