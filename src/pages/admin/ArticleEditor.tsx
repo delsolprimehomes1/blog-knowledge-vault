@@ -27,6 +27,7 @@ import { RelatedArticlesSection } from "@/components/article-editor/RelatedArtic
 import { FunnelCTASection } from "@/components/article-editor/FunnelCTASection";
 import { FAQSection } from "@/components/article-editor/FAQSection";
 import { TranslationsSection } from "@/components/article-editor/TranslationsSection";
+import { SchemaPreviewSection } from "@/components/article-editor/SchemaPreviewSection";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -709,6 +710,27 @@ const ArticleEditor = () => {
           }}
           hasNoTranslations={Object.keys(translations).length === 0}
           isPublished={status === "published"}
+        />
+
+        {/* Section 12: JSON-LD Schema Preview */}
+        <SchemaPreviewSection
+          article={{
+            slug,
+            headline,
+            meta_description: metaDescription,
+            category,
+            featured_image_url: featuredImageUrl,
+            detailed_content: detailedContent,
+            author_id: authorId,
+            reviewer_id: reviewerId,
+            date_published: article?.date_published || "",
+            date_modified: article?.date_modified || "",
+            faq_entities: faqEntities,
+            external_citations: externalCitations,
+            status,
+          }}
+          author={authors?.find(a => a.id === authorId) || null}
+          reviewer={authors?.find(a => a.id === reviewerId) || null}
         />
 
         {/* Action Buttons */}
