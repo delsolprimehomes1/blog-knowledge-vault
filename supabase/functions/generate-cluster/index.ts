@@ -558,14 +558,57 @@ Return ONLY valid JSON:
     const mofuArticles = articles.filter((a: any) => a.funnel_stage === 'MOFU');
     const bofuArticles = articles.filter((a: any) => a.funnel_stage === 'BOFU');
 
-    // TOFU points to MOFU (use temporary IDs)
-    tofuArticles.forEach((article: any, idx: number) => {
-      article.cta_article_ids = [];
+    console.log('Linking articles in funnel progression...');
+
+    // TOFU articles → link to MOFU articles (awareness to consideration)
+    tofuArticles.forEach((tofuArticle: any, idx: number) => {
+      // Store slugs temporarily - will be converted to IDs when saved to database
+      const otherTofu = tofuArticles.filter((t: any, i: number) => i !== idx);
+      
+      tofuArticle._temp_cta_slugs = mofuArticles.map((m: any) => m.slug);
+      tofuArticle._temp_related_slugs = [
+        ...otherTofu.map((t: any) => t.slug),
+        ...mofuArticles.slice(0, 2).map((m: any) => m.slug)
+      ].slice(0, 7);
+      
+      // Keep as empty for now - frontend will resolve slugs to IDs when saving
+      tofuArticle.cta_article_ids = [];
+      tofuArticle.related_article_ids = [];
     });
 
-    // MOFU points to BOFU
-    mofuArticles.forEach((article: any, idx: number) => {
-      article.cta_article_ids = [];
+    // MOFU articles → link to BOFU article (consideration to decision)
+    mofuArticles.forEach((mofuArticle: any, idx: number) => {
+      const otherMofu = mofuArticles.filter((m: any, i: number) => i !== idx);
+      
+      mofuArticle._temp_cta_slugs = bofuArticles.map((b: any) => b.slug);
+      mofuArticle._temp_related_slugs = [
+        ...tofuArticles.slice(0, 3).map((t: any) => t.slug),
+        ...otherMofu.map((m: any) => m.slug),
+        ...bofuArticles.map((b: any) => b.slug)
+      ].slice(0, 7);
+      
+      mofuArticle.cta_article_ids = [];
+      mofuArticle.related_article_ids = [];
+    });
+
+    // BOFU article → no CTA (chatbot for conversion), link to supporting content
+    bofuArticles.forEach((bofuArticle: any) => {
+      bofuArticle._temp_cta_slugs = []; // No CTA - use chatbot instead
+      bofuArticle._temp_related_slugs = [
+        ...mofuArticles.map((m: any) => m.slug),
+        ...tofuArticles.slice(0, 3).map((t: any) => t.slug)
+      ].slice(0, 7);
+      
+      bofuArticle.cta_article_ids = [];
+      bofuArticle.related_article_ids = [];
+    });
+
+    console.log('Funnel linking complete:', {
+      tofu_articles: tofuArticles.length,
+      mofu_articles: mofuArticles.length,
+      bofu_articles: bofuArticles.length,
+      tofu_cta_targets: tofuArticles[0]?._temp_cta_slugs?.length || 0,
+      mofu_cta_targets: mofuArticles[0]?._temp_cta_slugs?.length || 0,
     });
 
     console.log('Cluster generation complete:', {
