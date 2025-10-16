@@ -19,12 +19,13 @@ import {
   getCharCountStatus,
   uploadImage 
 } from "@/lib/articleUtils";
-import { Language, FunnelStage, ArticleStatus, InternalLink, ExternalCitation } from "@/types/blog";
+import { Language, FunnelStage, ArticleStatus, InternalLink, ExternalCitation, FAQEntity } from "@/types/blog";
 import { EEATSection } from "@/components/article-editor/EEATSection";
 import { ExternalCitationsSection } from "@/components/article-editor/ExternalCitationsSection";
 import { InternalLinksSection } from "@/components/article-editor/InternalLinksSection";
 import { RelatedArticlesSection } from "@/components/article-editor/RelatedArticlesSection";
 import { FunnelCTASection } from "@/components/article-editor/FunnelCTASection";
+import { FAQSection } from "@/components/article-editor/FAQSection";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -59,6 +60,7 @@ const ArticleEditor = () => {
   const [externalCitations, setExternalCitations] = useState<ExternalCitation[]>([]);
   const [relatedArticleIds, setRelatedArticleIds] = useState<string[]>([]);
   const [ctaArticleIds, setCtaArticleIds] = useState<string[]>([]);
+  const [faqEntities, setFaqEntities] = useState<FAQEntity[]>([]);
 
   const [imageUploading, setImageUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -143,6 +145,7 @@ const ArticleEditor = () => {
       setExternalCitations((article.external_citations as unknown as ExternalCitation[]) || []);
       setRelatedArticleIds(article.related_article_ids || []);
       setCtaArticleIds(article.cta_article_ids || []);
+      setFaqEntities((article.faq_entities as unknown as FAQEntity[]) || []);
     }
   }, [article]);
 
@@ -243,6 +246,7 @@ const ArticleEditor = () => {
         external_citations: externalCitations as any,
         related_article_ids: relatedArticleIds,
         cta_article_ids: ctaArticleIds,
+        faq_entities: faqEntities.length > 0 ? (faqEntities as any) : null,
         read_time: Math.ceil(contentWords / 200),
         date_modified: new Date().toISOString(),
         ...(publishStatus === 'published' && !article?.date_published ? { date_published: new Date().toISOString() } : {}),
@@ -668,6 +672,12 @@ const ArticleEditor = () => {
           articles={publishedArticles}
           selectedIds={ctaArticleIds}
           onSelectedIdsChange={setCtaArticleIds}
+        />
+
+        {/* Section 10: FAQ Entities */}
+        <FAQSection
+          faqEntities={faqEntities}
+          onFaqEntitiesChange={setFaqEntities}
         />
 
         {/* Action Buttons */}
