@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LazyRichTextEditor } from "@/components/LazyRichTextEditor";
 import { AIImageGenerator } from "@/components/AIImageGenerator";
+import { DiagramGenerator } from "@/components/DiagramGenerator";
 import { toast } from "sonner";
 import { AlertCircle, Upload, Save, Eye } from "lucide-react";
 import { 
@@ -55,7 +56,7 @@ const ArticleEditor = () => {
   const [featuredImageUrl, setFeaturedImageUrl] = useState("");
   const [featuredImageAlt, setFeaturedImageAlt] = useState("");
   const [featuredImageCaption, setFeaturedImageCaption] = useState("");
-  const [diagramUrl, setDiagramUrl] = useState("");
+  const [diagramMermaidCode, setDiagramMermaidCode] = useState("");
   const [diagramDescription, setDiagramDescription] = useState("");
   
   const [authorId, setAuthorId] = useState("");
@@ -155,7 +156,7 @@ const ArticleEditor = () => {
       setFeaturedImageUrl(article.featured_image_url || "");
       setFeaturedImageAlt(article.featured_image_alt || "");
       setFeaturedImageCaption(article.featured_image_caption || "");
-      setDiagramUrl(article.diagram_url || "");
+      setDiagramMermaidCode(article.diagram_url || ""); // diagram_url stores Mermaid code
       setDiagramDescription(article.diagram_description || "");
       setAuthorId(article.author_id || "");
       setReviewerId(article.reviewer_id || "");
@@ -257,7 +258,7 @@ const ArticleEditor = () => {
         featured_image_url: featuredImageUrl,
         featured_image_alt: featuredImageAlt,
         featured_image_caption: featuredImageCaption || null,
-        diagram_url: diagramUrl || null,
+        diagram_url: diagramMermaidCode || null, // Store Mermaid code in diagram_url
         diagram_description: diagramDescription || null,
         author_id: authorId || null,
         reviewer_id: reviewerId || null,
@@ -582,49 +583,16 @@ const ArticleEditor = () => {
               />
             </div>
 
-            <div>
-              <Label htmlFor="diagramUrl">Diagram URL (Optional)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="diagramUrl"
-                  value={diagramUrl}
-                  onChange={(e) => setDiagramUrl(e.target.value)}
-                  placeholder="https://example.com/diagram.jpg"
-                />
-                <label htmlFor="diagramUpload">
-                  <Button type="button" variant="outline" disabled={imageUploading} asChild>
-                    <span>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
-                    </span>
-                  </Button>
-                </label>
-                <input
-                  id="diagramUpload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageUpload(file, setDiagramUrl);
-                  }}
-                />
-              </div>
-              {diagramUrl && (
-                <img src={diagramUrl} alt="Diagram preview" className="mt-2 h-32 object-cover rounded" />
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="diagramDescription">Diagram Description (Optional)</Label>
-              <Textarea
-                id="diagramDescription"
-                value={diagramDescription}
-                onChange={(e) => setDiagramDescription(e.target.value)}
-                placeholder="Describe what the diagram shows"
-                rows={2}
-              />
-            </div>
+            <DiagramGenerator
+              articleContent={detailedContent}
+              headline={headline}
+              currentMermaidCode={diagramMermaidCode}
+              currentDescription={diagramDescription}
+              onDiagramGenerated={(mermaidCode, description) => {
+                setDiagramMermaidCode(mermaidCode);
+                setDiagramDescription(description);
+              }}
+            />
           </CardContent>
         </Card>
 

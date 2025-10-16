@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { OptimizedImage } from "@/components/OptimizedImage";
+import { MermaidPreview } from "@/components/MermaidPreview";
 
 interface ArticleContentProps {
   content: string;
@@ -74,13 +75,23 @@ export const ArticleContent = ({
 
       {diagramUrl && (
         <figure className="my-8">
-          <OptimizedImage
-            src={diagramUrl}
-            alt={diagramDescription || "Diagram"}
-            width={1200}
-            height={800}
-            className="w-full rounded-lg border object-contain"
-          />
+          {/* Check if diagramUrl contains Mermaid code (not an actual URL) */}
+          {(diagramUrl.startsWith('graph') || 
+            diagramUrl.startsWith('flowchart') || 
+            diagramUrl.startsWith('sequenceDiagram') ||
+            diagramUrl.startsWith('gantt') ||
+            diagramUrl.startsWith('pie') ||
+            diagramUrl.includes('-->')) ? (
+            <MermaidPreview code={diagramUrl} className="w-full" />
+          ) : (
+            <OptimizedImage
+              src={diagramUrl}
+              alt={diagramDescription || "Diagram"}
+              width={1200}
+              height={800}
+              className="w-full rounded-lg border object-contain"
+            />
+          )}
           {diagramDescription && (
             <figcaption className="text-center text-sm text-muted-foreground mt-2">
               {diagramDescription}
