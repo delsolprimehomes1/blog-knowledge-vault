@@ -19,7 +19,12 @@ import {
   getCharCountStatus,
   uploadImage 
 } from "@/lib/articleUtils";
-import { Language, FunnelStage, ArticleStatus } from "@/types/blog";
+import { Language, FunnelStage, ArticleStatus, InternalLink, ExternalCitation } from "@/types/blog";
+import { EEATSection } from "@/components/article-editor/EEATSection";
+import { ExternalCitationsSection } from "@/components/article-editor/ExternalCitationsSection";
+import { InternalLinksSection } from "@/components/article-editor/InternalLinksSection";
+import { RelatedArticlesSection } from "@/components/article-editor/RelatedArticlesSection";
+import { FunnelCTASection } from "@/components/article-editor/FunnelCTASection";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -47,6 +52,13 @@ const ArticleEditor = () => {
   const [featuredImageCaption, setFeaturedImageCaption] = useState("");
   const [diagramUrl, setDiagramUrl] = useState("");
   const [diagramDescription, setDiagramDescription] = useState("");
+  
+  const [authorId, setAuthorId] = useState("");
+  const [reviewerId, setReviewerId] = useState("");
+  const [internalLinks, setInternalLinks] = useState<InternalLink[]>([]);
+  const [externalCitations, setExternalCitations] = useState<ExternalCitation[]>([]);
+  const [relatedArticleIds, setRelatedArticleIds] = useState<string[]>([]);
+  const [ctaArticleIds, setCtaArticleIds] = useState<string[]>([]);
 
   const [imageUploading, setImageUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,6 +71,33 @@ const ArticleEditor = () => {
         .from("categories")
         .select("*")
         .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch authors
+  const { data: authors } = useQuery({
+    queryKey: ["authors"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("authors")
+        .select("*")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch published articles for related articles and CTA
+  const { data: publishedArticles } = useQuery({
+    queryKey: ["publishedArticles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blog_articles")
+        .select("id, headline, category, funnel_stage")
+        .eq("status", "published")
+        .order("headline");
       if (error) throw error;
       return data;
     },
@@ -98,6 +137,12 @@ const ArticleEditor = () => {
       setFeaturedImageCaption(article.featured_image_caption || "");
       setDiagramUrl(article.diagram_url || "");
       setDiagramDescription(article.diagram_description || "");
+      setAuthorId(article.author_id || "");
+      setReviewerId(article.reviewer_id || "");
+      setInternalLinks((article.internal_links as unknown as InternalLink[]) || []);
+      setExternalCitations((article.external_citations as unknown as ExternalCitation[]) || []);
+      setRelatedArticleIds(article.related_article_ids || []);
+      setCtaArticleIds(article.cta_article_ids || []);
     }
   }, [article]);
 
@@ -150,6 +195,21 @@ const ArticleEditor = () => {
     if (!detailedContent.trim()) newErrors.detailedContent = "Detailed content is required";
     if (!featuredImageUrl.trim()) newErrors.featuredImageUrl = "Featured image is required";
     if (featuredImageUrl && !featuredImageAlt.trim()) newErrors.featuredImageAlt = "Alt text is required when image is provided";
+    if (!authorId) newErrors.authorId = "Author is required";
+    
+    // External citations validation
+    if (externalCitations.length < 2) {
+      newErrors.externalCitations = "Minimum 2 citations required";
+    } else if (externalCitations.length > 5) {
+      newErrors.externalCitations = "Maximum 5 citations allowed";
+    } else {
+      const hasGovDomain = externalCitations.some(c => 
+        c.url.includes('.gov') || c.url.includes('.gob.es')
+      );
+      if (!hasGovDomain) {
+        newErrors.externalCitations = "At least one citation must be from a .gov or .gob.es domain";
+      }
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -177,7 +237,13 @@ const ArticleEditor = () => {
         featured_image_caption: featuredImageCaption || null,
         diagram_url: diagramUrl || null,
         diagram_description: diagramDescription || null,
-        read_time: Math.ceil(contentWords / 200), // Estimate reading time
+        author_id: authorId || null,
+        reviewer_id: reviewerId || null,
+        internal_links: internalLinks as any,
+        external_citations: externalCitations as any,
+        related_article_ids: relatedArticleIds,
+        cta_article_ids: ctaArticleIds,
+        read_time: Math.ceil(contentWords / 200),
         date_modified: new Date().toISOString(),
         ...(publishStatus === 'published' && !article?.date_published ? { date_published: new Date().toISOString() } : {}),
       };
@@ -562,6 +628,47 @@ const ArticleEditor = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Section 5: E-E-A-T Attribution */}
+        <EEATSection
+          authors={authors}
+          authorId={authorId}
+          reviewerId={reviewerId}
+          datePublished={article?.date_published || ""}
+          dateModified={article?.date_modified || ""}
+          readTime={Math.ceil(contentWords / 200)}
+          onAuthorChange={setAuthorId}
+          onReviewerChange={setReviewerId}
+          errors={errors}
+        />
+
+        {/* Section 6: External Citations */}
+        <ExternalCitationsSection
+          citations={externalCitations}
+          onCitationsChange={setExternalCitations}
+          errors={errors}
+        />
+
+        {/* Section 7: Internal Links */}
+        <InternalLinksSection
+          links={internalLinks}
+          onLinksChange={setInternalLinks}
+        />
+
+        {/* Section 8: Related Articles */}
+        <RelatedArticlesSection
+          articles={publishedArticles}
+          selectedIds={relatedArticleIds}
+          onSelectedIdsChange={setRelatedArticleIds}
+        />
+
+        {/* Section 9: Funnel CTA Articles */}
+        <FunnelCTASection
+          funnelStage={funnelStage}
+          articles={publishedArticles}
+          selectedIds={ctaArticleIds}
+          onSelectedIdsChange={setCtaArticleIds}
+        />
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between">
