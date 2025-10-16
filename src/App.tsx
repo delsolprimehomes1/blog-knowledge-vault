@@ -11,6 +11,7 @@ import Authors from "./pages/admin/Authors";
 import Settings from "./pages/admin/Settings";
 import ArticleEditor from "./pages/admin/ArticleEditor";
 import Export from "./pages/admin/Export";
+import AITools from "./pages/admin/AITools";
 import Auth from "./pages/Auth";
 import BlogArticle from "./pages/BlogArticle";
 import BlogIndex from "./pages/BlogIndex";
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/admin/authors" element={<ProtectedRoute><Authors /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/admin/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
+          <Route path="/admin/ai-tools" element={<ProtectedRoute><AITools /></ProtectedRoute>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

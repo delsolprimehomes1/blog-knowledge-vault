@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, FileText, Users, Settings, Menu } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Settings, Menu, Bot, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -12,8 +12,9 @@ const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Articles", href: "/admin/articles", icon: FileText },
   { name: "Authors", href: "/admin/authors", icon: Users },
+  { name: "AI Tools", href: "/admin/ai-tools", icon: Bot },
+  { name: "Export", href: "/admin/export", icon: Download },
   { name: "Settings", href: "/admin/settings", icon: Settings },
-  { name: "Export", href: "/admin/export", icon: Settings },
 ];
 
 export const AdminLayout = ({ children }: AdminLayoutProps) => {
