@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +36,8 @@ const languageOptions = [
   { value: 'hu', label: '🇭🇺 Hungarian', name: 'Hungarian' },
 ];
 
+const STORAGE_KEY = 'cluster_generator_backup';
+
 const ClusterGenerator = () => {
   const navigate = useNavigate();
   const [topic, setTopic] = useState("");
@@ -47,6 +49,59 @@ const ClusterGenerator = () => {
   const [steps, setSteps] = useState<GenerationStep[]>([]);
   const [generatedArticles, setGeneratedArticles] = useState<Partial<BlogArticle>[]>([]);
   const [showReview, setShowReview] = useState(false);
+  const [hasBackup, setHasBackup] = useState(false);
+
+  // Check for saved backup on mount
+  useEffect(() => {
+    const backup = localStorage.getItem(STORAGE_KEY);
+    if (backup) {
+      try {
+        const parsed = JSON.parse(backup);
+        if (parsed.articles && parsed.articles.length > 0) {
+          setHasBackup(true);
+        }
+      } catch (e) {
+        console.error('Error parsing backup:', e);
+      }
+    }
+  }, []);
+
+  // Prevent navigation during generation
+  useEffect(() => {
+    if (!isGenerating) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Cluster generation in progress. Are you sure you want to leave?';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isGenerating]);
+
+  const loadBackup = () => {
+    const backup = localStorage.getItem(STORAGE_KEY);
+    if (backup) {
+      try {
+        const parsed = JSON.parse(backup);
+        setGeneratedArticles(parsed.articles);
+        setTopic(parsed.topic);
+        setLanguage(parsed.language);
+        setShowReview(true);
+        console.log('✅ Loaded backup:', parsed.articles.length, 'articles');
+        toast.success(`Restored ${parsed.articles.length} articles from last generation`);
+      } catch (e) {
+        console.error('Error loading backup:', e);
+        toast.error('Failed to load backup');
+      }
+    }
+  };
+
+  const clearBackup = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setHasBackup(false);
+    toast.success('Backup cleared');
+  };
 
   const handleGenerate = async () => {
     // Validation
@@ -105,7 +160,8 @@ const ClusterGenerator = () => {
         throw new Error('Invalid response from cluster generator');
       }
       
-      console.log('Cluster generated successfully:', data.articles.length, 'articles');
+      console.log('✅ Cluster generated successfully:', data.articles.length, 'articles');
+      console.log('📄 Articles data:', data.articles);
       
       // Simulate progress through steps for visual feedback
       for (let i = 0; i < initialSteps.length; i++) {
@@ -122,15 +178,25 @@ const ClusterGenerator = () => {
         setProgress(((i + 1) / initialSteps.length) * 100);
       }
       
+      // Save to localStorage as backup before showing review
+      const backup = {
+        articles: data.articles,
+        topic,
+        language,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
+      console.log('💾 Saved backup to localStorage');
+      
       // Store generated articles
       setGeneratedArticles(data.articles);
+      console.log('🔄 Updated generatedArticles state with', data.articles.length, 'articles');
       
-      toast.success(`Successfully generated ${data.articles.length} articles!`);
+      toast.success(`Successfully generated ${data.articles.length} articles! Loading review interface...`);
       
-      // Wait a moment then show review interface
-      setTimeout(() => {
-        setShowReview(true);
-      }, 1500);
+      // Show review interface immediately (no delay)
+      setShowReview(true);
+      console.log('✨ Setting showReview to true');
       
     } catch (error) {
       console.error("Error generating cluster:", error);
@@ -300,6 +366,32 @@ const ClusterGenerator = () => {
         </div>
       ) : (
         <div className="container mx-auto py-8 max-w-4xl space-y-6">
+          {/* Backup Restore Banner */}
+          {hasBackup && !isGenerating && (
+            <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                      Resume Previous Generation
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                      You have a saved cluster from your last session
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={loadBackup} variant="default" size="sm">
+                      Load Backup
+                    </Button>
+                    <Button onClick={clearBackup} variant="outline" size="sm">
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           {!isGenerating ? (
           <Card>
             <CardHeader>
@@ -433,8 +525,11 @@ const ClusterGenerator = () => {
 
               {progress === 100 && (
                 <div className="text-center pt-4">
-                  <p className="text-green-600 dark:text-green-400 font-medium">
-                    ✅ Cluster generation complete!
+                  <p className="text-green-600 dark:text-green-400 font-medium text-lg">
+                    ✅ Generation complete! Loading review interface...
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {generatedArticles.length} articles ready for review
                   </p>
                 </div>
               )}
