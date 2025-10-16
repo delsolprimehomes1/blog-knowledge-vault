@@ -164,13 +164,24 @@ Return ONLY valid JSON:
       article.canonical_url = null;
 
       // 5. SPEAKABLE ANSWER (40-60 words)
-      const speakablePrompt = `Write a conversational, action-oriented speakable answer (40-60 words) for:
-Headline: ${plan.headline}
-Content angle: ${plan.contentAngle}
+      const speakablePrompt = `Write a 40-60 word speakable answer for this article:
 
-This will be read by voice assistants. Make it natural and engaging.
+Question: ${plan.headline}
+Target Keyword: ${plan.targetKeyword}
+Content Focus: ${plan.contentAngle}
 
-Return ONLY the text, no JSON, no formatting.`;
+Requirements:
+- Conversational tone (use "you" and "your")
+- Present tense, active voice
+- Self-contained (no pronouns referring to previous context)
+- Actionable (tell reader what to DO)
+- No jargon
+- Exactly 40-60 words
+
+Example format:
+"To [action], you can [step 1], [step 2], and [step 3]. The process typically takes [timeframe] and [key benefit]. [Additional helpful detail]."
+
+Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
 
       const speakableResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
