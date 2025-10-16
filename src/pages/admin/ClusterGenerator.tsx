@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { ClusterReviewInterface } from "@/components/cluster-review/ClusterReviewInterface";
+import { BlogArticle } from "@/types/blog";
 
 type Language = 'en' | 'es' | 'de' | 'nl' | 'fr' | 'pl' | 'sv' | 'da' | 'hu';
 
@@ -33,6 +37,7 @@ const languageOptions = [
 ];
 
 const ClusterGenerator = () => {
+  const navigate = useNavigate();
   const [topic, setTopic] = useState("");
   const [language, setLanguage] = useState<Language>("en");
   const [targetAudience, setTargetAudience] = useState("");
@@ -40,6 +45,8 @@ const ClusterGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [steps, setSteps] = useState<GenerationStep[]>([]);
+  const [generatedArticles, setGeneratedArticles] = useState<Partial<BlogArticle>[]>([]);
+  const [showReview, setShowReview] = useState(false);
 
   const handleGenerate = async () => {
     // Validation
@@ -77,47 +84,223 @@ const ClusterGenerator = () => {
     setSteps(initialSteps);
     
     try {
-      // Simulate step-by-step generation
+      console.log('Calling generate-cluster edge function...');
+      toast.info('Generating cluster... This may take 60-90 seconds.');
+      
+      const { data, error } = await supabase.functions.invoke('generate-cluster', {
+        body: {
+          topic,
+          language,
+          targetAudience,
+          primaryKeyword
+        }
+      });
+      
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to generate cluster');
+      }
+      
+      if (!data?.success || !data?.articles) {
+        throw new Error('Invalid response from cluster generator');
+      }
+      
+      console.log('Cluster generated successfully:', data.articles.length, 'articles');
+      
+      // Simulate progress through steps for visual feedback
       for (let i = 0; i < initialSteps.length; i++) {
-        // Update current step to running
         setSteps(prev => prev.map((step, idx) => 
           idx === i ? { ...step, status: 'running' } : step
         ));
         
-        // Simulate processing time
-        await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Update current step to complete
         setSteps(prev => prev.map((step, idx) => 
           idx === i ? { ...step, status: 'complete' } : step
         ));
         
-        // Update progress
         setProgress(((i + 1) / initialSteps.length) * 100);
       }
       
-      toast.success("Cluster generation complete! (Demo mode)");
+      // Store generated articles
+      setGeneratedArticles(data.articles);
       
-      console.log("Generated cluster with:", {
-        topic,
-        language,
-        targetAudience,
-        primaryKeyword,
-      });
+      toast.success(`Successfully generated ${data.articles.length} articles!`);
+      
+      // Wait a moment then show review interface
+      setTimeout(() => {
+        setShowReview(true);
+      }, 1500);
+      
     } catch (error) {
       console.error("Error generating cluster:", error);
-      toast.error("Failed to generate cluster");
-    } finally {
+      toast.error(error instanceof Error ? error.message : "Failed to generate cluster");
+      setIsGenerating(false);
+      setSteps([]);
+      setProgress(0);
+    }
+  };
+
+  const handleSaveAll = async () => {
+    try {
+      console.log('Saving', generatedArticles.length, 'articles to database...');
+      
+      // Insert articles first (without IDs in cta/related fields)
+      const articlesToInsert = generatedArticles.map(a => {
+        const { _temp_cta_slugs, _temp_related_slugs, _reviewed, ...article } = a as any;
+        return {
+          ...article,
+          status: 'draft',
+          cta_article_ids: [],
+          related_article_ids: []
+        };
+      });
+      
+      const { data: insertedArticles, error: insertError } = await supabase
+        .from('blog_articles')
+        .insert(articlesToInsert)
+        .select();
+      
+      if (insertError) throw insertError;
+      
+      console.log('Articles inserted, resolving links...');
+      
+      // Create slug-to-ID mapping
+      const slugToId = new Map(insertedArticles.map(a => [a.slug, a.id]));
+      
+      // Update articles with resolved IDs
+      const updates = insertedArticles.map((article, idx) => {
+        const original = generatedArticles[idx] as any;
+        return {
+          id: article.id,
+          cta_article_ids: (original._temp_cta_slugs || [])
+            .map((slug: string) => slugToId.get(slug))
+            .filter(Boolean),
+          related_article_ids: (original._temp_related_slugs || [])
+            .map((slug: string) => slugToId.get(slug))
+            .filter(Boolean)
+        };
+      });
+      
+      // Bulk update
+      for (const update of updates) {
+        await supabase
+          .from('blog_articles')
+          .update({
+            cta_article_ids: update.cta_article_ids,
+            related_article_ids: update.related_article_ids
+          })
+          .eq('id', update.id);
+      }
+      
+      toast.success('All articles saved as drafts!');
+      
+      // Navigate to articles page
       setTimeout(() => {
-        setIsGenerating(false);
-      }, 2000);
+        navigate('/admin/articles');
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error saving articles:', error);
+      toast.error('Failed to save articles');
+    }
+  };
+
+  const handlePublishAll = async () => {
+    try {
+      console.log('Publishing', generatedArticles.length, 'articles...');
+      
+      // Same as save but with status: 'published' and date_published: now()
+      const articlesToInsert = generatedArticles.map(a => {
+        const { _temp_cta_slugs, _temp_related_slugs, _reviewed, ...article } = a as any;
+        return {
+          ...article,
+          status: 'published',
+          date_published: new Date().toISOString(),
+          cta_article_ids: [],
+          related_article_ids: []
+        };
+      });
+      
+      const { data: insertedArticles, error: insertError } = await supabase
+        .from('blog_articles')
+        .insert(articlesToInsert)
+        .select();
+      
+      if (insertError) throw insertError;
+      
+      // Resolve links (same as above)
+      const slugToId = new Map(insertedArticles.map(a => [a.slug, a.id]));
+      
+      const updates = insertedArticles.map((article, idx) => {
+        const original = generatedArticles[idx] as any;
+        return {
+          id: article.id,
+          cta_article_ids: (original._temp_cta_slugs || [])
+            .map((slug: string) => slugToId.get(slug))
+            .filter(Boolean),
+          related_article_ids: (original._temp_related_slugs || [])
+            .map((slug: string) => slugToId.get(slug))
+            .filter(Boolean)
+        };
+      });
+      
+      for (const update of updates) {
+        await supabase
+          .from('blog_articles')
+          .update({
+            cta_article_ids: update.cta_article_ids,
+            related_article_ids: update.related_article_ids
+          })
+          .eq('id', update.id);
+      }
+      
+      toast.success('All articles published!');
+      
+      setTimeout(() => {
+        navigate('/admin/articles');
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error publishing articles:', error);
+      toast.error('Failed to publish articles');
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      const dataStr = JSON.stringify(generatedArticles, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cluster-${topic.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Cluster exported!');
+    } catch (error) {
+      console.error('Error exporting:', error);
+      toast.error('Failed to export cluster');
     }
   };
 
   return (
     <AdminLayout>
-      <div className="container mx-auto py-8 max-w-4xl space-y-6">
-        {!isGenerating ? (
+      {showReview ? (
+        <div className="container mx-auto py-8">
+          <ClusterReviewInterface
+            articles={generatedArticles}
+            clusterTopic={topic}
+            language={language}
+            onSaveAll={handleSaveAll}
+            onPublishAll={handlePublishAll}
+            onExport={handleExport}
+            onArticlesChange={setGeneratedArticles}
+          />
+        </div>
+      ) : (
+        <div className="container mx-auto py-8 max-w-4xl space-y-6">
+          {!isGenerating ? (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-3xl">
@@ -258,7 +441,8 @@ const ClusterGenerator = () => {
             </CardContent>
           </Card>
         )}
-      </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
