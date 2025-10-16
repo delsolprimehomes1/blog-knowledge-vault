@@ -63,12 +63,12 @@ export const EEATSection = ({
 
         <div>
           <Label htmlFor="reviewer">Reviewer (Optional)</Label>
-          <Select value={reviewerId} onValueChange={onReviewerChange}>
+          <Select value={reviewerId || "none"} onValueChange={(value) => onReviewerChange(value === "none" ? "" : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Select reviewer" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">None</SelectItem>
+              <SelectItem value="none">None</SelectItem>
               {authors?.map((author) => (
                 <SelectItem key={author.id} value={author.id}>
                   <div className="flex items-center gap-2">
