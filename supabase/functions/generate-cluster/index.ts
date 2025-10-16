@@ -478,7 +478,82 @@ Return ONLY valid JSON:
       console.log(`Article ${i + 1} complete:`, article.headline, `(${wordCount} words)`);
     }
 
-    // STEP 3: Link articles in funnel progression
+    // STEP 3: Find internal links between cluster articles
+    console.log('Finding internal links between cluster articles...');
+    
+    for (let i = 0; i < articles.length; i++) {
+      try {
+        const article = articles[i];
+        
+        // Pass other articles as available articles (excluding current)
+        const otherArticles = articles
+          .filter((a: any, idx: number) => idx !== i)
+          .map((a: any) => ({
+            id: `temp-${a.slug}`,
+            slug: a.slug,
+            headline: a.headline,
+            speakable_answer: a.speakable_answer,
+            category: a.category,
+            funnel_stage: a.funnel_stage,
+            language: a.language,
+          }));
+
+        const linksResponse = await supabase.functions.invoke('find-internal-links', {
+          body: {
+            content: article.detailed_content,
+            headline: article.headline,
+            currentArticleId: `temp-${article.slug}`,
+            language: article.language,
+            funnelStage: article.funnel_stage,
+            availableArticles: otherArticles,
+          },
+        });
+
+        if (linksResponse.data?.links && linksResponse.data.links.length > 0) {
+          const links = linksResponse.data.links;
+          
+          // Insert links into content
+          let updatedContent = article.detailed_content;
+          
+          for (const link of links) {
+            if (link.insertAfterHeading) {
+              const headingRegex = new RegExp(
+                `<h2[^>]*>\\s*${link.insertAfterHeading}\\s*</h2>`,
+                'i'
+              );
+              
+              const match = updatedContent.match(headingRegex);
+              if (match && match.index !== undefined) {
+                const headingIndex = match.index + match[0].length;
+                const afterHeading = updatedContent.substring(headingIndex);
+                const nextParagraphMatch = afterHeading.match(/<p>/);
+                
+                if (nextParagraphMatch && nextParagraphMatch.index !== undefined) {
+                  const insertPoint = headingIndex + nextParagraphMatch.index + 3;
+                  
+                  const linkHtml = `For more details, check out our guide on <a href="${link.url}" title="${link.title}">${link.text}</a>. `;
+                  
+                  updatedContent = updatedContent.substring(0, insertPoint) + 
+                                 linkHtml + 
+                                 updatedContent.substring(insertPoint);
+                }
+              }
+            }
+          }
+          
+          article.detailed_content = updatedContent;
+          article.internal_links = links.map((l: any) => ({
+            text: l.text,
+            url: l.url,
+            title: l.title,
+          }));
+        }
+      } catch (error) {
+        console.error(`Internal links failed for article ${i + 1}:`, error);
+      }
+    }
+
+    // STEP 4: Link articles in funnel progression
     const tofuArticles = articles.filter((a: any) => a.funnel_stage === 'TOFU');
     const mofuArticles = articles.filter((a: any) => a.funnel_stage === 'MOFU');
     const bofuArticles = articles.filter((a: any) => a.funnel_stage === 'BOFU');

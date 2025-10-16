@@ -12,29 +12,35 @@ serve(async (req) => {
   }
 
   try {
-    const { content, headline, currentArticleId, language = 'en' } = await req.json();
+    const { content, headline, currentArticleId, language = 'en', funnelStage, availableArticles } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY');
 
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    if (!perplexityApiKey) {
+      throw new Error('PERPLEXITY_API_KEY not configured');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    let articles = availableArticles;
 
-    // Fetch all published articles except current one
-    const { data: articles, error: articlesError } = await supabase
-      .from('blog_articles')
-      .select('id, slug, headline, speakable_answer, category, funnel_stage, language')
-      .eq('status', 'published')
-      .neq('id', currentArticleId)
-      .eq('language', language);
+    // If no articles provided, fetch from database
+    if (!articles || articles.length === 0) {
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (articlesError) {
-      console.error('Error fetching articles:', articlesError);
-      throw articlesError;
+      const { data: dbArticles, error: articlesError } = await supabase
+        .from('blog_articles')
+        .select('id, slug, headline, speakable_answer, category, funnel_stage, language')
+        .eq('status', 'published')
+        .neq('id', currentArticleId)
+        .eq('language', language);
+
+      if (articlesError) {
+        console.error('Error fetching articles:', articlesError);
+        throw articlesError;
+      }
+
+      articles = dbArticles || [];
     }
 
     if (!articles || articles.length === 0) {
@@ -44,53 +50,52 @@ serve(async (req) => {
       );
     }
 
-    // Use Lovable AI to analyze relevance
-    const analysisPrompt = `Analyze this article and find the 8 most relevant internal links from the list below.
+    console.log(`Finding internal links for: ${headline} (${articles.length} available articles)`);
 
-Current Article: "${headline}"
-Content snippet: ${content.substring(0, 1000)}
+    // Use Perplexity for intelligent link discovery
+    const analysisPrompt = `Find the 5-8 most relevant internal links for this article:
+
+Current Article:
+Headline: ${headline}
+Funnel Stage: ${funnelStage || 'TOFU'}
+Content: ${content.substring(0, 2000)}
 
 Available Articles:
-${articles.map((a, i) => `${i+1}. "${a.headline}" (${a.funnel_stage}) - ${a.speakable_answer.substring(0, 100)}`).join('\n')}
+${articles.map((a: any, i: number) => 
+  `${i+1}. "${a.headline}" (${a.funnel_stage}) - ${a.speakable_answer?.substring(0, 100) || 'No description'}`
+).join('\n')}
 
-For each relevant link, provide:
-1. Article number from list (1-based index)
-2. Descriptive anchor text (natural, contextual phrase that fits in a sentence)
-3. Title attribute (SEO-friendly description)
-4. Where in the content to place it (brief context snippet)
-5. Relevance score (1-10)
+Requirements:
+- Mix of funnel stages (include TOFU, MOFU, BOFU for better content flow)
+- High topical relevance
+- Natural anchor text phrases that fit contextually
+- Identify WHERE in the content to place each link (which section/heading)
 
-Prioritize:
-- High relevance to current topic
-- Mix of TOFU (awareness), MOFU (consideration), BOFU (conversion) stages
-- Natural anchor text phrases that would fit in a sentence
-- Links that add value for readers
-
-You must respond with valid JSON in this exact format:
+Return ONLY valid JSON in this exact format:
 {
   "links": [
     {
-      "articleNumber": 1,
-      "anchorText": "natural phrase from article",
-      "titleAttribute": "SEO-friendly description",
-      "contextSnippet": "brief context",
+      "articleNumber": 5,
+      "anchorText": "how to apply for your NIE number",
+      "contextInArticle": "Before you can purchase property, you'll need legal documentation",
+      "insertAfterHeading": "Legal Requirements",
       "relevanceScore": 9
     }
   ]
 }`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${perplexityApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'llama-3.1-sonar-large-128k-online',
         messages: [
           {
             role: 'system',
-            content: 'You are an SEO expert specializing in internal linking strategies. Provide natural, contextual link recommendations in valid JSON format.'
+            content: 'You are an SEO expert finding relevant internal links for content strategy. Return only valid JSON.'
           },
           {
             role: 'user',
@@ -98,18 +103,21 @@ You must respond with valid JSON in this exact format:
           }
         ],
         temperature: 0.3,
+        max_tokens: 2000,
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('Lovable AI error:', aiResponse.status, errorText);
-      throw new Error('Failed to analyze content with AI');
+      console.error('Perplexity API error:', aiResponse.status, errorText);
+      throw new Error('Failed to analyze content with Perplexity');
     }
 
     const aiData = await aiResponse.json();
     const aiContent = aiData.choices[0].message.content;
     
+    console.log('Perplexity response:', aiContent);
+
     // Parse JSON response
     let suggestions = [];
     try {
@@ -117,7 +125,7 @@ You must respond with valid JSON in this exact format:
       const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { links: [] };
       suggestions = parsed.links || [];
     } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
+      console.error('Error parsing Perplexity response:', parseError);
       suggestions = [];
     }
 
@@ -130,20 +138,23 @@ You must respond with valid JSON in this exact format:
       .map((suggestion: any) => {
         const article = articles[suggestion.articleNumber - 1];
         return {
+          text: suggestion.anchorText,
+          url: `/blog/${article.slug}`,
+          title: article.headline,
           targetArticleId: article.id,
-          targetUrl: `/blog/${article.slug}`,
           targetHeadline: article.headline,
           funnelStage: article.funnel_stage,
           category: article.category,
-          anchorText: suggestion.anchorText,
-          titleAttribute: suggestion.titleAttribute,
-          contextSnippet: suggestion.contextSnippet || '',
+          contextInArticle: suggestion.contextInArticle || '',
+          insertAfterHeading: suggestion.insertAfterHeading || '',
           relevanceScore: suggestion.relevanceScore || 5
         };
       });
 
     // Sort by relevance
     enrichedLinks.sort((a: any, b: any) => b.relevanceScore - a.relevanceScore);
+
+    console.log(`Found ${enrichedLinks.length} internal links`);
 
     return new Response(
       JSON.stringify({ links: enrichedLinks.slice(0, 8) }),
