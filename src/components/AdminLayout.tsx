@@ -13,6 +13,7 @@ const navigation = [
   { name: "Articles", href: "/admin/articles", icon: FileText },
   { name: "Authors", href: "/admin/authors", icon: Users },
   { name: "Settings", href: "/admin/settings", icon: Settings },
+  { name: "Export", href: "/admin/export", icon: Settings },
 ];
 
 export const AdminLayout = ({ children }: AdminLayoutProps) => {
