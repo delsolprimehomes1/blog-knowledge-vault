@@ -370,7 +370,64 @@ Return only the alt text, no quotes, no JSON.`;
         article.reviewer_id = null;
       }
 
-      // 10. FAQ ENTITIES (for MOFU/BOFU)
+      // 10. EXTERNAL CITATIONS (Perplexity for authoritative sources)
+      try {
+        console.log('Finding external citations for:', plan.headline);
+        const citationsResponse = await supabase.functions.invoke('find-external-links', {
+          body: {
+            content: article.detailed_content,
+            headline: plan.headline,
+          },
+        });
+
+        if (citationsResponse.data?.citations && citationsResponse.data.citations.length > 0) {
+          const citations = citationsResponse.data.citations;
+          
+          // Insert citations into content
+          let updatedContent = article.detailed_content;
+          
+          for (const citation of citations) {
+            if (citation.insertAfterHeading) {
+              // Find the heading and insert citation in first paragraph after it
+              const headingRegex = new RegExp(
+                `<h2[^>]*>\\s*${citation.insertAfterHeading}\\s*</h2>`,
+                'i'
+              );
+              
+              const match = updatedContent.match(headingRegex);
+              if (match && match.index !== undefined) {
+                const headingIndex = match.index + match[0].length;
+                const afterHeading = updatedContent.substring(headingIndex);
+                const nextParagraphMatch = afterHeading.match(/<p>/);
+                
+                if (nextParagraphMatch && nextParagraphMatch.index !== undefined) {
+                  const insertPoint = headingIndex + nextParagraphMatch.index + 3; // after <p>
+                  
+                  const citationLink = `According to the <a href="${citation.url}" target="_blank" rel="noopener" title="${citation.sourceName}">${citation.anchorText}</a>, `;
+                  
+                  updatedContent = updatedContent.substring(0, insertPoint) + 
+                                 citationLink + 
+                                 updatedContent.substring(insertPoint);
+                }
+              }
+            }
+          }
+          
+          article.detailed_content = updatedContent;
+          article.external_citations = citations.map((c: any) => ({
+            text: c.anchorText,
+            url: c.url,
+            source: c.sourceName,
+          }));
+        } else {
+          article.external_citations = [];
+        }
+      } catch (error) {
+        console.error('External citations failed:', error);
+        article.external_citations = [];
+      }
+
+      // 11. FAQ ENTITIES (for MOFU/BOFU)
       if (plan.funnelStage !== 'TOFU') {
         const faqPrompt = `Generate 3-5 FAQ entities for this article:
 Headline: ${plan.headline}
@@ -406,13 +463,13 @@ Return ONLY valid JSON:
         article.faq_entities = [];
       }
 
-      // 11. Calculate read time
+
+      // 12. Calculate read time
       const wordCount = article.detailed_content.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).length;
       article.read_time = Math.ceil(wordCount / 200);
 
-      // Initialize empty arrays
+      // Initialize empty arrays for internal links and related articles
       article.internal_links = [];
-      article.external_citations = [];
       article.related_article_ids = [];
       article.cta_article_ids = [];
       article.translations = {};

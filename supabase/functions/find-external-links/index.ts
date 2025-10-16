@@ -9,12 +9,13 @@ interface Citation {
   sourceName: string;
   url: string;
   anchorText: string;
+  contextInArticle: string;
+  insertAfterHeading?: string;
   relevance: string;
   verified?: boolean;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -27,25 +28,28 @@ serve(async (req) => {
       throw new Error('PERPLEXITY_API_KEY is not configured');
     }
 
-    const prompt = `Find 3-5 authoritative sources for this Spanish real estate article.
+    const prompt = `Find 3-5 authoritative sources for this Spanish real estate article:
 
 Article: "${headline}"
-Content: ${content.substring(0, 1500)}
+Content: ${content.substring(0, 2000)}
 
 REQUIREMENTS:
-- Prioritize official Spanish government sources (.gob.es, .es)
-- Include financial regulatory sources (Banco de España, registradores.org)
-- Include property registry and legal sources
+- Prioritize official Spanish government sources (.gob.es, .es official domains)
+- Include property registry (registradores.org)
+- Include financial sources (Banco de España)
+- Include legal and regulatory sources
 - All sources must be HTTPS and currently active
-- Provide descriptive anchor text for each link that fits naturally in content
+- For each source, identify WHERE in the article it should be cited
 
-Return ONLY a valid JSON array in this exact format:
+Return ONLY valid JSON in this exact format:
 [
   {
     "sourceName": "Spanish Ministry of Inclusion",
     "url": "https://www.inclusion.gob.es/...",
     "anchorText": "official NIE application procedures",
-    "relevance": "Covers legal requirements for non-residents"
+    "contextInArticle": "When discussing NIE requirements for foreign buyers",
+    "insertAfterHeading": "Legal Requirements",
+    "relevance": "Authoritative government source for NIE procedures"
   }
 ]
 
@@ -64,14 +68,14 @@ Return only the JSON array, nothing else.`;
         messages: [
           {
             role: 'system',
-            content: 'You are a research expert finding authoritative sources for real estate content. Always verify sources are official and active. Return only valid JSON arrays.'
+            content: 'You are a research expert finding authoritative sources for real estate articles. Always prioritize official government sources. Return only valid JSON arrays.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.2, // Lower temperature for factual accuracy
+        temperature: 0.2,
         max_tokens: 2000,
       }),
     });
@@ -87,15 +91,12 @@ Return only the JSON array, nothing else.`;
     
     console.log('Perplexity response:', aiResponse);
     
-    // Parse JSON from response
     let citations: Citation[] = [];
     try {
-      // Try to extract JSON array from the response
       const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         citations = JSON.parse(jsonMatch[0]);
       } else {
-        // Try parsing the whole response as JSON
         citations = JSON.parse(aiResponse);
       }
     } catch (parseError) {
@@ -120,7 +121,7 @@ Return only the JSON array, nothing else.`;
           });
           return { 
             ...citation, 
-            verified: checkResponse.status === 200 || checkResponse.status === 403 // 403 means site exists but blocks HEAD requests
+            verified: checkResponse.status === 200 || checkResponse.status === 403
           };
         } catch (error) {
           console.error(`Failed to verify URL ${citation.url}:`, error);
