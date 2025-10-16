@@ -26,6 +26,7 @@ import { InternalLinksSection } from "@/components/article-editor/InternalLinksS
 import { RelatedArticlesSection } from "@/components/article-editor/RelatedArticlesSection";
 import { FunnelCTASection } from "@/components/article-editor/FunnelCTASection";
 import { FAQSection } from "@/components/article-editor/FAQSection";
+import { TranslationsSection } from "@/components/article-editor/TranslationsSection";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -61,6 +62,7 @@ const ArticleEditor = () => {
   const [relatedArticleIds, setRelatedArticleIds] = useState<string[]>([]);
   const [ctaArticleIds, setCtaArticleIds] = useState<string[]>([]);
   const [faqEntities, setFaqEntities] = useState<FAQEntity[]>([]);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
 
   const [imageUploading, setImageUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -99,6 +101,19 @@ const ArticleEditor = () => {
         .from("blog_articles")
         .select("id, headline, category, funnel_stage")
         .eq("status", "published")
+        .order("headline");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch all articles for translation linking
+  const { data: allArticles } = useQuery({
+    queryKey: ["allArticles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blog_articles")
+        .select("id, slug, headline, language")
         .order("headline");
       if (error) throw error;
       return data;
@@ -146,6 +161,7 @@ const ArticleEditor = () => {
       setRelatedArticleIds(article.related_article_ids || []);
       setCtaArticleIds(article.cta_article_ids || []);
       setFaqEntities((article.faq_entities as unknown as FAQEntity[]) || []);
+      setTranslations((article.translations as Record<string, string>) || {});
     }
   }, [article]);
 
@@ -247,6 +263,7 @@ const ArticleEditor = () => {
         related_article_ids: relatedArticleIds,
         cta_article_ids: ctaArticleIds,
         faq_entities: faqEntities.length > 0 ? (faqEntities as any) : null,
+        translations: translations,
         read_time: Math.ceil(contentWords / 200),
         date_modified: new Date().toISOString(),
         ...(publishStatus === 'published' && !article?.date_published ? { date_published: new Date().toISOString() } : {}),
@@ -678,6 +695,20 @@ const ArticleEditor = () => {
         <FAQSection
           faqEntities={faqEntities}
           onFaqEntitiesChange={setFaqEntities}
+        />
+
+        {/* Section 11: Translations */}
+        <TranslationsSection
+          currentLanguage={language}
+          currentSlug={slug}
+          translations={translations}
+          articles={allArticles}
+          onTranslationsChange={setTranslations}
+          onCreateTranslation={(lang) => {
+            toast.info(`Creating ${lang} translation - coming soon`);
+          }}
+          hasNoTranslations={Object.keys(translations).length === 0}
+          isPublished={status === "published"}
         />
 
         {/* Action Buttons */}
