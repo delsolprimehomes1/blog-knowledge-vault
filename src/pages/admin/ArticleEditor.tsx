@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RichTextEditor } from "@/components/RichTextEditor";
+import { LazyRichTextEditor } from "@/components/LazyRichTextEditor";
 import { toast } from "sonner";
 import { AlertCircle, Upload, Save, Eye } from "lucide-react";
 import { 
@@ -523,7 +523,7 @@ const ArticleEditor = () => {
 
             <div>
               <Label>Detailed Content (1500-2500 words target) *</Label>
-              <RichTextEditor
+              <LazyRichTextEditor
                 content={detailedContent}
                 onChange={setDetailedContent}
                 placeholder="Write your detailed article content here..."

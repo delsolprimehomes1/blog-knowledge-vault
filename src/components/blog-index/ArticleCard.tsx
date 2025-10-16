@@ -4,6 +4,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Clock, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
+import { OptimizedImage } from "@/components/OptimizedImage";
+import { prefetchArticle, prefetchImage } from "@/lib/prefetch";
 
 interface ArticleCardProps {
   article: {
@@ -40,15 +42,25 @@ export const ArticleCard = ({ article, author }: ArticleCardProps) => {
     ? article.meta_description.substring(0, 100) + "..." 
     : article.meta_description;
 
+  const handleMouseEnter = () => {
+    // Prefetch article and featured image on hover
+    prefetchArticle(article.slug);
+    prefetchImage(article.featured_image_url);
+  };
+
   return (
-    <Card className="h-full overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
+    <Card 
+      className="h-full overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+      onMouseEnter={handleMouseEnter}
+    >
       <CardContent className="p-0">
-        <div className="relative overflow-hidden">
-          <img
+        <div className="relative overflow-hidden aspect-video">
+          <OptimizedImage
             src={article.featured_image_url}
             alt={article.headline}
-            className="w-full aspect-video object-cover group-hover:scale-110 transition-transform duration-300"
-            loading="lazy"
+            width={600}
+            height={338}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
           />
           <Badge className="absolute top-3 left-3" variant="secondary">
             {article.category}

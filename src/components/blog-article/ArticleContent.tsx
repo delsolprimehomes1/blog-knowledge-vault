@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ExternalLink } from "lucide-react";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 interface ArticleContentProps {
   content: string;
@@ -51,11 +51,13 @@ export const ArticleContent = ({
   return (
     <article className="prose prose-lg max-w-none">
       <figure className="my-8">
-        <img
+        <OptimizedImage
           src={featuredImageUrl}
           alt={featuredImageAlt}
-          className="w-full rounded-lg"
-          loading="lazy"
+          width={1200}
+          height={675}
+          priority
+          className="w-full rounded-lg object-cover"
         />
         {featuredImageCaption && (
           <figcaption className="text-center text-sm text-muted-foreground mt-2">
@@ -72,11 +74,12 @@ export const ArticleContent = ({
 
       {diagramUrl && (
         <figure className="my-8">
-          <img
+          <OptimizedImage
             src={diagramUrl}
             alt={diagramDescription || "Diagram"}
-            className="w-full rounded-lg border"
-            loading="lazy"
+            width={1200}
+            height={800}
+            className="w-full rounded-lg border object-contain"
           />
           {diagramDescription && (
             <figcaption className="text-center text-sm text-muted-foreground mt-2">
