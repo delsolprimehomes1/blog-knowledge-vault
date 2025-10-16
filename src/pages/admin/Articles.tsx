@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Edit, Eye, Trash2, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Articles = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -91,7 +93,7 @@ const Articles = () => {
               Manage your blog content ({filteredArticles.length} total)
             </p>
           </div>
-          <Button size="lg">
+          <Button onClick={() => navigate('/admin/articles/new')} size="lg">
             <Plus className="mr-2 h-5 w-5" />
             Create Article
           </Button>
@@ -234,7 +236,11 @@ const Articles = () => {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-2">
-                            <Button size="sm" variant="ghost">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => navigate(`/admin/articles/${article.id}/edit`)}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button size="sm" variant="ghost">

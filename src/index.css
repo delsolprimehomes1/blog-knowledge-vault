@@ -102,4 +102,53 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Rich text editor prose styles */
+  .prose {
+    @apply text-foreground;
+  }
+  
+  .prose h2 {
+    @apply text-2xl font-bold mt-6 mb-4;
+  }
+  
+  .prose h3 {
+    @apply text-xl font-semibold mt-4 mb-3;
+  }
+  
+  .prose p {
+    @apply mb-4;
+  }
+  
+  .prose ul, .prose ol {
+    @apply mb-4 ml-6;
+  }
+  
+  .prose li {
+    @apply mb-2;
+  }
+  
+  .prose a {
+    @apply text-primary underline;
+  }
+  
+  .prose strong {
+    @apply font-bold;
+  }
+  
+  .prose em {
+    @apply italic;
+  }
+  
+  .prose table {
+    @apply w-full border-collapse mb-4;
+  }
+  
+  .prose th {
+    @apply border border-border bg-muted p-2 text-left font-semibold;
+  }
+  
+  .prose td {
+    @apply border border-border p-2;
+  }
 }
