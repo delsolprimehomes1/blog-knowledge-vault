@@ -360,11 +360,71 @@ Return only the alt text, no quotes, no JSON.`;
         article.diagram_description = null;
       }
 
-      // 9. E-E-A-T ATTRIBUTION (select random author for now)
+      // 9. E-E-A-T ATTRIBUTION (AI-powered author matching)
       if (authors && authors.length > 0) {
-        const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
-        article.author_id = randomAuthor.id;
-        article.reviewer_id = authors.length > 1 ? authors.find(a => a.id !== randomAuthor.id)?.id : null;
+        try {
+          const authorPrompt = `Suggest E-E-A-T attribution for this real estate article:
+
+Headline: ${plan.headline}
+Funnel Stage: ${plan.funnelStage}
+Target Keyword: ${plan.targetKeyword}
+Content Focus: ${article.speakable_answer}
+
+Available Authors:
+${authors.map((author: any, idx: number) => 
+  `${idx + 1}. ${author.name} - ${author.job_title}, ${author.years_experience} years experience
+     Bio: ${author.bio.substring(0, 200)}
+     Credentials: ${author.credentials.join(', ')}`
+).join('\n\n')}
+
+Requirements:
+- Match author expertise to article topic
+- Consider funnel stage (${plan.funnelStage}):
+  * TOFU: Educational background, broad market knowledge
+  * MOFU: Analytical skills, comparison expertise
+  * BOFU: Transaction experience, legal knowledge
+- Select different person as reviewer (if available)
+- Reviewer should complement primary author's expertise
+
+Return ONLY valid JSON:
+{
+  "primaryAuthorNumber": 1,
+  "reviewerNumber": 2,
+  "reasoning": "Author 1 is best because [expertise match]. Reviewer 2 complements with [different expertise].",
+  "confidence": 90
+}`;
+
+          const authorResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [{ role: 'user', content: authorPrompt }],
+            }),
+          });
+
+          const authorData = await authorResponse.json();
+          const authorText = authorData.choices[0].message.content;
+          const authorSuggestion = JSON.parse(authorText.replace(/```json\n?|\n?```/g, ''));
+
+          const primaryAuthorIdx = authorSuggestion.primaryAuthorNumber - 1;
+          const reviewerIdx = authorSuggestion.reviewerNumber - 1;
+
+          article.author_id = authors[primaryAuthorIdx]?.id || authors[0].id;
+          article.reviewer_id = (reviewerIdx >= 0 && reviewerIdx < authors.length && reviewerIdx !== primaryAuthorIdx) 
+            ? authors[reviewerIdx]?.id 
+            : (authors.length > 1 ? authors.find((a: any) => a.id !== article.author_id)?.id : null);
+
+          console.log(`E-E-A-T: ${authors[primaryAuthorIdx]?.name} (author) + ${authors[reviewerIdx]?.name || 'none'} (reviewer) | Confidence: ${authorSuggestion.confidence}%`);
+        } catch (error) {
+          console.error('E-E-A-T attribution failed, using fallback:', error);
+          // Fallback to first author
+          article.author_id = authors[0].id;
+          article.reviewer_id = authors.length > 1 ? authors[1].id : null;
+        }
       } else {
         article.author_id = null;
         article.reviewer_id = null;
