@@ -12,6 +12,7 @@ import Settings from "./pages/admin/Settings";
 import ArticleEditor from "./pages/admin/ArticleEditor";
 import Export from "./pages/admin/Export";
 import AITools from "./pages/admin/AITools";
+import SystemCheck from "./pages/admin/SystemCheck";
 import Auth from "./pages/Auth";
 import BlogArticle from "./pages/BlogArticle";
 import BlogIndex from "./pages/BlogIndex";
@@ -49,6 +50,7 @@ const App = () => (
           <Route path="/admin/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/admin/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
           <Route path="/admin/ai-tools" element={<ProtectedRoute><AITools /></ProtectedRoute>} />
+          <Route path="/admin/system-check" element={<ProtectedRoute><SystemCheck /></ProtectedRoute>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
