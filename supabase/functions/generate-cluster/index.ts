@@ -123,15 +123,24 @@ Return ONLY valid JSON:
       article.category = matchedCategory;
 
       // 4. SEO META TAGS
-      const seoPrompt = `Generate SEO meta tags for this article:
+      const seoPrompt = `Create SEO meta tags for this article:
+
 Headline: ${plan.headline}
-Target keyword: ${plan.targetKeyword}
-Content angle: ${plan.contentAngle}
+Target Keyword: ${plan.targetKeyword}
+Content Angle: ${plan.contentAngle}
+Language: ${language}
+
+Requirements:
+- Meta Title: Include primary keyword, location "Costa del Sol", and year 2025
+- Max 60 characters (strict limit)
+- Meta Description: Compelling summary with CTA
+- Max 160 characters (strict limit)
+- Include numbers or specific benefits (e.g., "5 steps", "Complete guide", "Expert tips")
 
 Return ONLY valid JSON:
 {
-  "metaTitle": "SEO-optimized title with keyword (max 60 chars)",
-  "metaDescription": "Compelling description with keyword and CTA (max 160 chars)"
+  "title": "Title here (max 60 chars)",
+  "description": "Description with benefits and CTA (max 160 chars)"
 }`;
 
       const seoResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -150,8 +159,8 @@ Return ONLY valid JSON:
       const seoText = seoData.choices[0].message.content;
       const seoMeta = JSON.parse(seoText.replace(/```json\n?|\n?```/g, ''));
       
-      article.meta_title = seoMeta.metaTitle;
-      article.meta_description = seoMeta.metaDescription;
+      article.meta_title = seoMeta.title;
+      article.meta_description = seoMeta.description;
       article.canonical_url = null;
 
       // 5. SPEAKABLE ANSWER (40-60 words)
