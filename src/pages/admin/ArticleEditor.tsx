@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LazyRichTextEditor } from "@/components/LazyRichTextEditor";
+import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { toast } from "sonner";
 import { AlertCircle, Upload, Save, Eye } from "lucide-react";
 import { 
@@ -547,62 +548,29 @@ const ArticleEditor = () => {
             <CardTitle>Featured Image & Media</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="featuredImage">Featured Image *</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="featuredImage"
-                  value={featuredImageUrl}
-                  onChange={(e) => setFeaturedImageUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  className={errors.featuredImageUrl ? "border-red-500" : ""}
-                />
-                <label htmlFor="imageUpload">
-                  <Button type="button" variant="outline" disabled={imageUploading} asChild>
-                    <span>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
-                    </span>
-                  </Button>
-                </label>
-                <input
-                  id="imageUpload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageUpload(file, setFeaturedImageUrl);
-                  }}
-                />
-              </div>
-              {featuredImageUrl && (
-                <img src={featuredImageUrl} alt="Preview" className="mt-2 h-32 object-cover rounded" />
-              )}
-              {errors.featuredImageUrl && (
-                <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.featuredImageUrl}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="featuredImageAlt">Featured Image Alt Text *</Label>
-              <Input
-                id="featuredImageAlt"
-                value={featuredImageAlt}
-                onChange={(e) => setFeaturedImageAlt(e.target.value)}
-                placeholder="Describe the image for accessibility"
-                className={errors.featuredImageAlt ? "border-red-500" : ""}
-              />
-              {errors.featuredImageAlt && (
-                <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.featuredImageAlt}
-                </p>
-              )}
-            </div>
+            <AIImageGenerator
+              headline={headline}
+              imageUrl={featuredImageUrl}
+              imageAlt={featuredImageAlt}
+              onImageChange={(url, alt) => {
+                setFeaturedImageUrl(url);
+                setFeaturedImageAlt(alt);
+              }}
+              onImageUpload={(file) => handleImageUpload(file, setFeaturedImageUrl)}
+              imageUploading={imageUploading}
+            />
+            {errors.featuredImageUrl && (
+              <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {errors.featuredImageUrl}
+              </p>
+            )}
+            {errors.featuredImageAlt && (
+              <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {errors.featuredImageAlt}
+              </p>
+            )}
 
             <div>
               <Label htmlFor="featuredImageCaption">Featured Image Caption (Optional)</Label>
