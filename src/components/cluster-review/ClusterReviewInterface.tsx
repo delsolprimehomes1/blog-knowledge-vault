@@ -1,22 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { BlogArticle, Language, FunnelStage, ArticleStatus, InternalLink, ExternalCitation, FAQEntity } from "@/types/blog";
+import { BlogArticle, Language, FunnelStage } from "@/types/blog";
 import { ArticleTab } from "./ArticleTab";
-import { RegenerateActions } from "./RegenerateActions";
 import { BulkActions } from "./BulkActions";
-import { BasicInfoSection } from "@/components/article-editor/BasicInfoSection";
-import { SEOMetaSection } from "@/components/article-editor/SEOMetaSection";
-import { ContentSection } from "@/components/article-editor/ContentSection";
-import { MediaSection } from "@/components/article-editor/MediaSection";
-import { EEATSection } from "@/components/article-editor/EEATSection";
-import { ExternalCitationsSection } from "@/components/article-editor/ExternalCitationsSection";
-import { InternalLinksSection } from "@/components/article-editor/InternalLinksSection";
-import { RelatedArticlesSection } from "@/components/article-editor/RelatedArticlesSection";
-import { FunnelCTASection } from "@/components/article-editor/FunnelCTASection";
-import { FAQSection } from "@/components/article-editor/FAQSection";
-import { TranslationsSection } from "@/components/article-editor/TranslationsSection";
-import { uploadImage, countWords } from "@/lib/articleUtils";
+import { ArticleReviewCard } from "./ArticleReviewCard";
 import { toast } from "sonner";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
@@ -40,7 +28,7 @@ export const ClusterReviewInterface = ({
   onArticlesChange,
 }: ClusterReviewInterfaceProps) => {
   const [activeTab, setActiveTab] = useState(0);
-  const [imageUploading, setImageUploading] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const currentArticle = articles[activeTab];
 
@@ -97,22 +85,9 @@ export const ClusterReviewInterface = ({
     onArticlesChange(newArticles);
   };
 
-  const handleImageUpload = async (file: File, setter: (url: string) => void) => {
-    try {
-      setImageUploading(true);
-      const url = await uploadImage(file, supabase);
-      setter(url);
-      toast.success("Image uploaded successfully");
-    } catch (error) {
-      toast.error("Failed to upload image");
-      console.error(error);
-    } finally {
-      setImageUploading(false);
-    }
-  };
-
   const handleRegenerateSection = async (section: string) => {
     try {
+      setIsRegenerating(true);
       toast.info(`Regenerating ${section}...`);
       const { data, error } = await supabase.functions.invoke("regenerate-section", {
         body: {
@@ -129,10 +104,20 @@ export const ClusterReviewInterface = ({
     } catch (error) {
       console.error("Regeneration error:", error);
       toast.error(`Failed to regenerate ${section}`);
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
-  const contentWords = countWords(currentArticle?.detailed_content?.replace(/<[^>]*>/g, ' ').trim() || "");
+  const handleAcceptArticle = () => {
+    updateArticle(activeTab, { _reviewed: true } as any);
+    if (activeTab < articles.length - 1) {
+      setActiveTab(activeTab + 1);
+      toast.success("Article accepted! Moving to next article.");
+    } else {
+      toast.success("All articles reviewed! Ready to save or publish.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -160,120 +145,28 @@ export const ClusterReviewInterface = ({
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Regenerate Actions */}
-      <RegenerateActions
-        onRegenerateHeadline={() => handleRegenerateSection("headline")}
-        onRegenerateSEO={() => handleRegenerateSection("seo")}
-        onRegenerateImage={() => handleRegenerateSection("image")}
-        onRegenerateContent={() => handleRegenerateSection("content")}
+      {/* Article Review Card */}
+      <ArticleReviewCard
+        article={currentArticle}
+        allArticles={allArticles}
+        categories={categories}
+        authors={authors}
+        publishedArticles={publishedArticles}
+        onRegenerate={handleRegenerateSection}
+        onEdit={(updates) => updateArticle(activeTab, updates)}
+        onAccept={handleAcceptArticle}
+        onRemoveCitation={(index) => {
+          const newCitations = [...(currentArticle?.external_citations || [])];
+          newCitations.splice(index, 1);
+          updateArticle(activeTab, { external_citations: newCitations as any });
+        }}
+        onRemoveInternalLink={(index) => {
+          const newLinks = [...(currentArticle?.internal_links || [])];
+          newLinks.splice(index, 1);
+          updateArticle(activeTab, { internal_links: newLinks as any });
+        }}
+        isRegenerating={isRegenerating}
       />
-
-      {/* Article Editor Sections */}
-      <div className="space-y-6">
-        <BasicInfoSection
-          headline={currentArticle?.headline || ""}
-          slug={currentArticle?.slug || ""}
-          language={currentArticle?.language as Language || language}
-          category={currentArticle?.category || ""}
-          funnelStage={currentArticle?.funnel_stage as FunnelStage || "TOFU"}
-          status={currentArticle?.status as ArticleStatus || "draft"}
-          categories={categories}
-          onHeadlineChange={(val) => updateArticle(activeTab, { headline: val })}
-          onSlugChange={(val) => updateArticle(activeTab, { slug: val })}
-          onLanguageChange={(val) => updateArticle(activeTab, { language: val })}
-          onCategoryChange={(val) => updateArticle(activeTab, { category: val })}
-          onFunnelStageChange={(val) => updateArticle(activeTab, { funnel_stage: val })}
-          onStatusChange={(val) => updateArticle(activeTab, { status: val })}
-        />
-
-        <SEOMetaSection
-          metaTitle={currentArticle?.meta_title || ""}
-          metaDescription={currentArticle?.meta_description || ""}
-          canonicalUrl={currentArticle?.canonical_url || ""}
-          onMetaTitleChange={(val) => updateArticle(activeTab, { meta_title: val })}
-          onMetaDescriptionChange={(val) => updateArticle(activeTab, { meta_description: val })}
-          onCanonicalUrlChange={(val) => updateArticle(activeTab, { canonical_url: val })}
-        />
-
-        <ContentSection
-          speakableAnswer={currentArticle?.speakable_answer || ""}
-          detailedContent={currentArticle?.detailed_content || ""}
-          onSpeakableAnswerChange={(val) => updateArticle(activeTab, { speakable_answer: val })}
-          onDetailedContentChange={(val) => updateArticle(activeTab, { detailed_content: val })}
-        />
-
-        <MediaSection
-          headline={currentArticle?.headline || ""}
-          featuredImageUrl={currentArticle?.featured_image_url || ""}
-          featuredImageAlt={currentArticle?.featured_image_alt || ""}
-          featuredImageCaption={currentArticle?.featured_image_caption || ""}
-          diagramMermaidCode={currentArticle?.diagram_url || ""}
-          diagramDescription={currentArticle?.diagram_description || ""}
-          detailedContent={currentArticle?.detailed_content || ""}
-          onImageChange={(url, alt) => updateArticle(activeTab, { featured_image_url: url, featured_image_alt: alt })}
-          onImageUpload={(file) => handleImageUpload(file, (url) => updateArticle(activeTab, { featured_image_url: url }))}
-          onFeaturedImageCaptionChange={(val) => updateArticle(activeTab, { featured_image_caption: val })}
-          onDiagramGenerated={(code, desc) => updateArticle(activeTab, { diagram_url: code, diagram_description: desc })}
-          imageUploading={imageUploading}
-        />
-
-        <EEATSection
-          authors={authors}
-          authorId={currentArticle?.author_id || ""}
-          reviewerId={currentArticle?.reviewer_id || ""}
-          datePublished={currentArticle?.date_published || ""}
-          dateModified={currentArticle?.date_modified || ""}
-          readTime={Math.ceil(contentWords / 200)}
-          onAuthorChange={(val) => updateArticle(activeTab, { author_id: val })}
-          onReviewerChange={(val) => updateArticle(activeTab, { reviewer_id: val })}
-          errors={{}}
-        />
-
-        <ExternalCitationsSection
-          citations={(currentArticle?.external_citations as unknown as ExternalCitation[]) || []}
-          onCitationsChange={(val) => updateArticle(activeTab, { external_citations: val as any })}
-          articleContent={currentArticle?.detailed_content || ""}
-          headline={currentArticle?.headline || ""}
-          errors={{}}
-        />
-
-        <InternalLinksSection
-          links={(currentArticle?.internal_links as unknown as InternalLink[]) || []}
-          onLinksChange={(val) => updateArticle(activeTab, { internal_links: val as any })}
-          articleContent={currentArticle?.detailed_content || ""}
-          headline={currentArticle?.headline || ""}
-          language={currentArticle?.language as Language || language}
-        />
-
-        <RelatedArticlesSection
-          articles={publishedArticles}
-          selectedIds={currentArticle?.related_article_ids || []}
-          onSelectedIdsChange={(val) => updateArticle(activeTab, { related_article_ids: val })}
-        />
-
-        <FunnelCTASection
-          funnelStage={currentArticle?.funnel_stage as FunnelStage || "TOFU"}
-          articles={publishedArticles}
-          selectedIds={currentArticle?.cta_article_ids || []}
-          onSelectedIdsChange={(val) => updateArticle(activeTab, { cta_article_ids: val })}
-        />
-
-        <FAQSection
-          faqEntities={(currentArticle?.faq_entities as unknown as FAQEntity[]) || []}
-          onFaqEntitiesChange={(val) => updateArticle(activeTab, { faq_entities: val as any })}
-        />
-
-        <TranslationsSection
-          currentLanguage={currentArticle?.language as Language || language}
-          currentSlug={currentArticle?.slug || ""}
-          translations={(currentArticle?.translations as Record<string, string>) || {}}
-          articles={allArticles}
-          onTranslationsChange={(val) => updateArticle(activeTab, { translations: val })}
-          onCreateTranslation={(lang) => toast.info(`Creating ${lang} translation - coming soon`)}
-          hasNoTranslations={Object.keys((currentArticle?.translations as Record<string, string>) || {}).length === 0}
-          isPublished={currentArticle?.status === "published"}
-        />
-      </div>
 
       {/* Bulk Actions */}
       <BulkActions

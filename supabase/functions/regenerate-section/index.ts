@@ -81,6 +81,71 @@ Return ONLY a JSON object:
 }`;
         break;
 
+      case 'image_alt':
+        prompt = `Generate SEO-optimized alt text for this article's featured image:
+Headline: ${articleData.headline}
+Target Keyword: ${articleData.meta_title?.split(' ')[0] || ''}
+Current alt: ${articleData.featured_image_alt}
+
+Requirements:
+- Include primary keyword naturally
+- Describe what's visible (Costa del Sol property)
+- Max 125 characters
+- Descriptive, not keyword-stuffed
+
+Return ONLY JSON: { "featuredImageAlt": "..." }`;
+        break;
+
+      case 'speakable':
+        prompt = `Regenerate the speakable answer (voice assistant response) for:
+Headline: ${articleData.headline}
+Current answer: ${articleData.speakable_answer}
+Language: ${articleData.language}
+
+Requirements:
+- Conversational, natural tone
+- 50-80 words
+- Directly answers the main question
+- Includes key information
+
+Return ONLY JSON: { "speakableAnswer": "..." }`;
+        break;
+
+      case 'meta_title':
+        prompt = `Generate optimized meta title for this article:
+Headline: ${articleData.headline}
+Language: ${articleData.language}
+
+Requirements:
+- Max 60 characters
+- Include primary keyword
+- Engaging and click-worthy
+
+Return ONLY JSON: { "metaTitle": "..." }`;
+        break;
+
+      case 'meta_description':
+        prompt = `Generate optimized meta description for this article:
+Headline: ${articleData.headline}
+Content summary: ${articleData.speakable_answer}
+Language: ${articleData.language}
+
+Requirements:
+- Max 160 characters
+- Include primary keyword
+- Call to action
+
+Return ONLY JSON: { "metaDescription": "..." }`;
+        break;
+
+      case 'eeat':
+        prompt = `This section requires author data. Return empty suggestions.`;
+        break;
+
+      case 'links':
+        prompt = `This section requires external link finding. Return empty.`;
+        break;
+
       default:
         throw new Error(`Unknown section: ${section}`);
     }
@@ -115,8 +180,18 @@ Return ONLY a JSON object:
       };
     } else if (section === 'image') {
       updates = { featured_image_alt: result.featuredImageAlt };
+    } else if (section === 'image_alt') {
+      updates = { featured_image_alt: result.featuredImageAlt };
+    } else if (section === 'speakable') {
+      updates = { speakable_answer: result.speakableAnswer };
+    } else if (section === 'meta_title') {
+      updates = { meta_title: result.metaTitle };
+    } else if (section === 'meta_description') {
+      updates = { meta_description: result.metaDescription };
     } else if (section === 'content') {
       updates = { detailed_content: result.detailedContent };
+    } else if (section === 'eeat' || section === 'links') {
+      updates = {}; // Handled differently
     }
 
     console.log('Section regenerated successfully:', section);
