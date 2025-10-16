@@ -185,6 +185,48 @@ export type Database = {
         }
         Relationships: []
       }
+      chatbot_conversations: {
+        Row: {
+          area: string | null
+          article_slug: string | null
+          budget_range: string | null
+          conversation_transcript: Json | null
+          created_at: string
+          id: string
+          preferred_language: string | null
+          property_type: string | null
+          user_email: string | null
+          user_name: string | null
+          user_phone: string | null
+        }
+        Insert: {
+          area?: string | null
+          article_slug?: string | null
+          budget_range?: string | null
+          conversation_transcript?: Json | null
+          created_at?: string
+          id?: string
+          preferred_language?: string | null
+          property_type?: string | null
+          user_email?: string | null
+          user_name?: string | null
+          user_phone?: string | null
+        }
+        Update: {
+          area?: string | null
+          article_slug?: string | null
+          budget_range?: string | null
+          conversation_transcript?: Json | null
+          created_at?: string
+          id?: string
+          preferred_language?: string | null
+          property_type?: string | null
+          user_email?: string | null
+          user_name?: string | null
+          user_phone?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -12,6 +12,7 @@ import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
 import { generateAllSchemas, injectSchemas } from "@/lib/schemaGenerator";
 import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage } from "@/types/blog";
+import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 
 const BlogArticle = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -179,6 +180,11 @@ const BlogArticle = () => {
           </div>
         </div>
       </div>
+
+      {/* Chatbot Widget - Only for BOFU articles */}
+      {article.funnel_stage === "BOFU" && (
+        <ChatbotWidget articleSlug={article.slug} language={article.language} />
+      )}
     </>
   );
 };
