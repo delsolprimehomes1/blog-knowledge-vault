@@ -4,15 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { InternalLink } from "@/types/blog";
+import { InternalLinkFinder } from "@/components/InternalLinkFinder";
 
 interface InternalLinksSectionProps {
   links: InternalLink[];
   onLinksChange: (links: InternalLink[]) => void;
+  articleContent?: string;
+  headline?: string;
+  currentArticleId?: string;
+  language?: string;
 }
 
 export const InternalLinksSection = ({
   links,
   onLinksChange,
+  articleContent = "",
+  headline = "",
+  currentArticleId,
+  language = "en",
 }: InternalLinksSectionProps) => {
   const addLink = () => {
     onLinksChange([...links, { text: "", url: "", title: "" }]);
@@ -28,6 +37,10 @@ export const InternalLinksSection = ({
     onLinksChange(links.filter((_, i) => i !== index));
   };
 
+  const handleLinksFound = (newLinks: InternalLink[]) => {
+    onLinksChange([...links, ...newLinks]);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -36,8 +49,30 @@ export const InternalLinksSection = ({
           Add links to other articles on your site. Minimum 5 recommended.
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {links.map((link, index) => (
+      <CardContent className="space-y-6">
+        <InternalLinkFinder
+          articleContent={articleContent}
+          headline={headline}
+          currentArticleId={currentArticleId}
+          language={language}
+          onLinksFound={handleLinksFound}
+        />
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-semibold">Manual Links</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addLink}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Manual Link
+            </Button>
+          </div>
+
+          {links.map((link, index) => (
           <div key={index} className="p-4 border rounded-lg space-y-3">
             <div className="flex items-center justify-between">
               <Label>Internal Link {index + 1}</Label>
@@ -76,16 +111,7 @@ export const InternalLinksSection = ({
             </div>
           </div>
         ))}
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={addLink}
-          className="w-full"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Internal Link
-        </Button>
+        </div>
 
         {links.length < 5 && (
           <p className="text-sm text-amber-600 flex items-center gap-1">

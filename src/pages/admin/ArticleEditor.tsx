@@ -622,6 +622,10 @@ const ArticleEditor = () => {
         <InternalLinksSection
           links={internalLinks}
           onLinksChange={setInternalLinks}
+          articleContent={detailedContent}
+          headline={headline}
+          currentArticleId={id}
+          language={language}
         />
 
         {/* Section 8: Related Articles */}
