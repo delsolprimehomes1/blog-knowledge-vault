@@ -120,12 +120,70 @@ const BlogArticle = () => {
   const schemas = generateAllSchemas(article, author || null, reviewer || null);
   const schemaScripts = injectSchemas(schemas);
 
+  const baseUrl = window.location.origin;
+  const currentUrl = `${baseUrl}/article/${article.slug}`;
+
+  // Generate hreflang URLs from translations
+  const hreflangUrls = Object.entries(article.translations || {}).reduce((acc, [lang, slug]) => {
+    acc[lang] = `${baseUrl}/article/${slug}`;
+    return acc;
+  }, {} as Record<string, string>);
+
+  // Language to hreflang mapping
+  const langToHreflang: Record<string, string> = {
+    en: 'en-GB',
+    es: 'es-ES',
+    de: 'de-DE',
+    nl: 'nl-NL',
+    fr: 'fr-FR',
+    pl: 'pl-PL',
+    sv: 'sv-SE',
+    da: 'da-DK',
+    hu: 'hu-HU',
+  };
+
   return (
     <>
       <Helmet>
-        <title>{article.meta_title}</title>
+        {/* Basic Meta Tags */}
+        <title>{article.meta_title} | Del Sol Prime Homes</title>
         <meta name="description" content={article.meta_description} />
-        {article.canonical_url && <link rel="canonical" href={article.canonical_url} />}
+        <link rel="canonical" href={article.canonical_url || currentUrl} />
+        
+        {/* Open Graph Tags */}
+        <meta property="og:title" content={article.headline} />
+        <meta property="og:description" content={article.meta_description} />
+        <meta property="og:image" content={article.featured_image_url} />
+        <meta property="og:url" content={currentUrl} />
+        <meta property="og:type" content="article" />
+        <meta property="og:site_name" content="Del Sol Prime Homes" />
+        {article.date_published && (
+          <meta property="article:published_time" content={article.date_published} />
+        )}
+        {article.date_modified && (
+          <meta property="article:modified_time" content={article.date_modified} />
+        )}
+        {author && <meta property="article:author" content={author.name} />}
+        
+        {/* Twitter Card Tags */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={article.headline} />
+        <meta name="twitter:description" content={article.meta_description} />
+        <meta name="twitter:image" content={article.featured_image_url} />
+        
+        {/* Hreflang Tags */}
+        {Object.entries(hreflangUrls).map(([lang, url]) => (
+          <link key={lang} rel="alternate" hrefLang={langToHreflang[lang]} href={url} />
+        ))}
+        {hreflangUrls['en'] && (
+          <link rel="alternate" hrefLang="x-default" href={hreflangUrls['en']} />
+        )}
+        
+        {/* Additional Meta */}
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        {author && <meta name="author" content={author.name} />}
+        <meta name="language" content={article.language} />
+        
         {/* Inject JSON-LD schemas */}
         <script type="application/ld+json">{JSON.stringify(schemas.article)}</script>
         <script type="application/ld+json">{JSON.stringify(schemas.speakable)}</script>

@@ -28,6 +28,7 @@ import { FunnelCTASection } from "@/components/article-editor/FunnelCTASection";
 import { FAQSection } from "@/components/article-editor/FAQSection";
 import { TranslationsSection } from "@/components/article-editor/TranslationsSection";
 import { SchemaPreviewSection } from "@/components/article-editor/SchemaPreviewSection";
+import { SEOPreviewSection } from "@/components/article-editor/SEOPreviewSection";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -482,6 +483,14 @@ const ArticleEditor = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* SEO Preview */}
+        <SEOPreviewSection
+          metaTitle={metaTitle}
+          metaDescription={metaDescription}
+          featuredImageUrl={featuredImageUrl}
+          translations={translations}
+        />
 
         {/* Section 3: Content */}
         <Card>
