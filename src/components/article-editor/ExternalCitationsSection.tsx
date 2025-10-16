@@ -4,17 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { ExternalCitation } from "@/types/blog";
+import { ExternalLinkFinder } from "@/components/ExternalLinkFinder";
 
 interface ExternalCitationsSectionProps {
   citations: ExternalCitation[];
   onCitationsChange: (citations: ExternalCitation[]) => void;
   errors: Record<string, string>;
+  articleContent?: string;
+  headline?: string;
 }
 
 export const ExternalCitationsSection = ({
   citations,
   onCitationsChange,
   errors,
+  articleContent = "",
+  headline = "",
 }: ExternalCitationsSectionProps) => {
   const addCitation = () => {
     onCitationsChange([...citations, { text: "", url: "", source: "" }]);
@@ -42,7 +47,26 @@ export const ExternalCitationsSection = ({
           Add 2-5 citations. At least one must be from a .gov or .gob.es domain.
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* AI-Powered Source Finder */}
+        <ExternalLinkFinder
+          articleContent={articleContent}
+          headline={headline}
+          currentCitations={citations}
+          onCitationsChange={onCitationsChange}
+        />
+
+        {/* Manual Citations List */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium text-sm">Current Citations</h4>
+            {citations.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {citations.length} of 5 maximum
+              </span>
+            )}
+          </div>
+
         {citations.map((citation, index) => (
           <div key={index} className="p-4 border rounded-lg space-y-3">
             <div className="flex items-center justify-between">
@@ -116,6 +140,7 @@ export const ExternalCitationsSection = ({
             {errors.externalCitations}
           </p>
         )}
+        </div>
       </CardContent>
     </Card>
   );

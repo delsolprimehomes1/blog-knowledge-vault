@@ -614,6 +614,8 @@ const ArticleEditor = () => {
           citations={externalCitations}
           onCitationsChange={setExternalCitations}
           errors={errors}
+          articleContent={detailedContent}
+          headline={headline}
         />
 
         {/* Section 7: Internal Links */}
