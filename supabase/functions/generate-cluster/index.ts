@@ -248,29 +248,90 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       const contentData = await contentResponse.json();
       article.detailed_content = contentData.choices[0].message.content.trim();
 
-      // 7. FEATURED IMAGE (using existing generate-image function)
+      // 7. FEATURED IMAGE (using existing generate-image function with enhanced prompt)
+      const inferPropertyType = (contentAngle: string, headline: string) => {
+        const text = (contentAngle + ' ' + headline).toLowerCase();
+        if (text.includes('villa')) return 'luxury Spanish villa';
+        if (text.includes('apartment') || text.includes('flat')) return 'modern apartment';
+        if (text.includes('penthouse')) return 'penthouse with terrace';
+        if (text.includes('townhouse')) return 'townhouse';
+        return 'luxury property';
+      };
+
+      const inferLocation = (headline: string) => {
+        const text = headline.toLowerCase();
+        if (text.includes('marbella')) return 'Marbella';
+        if (text.includes('estepona')) return 'Estepona';
+        if (text.includes('malaga') || text.includes('málaga')) return 'Málaga';
+        if (text.includes('mijas')) return 'Mijas';
+        if (text.includes('benalmádena') || text.includes('benalmadena')) return 'Benalmádena';
+        return 'Costa del Sol';
+      };
+
+      const propertyType = inferPropertyType(plan.contentAngle, plan.headline);
+      const location = inferLocation(plan.headline);
+
+      const imagePrompt = `Professional real estate photography: ${plan.headline}. 
+Luxury Costa del Sol property, ${propertyType}, 
+Mediterranean architecture, Spanish villa style, bright natural lighting, 
+high-end interior design, ${location}, 
+ultra-realistic, 8k resolution, architectural digest style, 
+blue skies, palm trees, sea view, no text, no watermarks`;
+
       try {
         const imageResponse = await supabase.functions.invoke('generate-image', {
           body: {
-            prompt: `Professional luxury real estate photography: ${plan.headline}. Costa del Sol property, Mediterranean architecture, bright natural lighting, high-end interior design, ultra-realistic, 8k resolution`,
+            prompt: imagePrompt,
             headline: plan.headline,
           },
         });
 
+        let featuredImageUrl = '';
+        let featuredImageAlt = '';
+
         if (imageResponse.data?.images?.[0]?.url) {
-          article.featured_image_url = imageResponse.data.images[0].url;
-          article.featured_image_alt = `${plan.headline} - Costa del Sol luxury property`;
-        } else {
-          article.featured_image_url = '';
-          article.featured_image_alt = '';
+          featuredImageUrl = imageResponse.data.images[0].url;
+
+          // Generate SEO-optimized alt text
+          const altPrompt = `Create SEO-optimized alt text for this image:
+
+Article: ${plan.headline}
+Target Keyword: ${plan.targetKeyword}
+Image shows: ${imagePrompt}
+
+Requirements:
+- Include primary keyword "${plan.targetKeyword}"
+- Describe what's visible in the image
+- Max 125 characters
+- Natural, descriptive (not keyword stuffed)
+
+Return only the alt text, no quotes, no JSON.`;
+
+          const altResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [{ role: 'user', content: altPrompt }],
+            }),
+          });
+
+          const altData = await altResponse.json();
+          featuredImageAlt = altData.choices[0].message.content.trim();
         }
+
+        article.featured_image_url = featuredImageUrl;
+        article.featured_image_alt = featuredImageAlt;
+        article.featured_image_caption = featuredImageUrl ? `${plan.headline} - Luxury real estate in Costa del Sol` : null;
       } catch (error) {
         console.error('Image generation failed:', error);
         article.featured_image_url = '';
         article.featured_image_alt = '';
+        article.featured_image_caption = null;
       }
-
-      article.featured_image_caption = null;
 
       // 8. DIAGRAM (for MOFU/BOFU articles using existing generate-diagram function)
       if (plan.funnelStage !== 'TOFU') {
