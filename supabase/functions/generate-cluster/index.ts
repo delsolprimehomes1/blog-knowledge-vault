@@ -199,22 +199,39 @@ Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
       article.speakable_answer = speakableData.choices[0].message.content.trim();
 
       // 6. DETAILED CONTENT (1500-2500 words)
-      const contentPrompt = `Write a comprehensive ${language} article about:
+      const contentPrompt = `Write a comprehensive 2000-word blog article:
+
 Headline: ${plan.headline}
-Target keyword: ${plan.targetKeyword}
-Search intent: ${plan.searchIntent}
-Content angle: ${plan.contentAngle}
-Funnel stage: ${plan.funnelStage}
+Target Keyword: ${plan.targetKeyword}
+Search Intent: ${plan.searchIntent}
+Content Angle: ${plan.contentAngle}
+Funnel Stage: ${plan.funnelStage}
+Target Audience: ${targetAudience}
+Language: ${language}
 
 Requirements:
-- 1500-2500 words
-- Use proper HTML tags: <h2>, <h3>, <p>, <ul>, <li>, <strong>
-- Include introduction, 5-7 main sections with <h2> headings, conclusion
-- Natural keyword integration (don't overuse)
-- ${plan.funnelStage === 'TOFU' ? 'Educational and informative tone' : plan.funnelStage === 'MOFU' ? 'Detailed comparison and evaluation' : 'Action-oriented with clear next steps'}
-- Include practical examples and actionable insights
+1. Structure with H2 and H3 headings (proper hierarchy)
+2. Include specific data points, numbers, timeframes
+3. Write for ${plan.funnelStage} stage:
+   - TOFU: Educational, broad, establish authority
+   - MOFU: Comparative, detailed, build trust
+   - BOFU: Action-oriented, conversion-focused, specific CTAs
+4. Include real examples from Costa del Sol (Marbella, Estepona, Málaga, Mijas, Benalmádena, etc.)
+5. Natural tone, 8th-grade reading level
+6. Mark potential external citation points with [CITATION_NEEDED]
+7. Mark potential internal link opportunities with [INTERNAL_LINK: topic]
 
-Return ONLY the HTML content, no JSON wrapper.`;
+Format as HTML with:
+- <h2> for main sections (5-7 sections)
+- <h3> for subsections
+- <p> for paragraphs
+- <ul> and <li> for lists
+- <strong> for emphasis
+- <table> if comparing data
+
+DO NOT include external links yet - just mark citation points with [CITATION_NEEDED].
+
+Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
 
       const contentResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
