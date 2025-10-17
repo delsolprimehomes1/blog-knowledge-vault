@@ -686,8 +686,42 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         }
 
         if (imageResponse.data?.images?.[0]?.url) {
-          featuredImageUrl = imageResponse.data.images[0].url;
-          console.log('✅ Image generated successfully:', featuredImageUrl);
+          const tempImageUrl = imageResponse.data.images[0].url;
+          console.log('✅ Image generated successfully from FAL.ai:', tempImageUrl);
+
+          // Download image from FAL.ai and persist to Supabase Storage
+          try {
+            console.log('📥 Downloading image from FAL.ai...');
+            const imageResponse = await fetch(tempImageUrl);
+            if (!imageResponse.ok) throw new Error(`Failed to download image: ${imageResponse.status}`);
+            
+            const imageBlob = await imageResponse.blob();
+            const fileName = `cluster-${jobId}-article-${i + 1}.jpg`;
+            
+            console.log(`📤 Uploading to Supabase Storage: ${fileName}`);
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('article-images')
+              .upload(fileName, imageBlob, {
+                contentType: 'image/jpeg',
+                upsert: true
+              });
+
+            if (uploadError) {
+              console.error('❌ Failed to upload image to storage:', uploadError);
+              featuredImageUrl = tempImageUrl; // Fallback to FAL.ai URL
+            } else {
+              // Get permanent public URL
+              const { data: publicUrlData } = supabase.storage
+                .from('article-images')
+                .getPublicUrl(fileName);
+              
+              featuredImageUrl = publicUrlData.publicUrl;
+              console.log('✅ Image persisted to Supabase Storage:', featuredImageUrl);
+            }
+          } catch (storageError) {
+            console.error('❌ Storage operation failed:', storageError);
+            featuredImageUrl = tempImageUrl; // Fallback to FAL.ai URL
+          }
 
           // Generate SEO-optimized alt text
           const funnelIntent = plan.funnelStage === 'TOFU' ? 'awareness/lifestyle' : plan.funnelStage === 'MOFU' ? 'consideration/comparison' : 'decision/action';

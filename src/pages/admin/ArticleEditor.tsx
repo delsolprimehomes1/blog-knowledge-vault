@@ -216,8 +216,14 @@ const ArticleEditor = () => {
     if (metaDescription.length > 160) newErrors.metaDescription = "Meta description must be 160 characters or less";
     if (!speakableAnswer.trim()) newErrors.speakableAnswer = "Speakable answer is required";
     if (!detailedContent.trim()) newErrors.detailedContent = "Detailed content is required";
-    if (!featuredImageUrl.trim()) newErrors.featuredImageUrl = "Featured image is required";
-    if (featuredImageUrl && !featuredImageAlt.trim()) newErrors.featuredImageAlt = "Alt text is required when image is provided";
+    
+    // Image validation - stricter for published articles
+    if (!featuredImageUrl.trim()) {
+      newErrors.featuredImageUrl = "Featured image is required";
+    }
+    if (featuredImageUrl && !featuredImageAlt.trim()) {
+      newErrors.featuredImageAlt = "Alt text is required when image is provided";
+    }
     if (!authorId) newErrors.authorId = "Author is required";
     
     // External citations validation
@@ -241,6 +247,12 @@ const ArticleEditor = () => {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async (publishStatus: ArticleStatus) => {
+      // Block publishing without image
+      if (publishStatus === 'published' && !featuredImageUrl.trim()) {
+        toast.error("Cannot publish without a featured image. Save as draft or add an image.");
+        throw new Error("Featured image required for publishing");
+      }
+      
       if (!validate()) throw new Error("Validation failed");
 
       const articleData = {
