@@ -117,11 +117,33 @@ ultra-realistic, 8k resolution, architectural digest style`;
               onChange={(e) => setBaseImageForEdit(e.target.value)}
             />
             {baseImageForEdit && (
-              <img 
-                src={baseImageForEdit} 
-                alt="Base" 
-                className="mt-2 w-full h-32 object-cover rounded-lg border" 
-              />
+              <div className="relative mt-2">
+                <div className="absolute top-2 right-2 z-10">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setBaseImageForEdit('');
+                      setPrompt('');
+                      toast({
+                        title: 'Switched to generation mode',
+                        description: 'Now you can generate new images',
+                      });
+                    }}
+                  >
+                    Clear & Generate New
+                  </Button>
+                </div>
+                <img 
+                  src={baseImageForEdit} 
+                  alt="Base" 
+                  className="w-full h-64 object-cover rounded-lg border-2 border-primary" 
+                />
+                <p className="text-sm text-primary font-medium mt-2">
+                  ✏️ Editing mode: Describe your changes below
+                </p>
+              </div>
             )}
           </div>
           
@@ -220,12 +242,12 @@ ultra-realistic, 8k resolution, architectural digest style`;
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {baseImageForEdit ? 'Editing...' : 'Generating 4 options...'}
+                {baseImageForEdit ? 'Editing image...' : 'Generating 4 options...'}
               </>
             ) : (
               <>
                 <Wand2 className="h-4 w-4 mr-2" />
-                {baseImageForEdit ? 'Edit Image' : 'Generate Images'}
+                {baseImageForEdit ? '✨ Edit Image with AI' : '🎨 Generate 4 New Images'}
               </>
             )}
           </Button>
@@ -233,21 +255,41 @@ ultra-realistic, 8k resolution, architectural digest style`;
           {generatedImages.length > 0 && (
             <div className="grid grid-cols-2 gap-4">
               {generatedImages.map((img, i) => (
-                <div
-                  key={i}
-                  className="relative group cursor-pointer border rounded-lg overflow-hidden hover:border-primary transition-colors"
-                  onClick={() => selectImage(img)}
-                >
-                  <img
-                    src={img.url}
-                    alt={`Option ${i + 1}`}
-                    className="w-full aspect-video object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Button size="sm" variant="secondary">
-                      Select This
-                    </Button>
+                <div key={i} className="space-y-2">
+                  <div
+                    className="relative group cursor-pointer border rounded-lg overflow-hidden hover:border-primary transition-colors"
+                    onClick={() => selectImage(img)}
+                  >
+                    <img
+                      src={img.url}
+                      alt={`Option ${i + 1}`}
+                      className="w-full aspect-video object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Button size="sm" variant="secondary">
+                        Select This
+                      </Button>
+                    </div>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBaseImageForEdit(img.url);
+                      setGeneratedImages([]);
+                      setPrompt('');
+                      toast({
+                        title: 'Ready to edit',
+                        description: 'Describe your changes and click "Edit Image with AI"',
+                      });
+                    }}
+                  >
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    Edit This Image
+                  </Button>
                 </div>
               ))}
             </div>
