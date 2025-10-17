@@ -594,15 +594,21 @@ Return ONLY valid JSON:
 
       // 10. EXTERNAL CITATIONS (Perplexity for authoritative sources)
       try {
-        console.log('Finding external citations for:', plan.headline);
-        const citationsResponse = await supabase.functions.invoke('find-external-links', {
-          body: {
-            content: article.detailed_content,
-            headline: plan.headline,
-          },
-        });
+        console.log(`[Job ${jobId}] Finding external citations for article ${i+1}: "${plan.headline}" (${language})`);
+        const citationsResponse = await retryWithBackoff(
+          () => supabase.functions.invoke('find-external-links', {
+            body: {
+              content: article.detailed_content,
+              headline: plan.headline,
+              language: language,
+            },
+          }),
+          3,
+          2000
+        );
 
         if (citationsResponse.data?.citations && citationsResponse.data.citations.length > 0) {
+          console.log(`[Job ${jobId}] Found ${citationsResponse.data.citations.length} external citations (${citationsResponse.data.totalVerified || 0} verified)`);
           const citations = citationsResponse.data.citations;
           
           // Insert citations into content
@@ -722,6 +728,9 @@ Return ONLY valid JSON:
             language: a.language,
           }));
 
+        console.log(`[Job ${jobId}] Finding internal links for article ${i+1}/${articles.length}: "${article.headline}" (${article.language})`);
+        console.log(`[Job ${jobId}] Available articles for linking: ${otherArticles.length} articles, all in ${article.language}`);
+
         const linksResponse = await supabase.functions.invoke('find-internal-links', {
           body: {
             content: article.detailed_content,
@@ -733,7 +742,15 @@ Return ONLY valid JSON:
           },
         });
 
+        if (linksResponse.error) {
+          console.error(`[Job ${jobId}] Internal links error for article ${i+1}:`, linksResponse.error);
+        }
+
         if (linksResponse.data?.links && linksResponse.data.links.length > 0) {
+          console.log(`[Job ${jobId}] Found ${linksResponse.data.links.length} internal links for "${article.headline}"`);
+          if (linksResponse.data.links.length > 0) {
+            console.log(`[Job ${jobId}] Sample link: "${linksResponse.data.links[0].text}" -> ${linksResponse.data.links[0].title}`);
+          }
           const links = linksResponse.data.links;
           
           // Insert links into content

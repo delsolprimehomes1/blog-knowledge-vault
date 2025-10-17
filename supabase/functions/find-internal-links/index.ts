@@ -6,6 +6,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function getLanguageName(code: string): string {
+  const names: Record<string, string> = {
+    'en': 'English',
+    'es': 'Spanish',
+    'nl': 'Dutch',
+    'fr': 'French',
+    'de': 'German',
+    'pl': 'Polish',
+    'sv': 'Swedish',
+    'da': 'Danish',
+    'hu': 'Hungarian'
+  };
+  return names[code] || 'English';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -52,33 +67,37 @@ serve(async (req) => {
 
     console.log(`Finding internal links for: ${headline} (${articles.length} available articles)`);
 
-    // Use Perplexity for intelligent link discovery
-    const analysisPrompt = `Find the 5-8 most relevant internal links for this article:
+    const languageName = getLanguageName(language);
 
-Current Article:
+    // Use Perplexity for intelligent link discovery
+    const analysisPrompt = `Find the 5-8 most relevant internal links for this ${languageName} article:
+
+Current Article (Language: ${language.toUpperCase()}):
 Headline: ${headline}
 Funnel Stage: ${funnelStage || 'TOFU'}
 Content: ${content.substring(0, 2000)}
 
-Available Articles:
+Available Articles (ALL in ${language.toUpperCase()}):
 ${articles.map((a: any, i: number) => 
   `${i+1}. "${a.headline}" (${a.funnel_stage}) - ${a.speakable_answer?.substring(0, 100) || 'No description'}`
 ).join('\n')}
 
 Requirements:
+- ALL articles and anchor text MUST be in ${languageName}
 - Mix of funnel stages (include TOFU, MOFU, BOFU for better content flow)
-- High topical relevance
-- Natural anchor text phrases that fit contextually
+- High topical relevance to the current article's topic
+- Natural anchor text phrases IN ${languageName} that fit contextually
 - Identify WHERE in the content to place each link (which section/heading)
+- Only suggest links that add real value to the reader
 
 Return ONLY valid JSON in this exact format:
 {
   "links": [
     {
       "articleNumber": 5,
-      "anchorText": "how to apply for your NIE number",
-      "contextInArticle": "Before you can purchase property, you'll need legal documentation",
-      "insertAfterHeading": "Legal Requirements",
+      "anchorText": "[anchor text in ${languageName}]",
+      "contextInArticle": "Why this link is relevant here",
+      "insertAfterHeading": "Section Name",
       "relevanceScore": 9
     }
   ]
@@ -95,7 +114,7 @@ Return ONLY valid JSON in this exact format:
         messages: [
           {
             role: 'system',
-            content: 'You are an SEO expert finding relevant internal links for content strategy. Return only valid JSON.'
+            content: `You are an SEO expert finding relevant internal links for ${languageName} content strategy. ALL suggested anchor text MUST be in ${languageName}. Return only valid JSON.`
           },
           {
             role: 'user',
@@ -133,7 +152,16 @@ Return ONLY valid JSON in this exact format:
     const enrichedLinks = suggestions
       .filter((suggestion: any) => {
         const index = suggestion.articleNumber - 1;
-        return index >= 0 && index < articles.length;
+        if (index < 0 || index >= articles.length) return false;
+        
+        const article = articles[index];
+        // Double-check language match (should already be filtered, but extra safety)
+        if (article.language !== language) {
+          console.warn(`Filtered out mismatched language link: ${article.headline} (${article.language} != ${language})`);
+          return false;
+        }
+        
+        return true;
       })
       .map((suggestion: any) => {
         const article = articles[suggestion.articleNumber - 1];
@@ -145,6 +173,7 @@ Return ONLY valid JSON in this exact format:
           targetHeadline: article.headline,
           funnelStage: article.funnel_stage,
           category: article.category,
+          language: article.language,
           contextInArticle: suggestion.contextInArticle || '',
           insertAfterHeading: suggestion.insertAfterHeading || '',
           relevanceScore: suggestion.relevanceScore || 5

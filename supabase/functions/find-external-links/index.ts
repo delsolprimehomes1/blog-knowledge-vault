@@ -63,14 +63,17 @@ serve(async (req) => {
 
     const prompt = `${config.instruction}:
 
-Article: "${headline}"
-Content: ${content.substring(0, 2000)}
+Article Topic: "${headline}"
+Article Language: ${config.languageName}
+Content Preview: ${content.substring(0, 2000)}
 
-REQUIREMENTS:
+CRITICAL REQUIREMENTS:
 - Prioritize official government sources (${config.domains.join(', ')})
 - Include these types of sources: ${config.sources.join(', ')}
-- All sources MUST be in ${config.languageName} language
-- All sources must be HTTPS and currently active
+- ALL sources MUST be in ${config.languageName} language (no translations, no foreign sites)
+- ALL sources must be HTTPS and currently active
+- Sources must be DIRECTLY RELEVANT to the article topic: "${headline}"
+- Authoritative sources only (government, educational, major institutions)
 - For each source, identify WHERE in the article it should be cited
 
 Return ONLY valid JSON in this exact format:
@@ -81,7 +84,7 @@ Return ONLY valid JSON in this exact format:
     "anchorText": "official regulatory procedures",
     "contextInArticle": "When discussing legal requirements",
     "insertAfterHeading": "Legal Requirements",
-    "relevance": "Authoritative government source"
+    "relevance": "Authoritative government source providing official data on [specific topic]"
   }
 ]
 

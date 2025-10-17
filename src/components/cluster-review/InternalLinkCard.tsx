@@ -27,6 +27,16 @@ export const InternalLinkCard = ({ link, onRemove }: InternalLinkCardProps) => {
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <h4 className="font-semibold">{link.title}</h4>
+            {(link as any).language && (
+              <Badge variant="outline" className="text-xs">
+                {(link as any).language.toUpperCase()}
+              </Badge>
+            )}
+            {(link as any).funnelStage && (
+              <Badge variant={getFunnelBadgeColor((link as any).funnelStage)}>
+                {(link as any).funnelStage}
+              </Badge>
+            )}
           </div>
           <a 
             href={link.url} 
