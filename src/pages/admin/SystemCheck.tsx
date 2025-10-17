@@ -189,15 +189,15 @@ export default function SystemCheck() {
               </h3>
               <p className="text-sm text-muted-foreground">Total Tests</p>
             </Card>
-            <Card className={`p-6 border-l-4 ${
+            <Card className={`p-6 border-l-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 ${
               testResults.find(p => p.phase === 19)?.overallStatus === 'pass' 
                 ? 'border-l-purple-500' 
                 : 'border-l-orange-500'
             }`}>
-              <h3 className="text-3xl font-bold mb-1">
+              <h3 className="text-3xl font-bold mb-1 text-purple-900 dark:text-purple-100">
                 {testResults.find(p => p.phase === 19)?.overallStatus === 'pass' ? '✓' : '⚠'}
               </h3>
-              <p className="text-sm text-muted-foreground">AI Ready</p>
+              <p className="text-sm font-medium text-purple-700 dark:text-purple-300">AI Ready</p>
             </Card>
           </div>
         )}
@@ -207,9 +207,11 @@ export default function SystemCheck() {
             <Card 
               key={phase.phase}
               className={`overflow-hidden ${
-                phase.overallStatus === 'pass' ? 'border-l-4 border-l-green-500' :
-                phase.overallStatus === 'warning' ? 'border-l-4 border-l-yellow-500' :
-                'border-l-4 border-l-red-500'
+                phase.phase === 19 
+                  ? 'border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20'
+                  : phase.overallStatus === 'pass' ? 'border-l-4 border-l-green-500' :
+                  phase.overallStatus === 'warning' ? 'border-l-4 border-l-yellow-500' :
+                  'border-l-4 border-l-red-500'
               }`}
             >
               <div
@@ -220,6 +222,7 @@ export default function SystemCheck() {
                   <span className="text-2xl">{getStatusIcon(phase.overallStatus)}</span>
                   <div>
                     <h3 className="font-semibold text-lg">
+                      {phase.phase === 19 && '🤖 '}
                       Phase {phase.phase}: {phase.phaseName}
                     </h3>
                     <p className="text-sm text-muted-foreground">
@@ -251,7 +254,12 @@ export default function SystemCheck() {
                         <div className="flex gap-3">
                           <span className="text-xl flex-shrink-0">{getStatusIcon(test.status)}</span>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium mb-1">{test.name}</h4>
+                            <h4 className="font-medium mb-1">
+                              {test.name}
+                              {(test.name.includes('Optional') || test.name.includes('⚠')) && (
+                                <span className="ml-2 text-xs font-normal text-muted-foreground">(Optional)</span>
+                              )}
+                            </h4>
                             <p className="text-sm text-muted-foreground mb-2">{test.message}</p>
                             {test.details && (
                               <details className="mt-2">
