@@ -95,7 +95,8 @@ Return ONLY valid JSON:
     let articleStructures;
     try {
       const parsed = JSON.parse(structureText.replace(/```json\n?|\n?```/g, ''));
-      articleStructures = parsed.articles || [];
+      // Handle both flat and nested responses
+      articleStructures = parsed.articles || parsed.contentCluster?.articles || [];
       
       if (!Array.isArray(articleStructures) || articleStructures.length === 0) {
         throw new Error('AI did not return valid article structures');
