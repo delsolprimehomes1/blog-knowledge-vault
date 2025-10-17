@@ -2,7 +2,9 @@ import { useState } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Play, Download, ChevronDown, ChevronRight } from "lucide-react";
+import { Play, Download, ChevronDown, ChevronRight, BookOpen } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Link } from "react-router-dom";
 import {
   PhaseTest,
   testPhase1,
@@ -241,6 +243,20 @@ export default function SystemCheck() {
 
               {expandedPhases.includes(phase.phase) && (
                 <div className="px-6 pb-6 space-y-3 border-t">
+                  {phase.phase === 19 && phase.overallStatus !== 'pass' && (
+                    <Alert className="mt-4">
+                      <BookOpen className="h-4 w-4" />
+                      <AlertTitle>Need Help with AEO/SGE Structure?</AlertTitle>
+                      <AlertDescription className="flex items-center gap-2">
+                        <span>Review the comprehensive guide for proper content formatting.</span>
+                        <Button variant="link" className="h-auto p-0" asChild>
+                          <Link to="/admin/docs/aeo-sge-guide" target="_blank">
+                            View AEO/SGE Guide →
+                          </Link>
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <div className="pt-4 space-y-2">
                     {phase.tests.map((test, idx) => (
                       <div
