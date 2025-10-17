@@ -154,6 +154,9 @@ const BlogArticle = () => {
         <meta property="og:title" content={article.headline} />
         <meta property="og:description" content={article.meta_description} />
         <meta property="og:image" content={article.featured_image_url} />
+        <meta property="og:image:alt" content={article.featured_image_alt} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="675" />
         <meta property="og:url" content={currentUrl} />
         <meta property="og:type" content="article" />
         <meta property="og:site_name" content="Del Sol Prime Homes" />

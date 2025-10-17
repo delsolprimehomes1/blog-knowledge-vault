@@ -92,7 +92,14 @@ export function generateArticleSchema(
     "@type": "BlogPosting",
     "headline": article.headline,
     "description": article.meta_description,
-    "image": article.featured_image_url,
+    "image": {
+      "@type": "ImageObject",
+      "url": article.featured_image_url,
+      "contentUrl": article.featured_image_url,
+      "caption": article.featured_image_caption || article.headline,
+      "description": article.featured_image_alt || article.meta_description,
+      "representativeOfPage": true
+    },
     "datePublished": article.date_published,
     "dateModified": article.date_modified || article.date_published,
     "mainEntityOfPage": {
@@ -124,12 +131,24 @@ export function generateArticleSchema(
 }
 
 export function generateSpeakableSchema(article: BlogArticle): any {
-  return {
+  const schema: any = {
     "@context": "https://schema.org",
     "@type": "SpeakableSpecification",
     "cssSelector": [".speakable-answer", ".qa-summary"],
     "xpath": ["/html/body/article/section[@class='speakable-answer']"]
   };
+  
+  // Add associated image for voice assistants and AI understanding
+  if (article.featured_image_url) {
+    schema.associatedMedia = {
+      "@type": "ImageObject",
+      "url": article.featured_image_url,
+      "description": article.featured_image_alt,
+      "caption": article.featured_image_caption
+    };
+  }
+  
+  return schema;
 }
 
 export function generateBreadcrumbSchema(
