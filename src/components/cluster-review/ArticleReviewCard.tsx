@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Check } from "lucide-react";
 import { countWords } from "@/lib/articleUtils";
 import { LazyRichTextEditor } from "@/components/LazyRichTextEditor";
+import { AIImageGenerator } from "@/components/AIImageGenerator";
+import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 
 interface ArticleReviewCardProps {
@@ -54,8 +56,35 @@ export const ArticleReviewCard = ({
   isRegenerating = false,
 }: ArticleReviewCardProps) => {
   const [expandedContent, setExpandedContent] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const contentWords = countWords(article?.detailed_content?.replace(/<[^>]*>/g, ' ').trim() || "");
   const targetKeyword = article?.meta_title?.split(' ')[0] || '';
+
+  const handleImageUpload = async (file: File) => {
+    setImageUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error } = await supabase.storage
+        .from('article-images')
+        .upload(fileName, file);
+      
+      if (error) throw error;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('article-images')
+        .getPublicUrl(fileName);
+      
+      onEdit({ 
+        featured_image_url: publicUrl,
+        featured_image_alt: article.headline || ''
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   const getWordCountColor = (count: number) => {
     if (count < 1500) return 'text-destructive';
@@ -197,50 +226,24 @@ export const ArticleReviewCard = ({
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-6 pb-6 space-y-4">
-            {article.featured_image_url && (
-              <div className="rounded-lg overflow-hidden border">
-                <img 
-                  src={article.featured_image_url} 
-                  alt={article.featured_image_alt || ''}
-                  className="w-full h-64 object-cover"
-                />
-              </div>
-            )}
-
-            {/* Alt Text */}
+            <AIImageGenerator
+              headline={article.headline || ''}
+              imageUrl={article.featured_image_url || ''}
+              imageAlt={article.featured_image_alt || ''}
+              onImageChange={(url, alt) => onEdit({ 
+                featured_image_url: url, 
+                featured_image_alt: alt 
+              })}
+              onImageUpload={handleImageUpload}
+              imageUploading={imageUploading}
+            />
+            
             <div className="space-y-2">
-              <Label>Alt Text (SEO)</Label>
-              <div className="flex gap-2">
-                <Input 
-                  value={article.featured_image_alt || ''}
-                  onChange={(e) => onEdit({ featured_image_alt: e.target.value })}
-                  maxLength={125}
-                  className="flex-1"
-                />
-                <Button 
-                  onClick={() => onRegenerate('image_alt')}
-                  size="icon"
-                  variant="outline"
-                  disabled={isRegenerating}
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                {article.featured_image_alt?.toLowerCase().includes(targetKeyword.toLowerCase()) ? (
-                  <Badge variant="default" className="bg-green-600">✅ Includes keyword</Badge>
-                ) : (
-                  <Badge variant="secondary">❌ Missing keyword</Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Caption */}
-            <div className="space-y-2">
-              <Label>Caption (Optional)</Label>
-              <Input 
+              <Label>Image Caption (Optional)</Label>
+              <Input
                 value={article.featured_image_caption || ''}
                 onChange={(e) => onEdit({ featured_image_caption: e.target.value })}
+                placeholder="Image caption"
               />
             </div>
           </AccordionContent>
