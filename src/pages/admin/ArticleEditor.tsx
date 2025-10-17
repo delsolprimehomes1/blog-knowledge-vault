@@ -31,6 +31,7 @@ import { FAQSection } from "@/components/article-editor/FAQSection";
 import { TranslationsSection } from "@/components/article-editor/TranslationsSection";
 import { SchemaPreviewSection } from "@/components/article-editor/SchemaPreviewSection";
 import { SEOPreviewSection } from "@/components/article-editor/SEOPreviewSection";
+import { CitationReplacer } from "@/components/article-editor/CitationReplacer";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -554,6 +555,17 @@ const ArticleEditor = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Citation Replacement Tool */}
+        {detailedContent.includes('[CITATION_NEEDED]') && (
+          <CitationReplacer
+            content={detailedContent}
+            headline={headline}
+            language={language}
+            category={category}
+            onContentUpdate={setDetailedContent}
+          />
+        )}
 
         {/* Section 4: Media */}
         <Card>
