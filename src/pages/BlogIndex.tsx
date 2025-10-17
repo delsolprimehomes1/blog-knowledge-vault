@@ -46,7 +46,7 @@ const BlogIndex = () => {
       
       let query = supabase
         .from("blog_articles")
-        .select("*, authors(name, photo_url)")
+        .select("*, authors!blog_articles_author_id_fkey(name, photo_url)")
         .eq("status", "published")
         .order("date_published", { ascending: false });
 
