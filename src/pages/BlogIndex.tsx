@@ -36,6 +36,7 @@ const BlogIndex = () => {
   // Fetch articles with filters
   const { data: articlesData, isLoading } = useQuery({
     queryKey: ["blog-articles", selectedCategory, selectedLanguage, searchQuery],
+    enabled: !!categories,
     queryFn: async () => {
       let query = supabase
         .from("blog_articles")
@@ -116,7 +117,7 @@ const BlogIndex = () => {
         resultCount={totalArticles}
       />
 
-      {isLoading ? (
+      {isLoading || !categories ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="animate-pulse">
