@@ -23,6 +23,7 @@ import {
   testPhase16,
   testPhase17,
   testPhase18,
+  testPhase19,
 } from "@/lib/testUtils";
 
 export default function SystemCheck() {
@@ -50,6 +51,7 @@ export default function SystemCheck() {
     { phase: 16, name: 'External Link Finder (Perplexity)', testFn: testPhase16 },
     { phase: 17, name: 'Internal Link Finder (Lovable AI)', testFn: testPhase17 },
     { phase: 18, name: 'AI Tools Dashboard', testFn: testPhase18 },
+    { phase: 19, name: 'AI Visibility & Optimization', testFn: testPhase19 },
   ];
 
   const runAllTests = async () => {
