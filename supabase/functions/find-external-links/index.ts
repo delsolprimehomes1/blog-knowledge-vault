@@ -21,7 +21,7 @@ serve(async (req) => {
   }
 
   try {
-    const { content, headline, language = 'es' } = await req.json();
+    const { content, headline, language = 'es', requireGovernmentSource = false } = await req.json();
     
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
@@ -61,6 +61,10 @@ serve(async (req) => {
 
     const config = languageConfig[language] || languageConfig.es;
 
+    const governmentRequirement = requireGovernmentSource 
+      ? `\n\nMANDATORY: At least ONE source MUST be from an official government domain (${config.domains.join(' or ')}). This is non-negotiable and CRITICAL for article validation.`
+      : '';
+
     const prompt = `${config.instruction}:
 
 Article Topic: "${headline}"
@@ -74,7 +78,7 @@ CRITICAL REQUIREMENTS:
 - ALL sources must be HTTPS and currently active
 - Sources must be DIRECTLY RELEVANT to the article topic: "${headline}"
 - Authoritative sources only (government, educational, major institutions)
-- For each source, identify WHERE in the article it should be cited
+- For each source, identify WHERE in the article it should be cited${governmentRequirement}
 
 Return ONLY valid JSON in this exact format:
 [
@@ -167,6 +171,20 @@ Return only the JSON array, nothing else.`;
 
     const validCitations = verifiedCitations.filter(c => c.verified);
     console.log(`${validCitations.length} citations verified successfully`);
+
+    // Check if government source requirement is met
+    if (requireGovernmentSource) {
+      const hasGovSource = validCitations.some(c => 
+        c.url.includes('.gov') || c.url.includes('.gob.es') || c.url.includes('.overheid.nl')
+      );
+      
+      if (!hasGovSource) {
+        console.error('No government source found despite requirement');
+        throw new Error('Failed to find required government source. Please try again or uncheck the requirement to search without this restriction.');
+      }
+      
+      console.log('✓ Government source requirement satisfied');
+    }
 
     return new Response(
       JSON.stringify({ 

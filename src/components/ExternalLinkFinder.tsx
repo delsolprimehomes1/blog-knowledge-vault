@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Search, ExternalLink, Plus, Eye } from "lucide-react";
@@ -32,6 +34,7 @@ export const ExternalLinkFinder = ({
 }: ExternalLinkFinderProps) => {
   const [isSearching, setIsSearching] = useState(false);
   const [foundLinks, setFoundLinks] = useState<FoundCitation[]>([]);
+  const [requireGovSource, setRequireGovSource] = useState(true);
 
   const findAuthoritativeSources = async () => {
     if (!articleContent || !headline) {
@@ -48,7 +51,8 @@ export const ExternalLinkFinder = ({
         body: {
           content: articleContent,
           headline: headline,
-          language: language
+          language: language,
+          requireGovernmentSource: requireGovSource
         }
       });
 
@@ -94,30 +98,46 @@ export const ExternalLinkFinder = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h4 className="font-medium">AI-Powered Source Finder</h4>
-          <p className="text-sm text-muted-foreground">
-            Automatically discover authoritative sources for your article
-          </p>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium">AI-Powered Source Finder</h4>
+            <p className="text-sm text-muted-foreground">
+              Automatically discover authoritative sources for your article
+            </p>
+          </div>
+          <Button 
+            onClick={findAuthoritativeSources}
+            disabled={isSearching || !articleContent}
+            variant="secondary"
+          >
+            {isSearching ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Searching...
+              </>
+            ) : (
+              <>
+                <Search className="h-4 w-4 mr-2" />
+                Find Sources
+              </>
+            )}
+          </Button>
         </div>
-        <Button 
-          onClick={findAuthoritativeSources}
-          disabled={isSearching || !articleContent}
-          variant="secondary"
-        >
-          {isSearching ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Searching...
-            </>
-          ) : (
-            <>
-              <Search className="h-4 w-4 mr-2" />
-              Find Sources
-            </>
-          )}
-        </Button>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="require-gov"
+            checked={requireGovSource}
+            onCheckedChange={(checked) => setRequireGovSource(checked as boolean)}
+          />
+          <Label 
+            htmlFor="require-gov" 
+            className="text-sm cursor-pointer"
+          >
+            Require at least one .gov or .gob.es source
+          </Label>
+        </div>
       </div>
 
       {foundLinks.length > 0 && (
