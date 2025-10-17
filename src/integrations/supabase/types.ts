@@ -242,8 +242,10 @@ export type Database = {
           language: string
           primary_keyword: string
           progress: Json | null
+          started_at: string | null
           status: string
           target_audience: string
+          timeout_at: string | null
           topic: string
           updated_at: string | null
           user_id: string | null
@@ -256,8 +258,10 @@ export type Database = {
           language: string
           primary_keyword: string
           progress?: Json | null
+          started_at?: string | null
           status?: string
           target_audience: string
+          timeout_at?: string | null
           topic: string
           updated_at?: string | null
           user_id?: string | null
@@ -270,8 +274,10 @@ export type Database = {
           language?: string
           primary_keyword?: string
           progress?: Json | null
+          started_at?: string | null
           status?: string
           target_audience?: string
+          timeout_at?: string | null
           topic?: string
           updated_at?: string | null
           user_id?: string | null
@@ -304,6 +310,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_stuck_cluster_jobs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
