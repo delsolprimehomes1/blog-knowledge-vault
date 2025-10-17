@@ -48,6 +48,7 @@ const BlogIndex = () => {
         .from("blog_articles")
         .select("*, authors!blog_articles_author_id_fkey(name, photo_url)")
         .eq("status", "published")
+        .eq("funnel_stage", "TOFU")
         .order("date_published", { ascending: false });
 
       if (selectedCategory !== "all" && categories) {

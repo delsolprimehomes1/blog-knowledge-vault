@@ -23,6 +23,86 @@ The dashboard shows:
 - Recently published articles
 - Quick actions to create new content
 
+## Blog Funnel Strategy
+
+### Understanding the Content Funnel
+
+The blog uses a 3-stage funnel designed to guide users from awareness to conversion:
+
+**TOFU (Top of Funnel)** - Shown on /blog index
+- **Purpose**: Educational, broad awareness content
+- **Target Audience**: Early-stage buyers researching the Costa del Sol
+- **Content Type**: "What is...", "Why...", "Is..." questions
+- **Examples**: "Is Costa del Sol a Digital Nomad's Paradise?"
+- **Visibility**: Main blog index, sitemap, search results, social media
+- **Word Count**: 1500-2000 words
+- **CTA Strategy**: Link to 2-3 MOFU articles in related content section
+
+**MOFU (Middle of Funnel)** - Hidden from blog index
+- **Purpose**: Comparison guides, detailed how-to content
+- **Target Audience**: Consideration stage buyers evaluating options
+- **Content Type**: "How to compare...", "Which is better...", detailed comparisons
+- **Examples**: "Comparing Internet Providers and Mobile Networks in Costa del Sol"
+- **Visibility**: Direct URL, internal links from TOFU articles, sitemap, search results
+- **Word Count**: 2000-2500 words
+- **CTA Strategy**: Link to 1-2 BOFU articles in action-oriented section
+
+**BOFU (Bottom of Funnel)** - Hidden from blog index
+- **Purpose**: Action-oriented checklists, decision guides
+- **Target Audience**: Decision stage buyers ready to take action
+- **Content Type**: Checklists, step-by-step guides, implementation plans
+- **Examples**: "Your Essential Checklist for Buying Property in Costa del Sol"
+- **Visibility**: Direct URL, internal links from MOFU articles, sitemap, search results
+- **Word Count**: 1000-1500 words
+- **Special Feature**: Chatbot widget for immediate lead capture
+- **CTA Strategy**: No outbound links - this is the conversion point
+
+### Why This Funnel Strategy Works
+
+**User Experience Benefits:**
+- Reduces decision fatigue by showing only 3 entry-point articles on blog index
+- Natural discovery path - users find MOFU/BOFU content through reading, not browsing
+- Progressive disclosure of information complexity matches user intent
+
+**Conversion Tracking:**
+- Clear attribution - know which TOFU article drove each conversion
+- Measurable funnel - track drop-off rates at each stage (TOFU → MOFU → BOFU)
+- Content ROI - identify which topics generate highest quality leads
+
+**SEO Advantages:**
+- TOFU articles rank for broad, high-volume keywords
+- MOFU/BOFU still indexed via sitemap and internal links
+- Reduced keyword cannibalization - pages don't compete for same terms
+- Internal linking signals funnel intent to search engines
+
+**Content Scalability:**
+- Can add 20+ MOFU/BOFU articles without overwhelming blog index
+- Clear content planning framework for writers
+- Easy to duplicate funnel structure across languages
+
+### Funnel Best Practices
+
+**Creating TOFU Content:**
+- Answer broad awareness questions
+- Use engaging, curiosity-driven headlines
+- Include 3-5 H2 questions that address common concerns
+- Add compelling CTA section linking to 2-3 MOFU articles
+- Optimize for high-volume keywords (500-2000 monthly searches)
+
+**Creating MOFU Content:**
+- Provide detailed comparisons and analysis
+- Include data, charts, and comparison tables
+- Answer "how to choose" and "which is better" questions
+- Link to 1-2 BOFU articles at key decision points
+- Target medium-volume, higher-intent keywords (100-500 monthly searches)
+
+**Creating BOFU Content:**
+- Focus on implementation and action
+- Provide checklists, templates, step-by-step guides
+- Remove friction to conversion with clear next steps
+- Enable chatbot widget for immediate engagement
+- Target low-volume, high-intent long-tail keywords
+
 ## Creating Articles
 
 ### Article Creation Process

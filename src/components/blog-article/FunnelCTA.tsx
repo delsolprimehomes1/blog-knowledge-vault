@@ -45,11 +45,11 @@ export const FunnelCTA = ({ funnelStage, ctaArticles }: FunnelCTAProps) => {
   if (ctaArticles.length === 0) return null;
 
   const ctaTitle = funnelStage === "TOFU" 
-    ? "Continue Your Journey" 
+    ? "Ready to Learn More?" 
     : "Ready to Make a Decision?";
   
   const ctaDescription = funnelStage === "TOFU"
-    ? "Explore these guides to learn more about the buying process"
+    ? "Explore these detailed guides to dive deeper into your specific interests"
     : "Take the final step with this comprehensive guide";
 
   return (

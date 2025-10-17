@@ -11,8 +11,8 @@ export const BlogHeader = ({ totalCount }: BlogHeaderProps) => {
       <p className="text-xl text-muted-foreground">
         Expert insights on Costa del Sol real estate
       </p>
-      <p className="text-sm text-muted-foreground">
-        {totalCount} {totalCount === 1 ? 'article' : 'articles'} available
+      <p className="text-base text-muted-foreground max-w-2xl mx-auto">
+        Start with these foundational guides. Explore deeper topics through related articles within each post.
       </p>
     </header>
   );
