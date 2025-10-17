@@ -7,6 +7,7 @@ import { BulkActions } from "./BulkActions";
 import { ArticleReviewCard } from "./ArticleReviewCard";
 import { toast } from "sonner";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 interface ClusterReviewInterfaceProps {
   articles: Partial<BlogArticle>[];
@@ -16,6 +17,7 @@ interface ClusterReviewInterfaceProps {
   onPublishAll: () => Promise<void>;
   onExport: () => void;
   onArticlesChange: (articles: Partial<BlogArticle>[]) => void;
+  onStartNew?: () => void;
 }
 
 export const ClusterReviewInterface = ({
@@ -26,6 +28,7 @@ export const ClusterReviewInterface = ({
   onPublishAll,
   onExport,
   onArticlesChange,
+  onStartNew,
 }: ClusterReviewInterfaceProps) => {
   const [activeTab, setActiveTab] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -149,10 +152,19 @@ export const ClusterReviewInterface = ({
   return (
     <div className="space-y-6">
       <div className="bg-card rounded-lg border p-6">
-        <h2 className="text-2xl font-bold mb-2">✅ Cluster Generated Successfully!</h2>
-        <p className="text-muted-foreground">
-          Review and edit each article before publishing. Topic: <span className="font-semibold">{clusterTopic}</span>
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">✅ Cluster Generated Successfully!</h2>
+            <p className="text-muted-foreground">
+              Review and edit each article before publishing. Topic: <span className="font-semibold">{clusterTopic}</span>
+            </p>
+          </div>
+          {onStartNew && (
+            <Button onClick={onStartNew} variant="outline" size="sm">
+              Start New Cluster
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Category Warning Banner */}

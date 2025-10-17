@@ -455,6 +455,18 @@ const ClusterGenerator = () => {
     }
   };
 
+  const handleStartNew = () => {
+    setGeneratedArticles([]);
+    setShowReview(false);
+    setTopic('');
+    setLanguage('en');
+    setTargetAudience('');
+    setPrimaryKeyword('');
+    setJobId(null);
+    localStorage.removeItem('current_job_id');
+    toast.success('Ready to generate a new cluster!');
+  };
+
   return (
     <AdminLayout>
       {showReview ? (
@@ -467,6 +479,7 @@ const ClusterGenerator = () => {
             onPublishAll={handlePublishAll}
             onExport={handleExport}
             onArticlesChange={setGeneratedArticles}
+            onStartNew={handleStartNew}
           />
         </div>
       ) : (
