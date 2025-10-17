@@ -24,6 +24,46 @@ async function updateProgress(supabase: any, jobId: string, step: number, messag
     .eq('id', jobId);
 }
 
+// Heartbeat function to indicate backend is alive
+async function sendHeartbeat(supabase: any, jobId: string) {
+  await supabase
+    .from('cluster_generations')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', jobId);
+}
+
+// Timeout wrapper for promises
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+  );
+  return Promise.race([promise, timeout]);
+}
+
+// Retry logic with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000,
+  operationName: string = 'operation'
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      const delay = baseDelay * Math.pow(2, i);
+      console.log(`[${operationName}] Retry ${i + 1}/${maxRetries} after ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error(`Max retries exceeded for ${operationName}`);
+}
+
 // Main generation function (runs in background)
 async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -70,22 +110,35 @@ Return ONLY valid JSON:
   ]
 }`;
 
-    const structureResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are an SEO expert specializing in real estate content strategy. Return only valid JSON.' },
-          { role: 'user', content: structurePrompt }
-        ],
-      }),
-    });
+    // Wrap AI call with timeout and retry
+    const structureResponse = await retryWithBackoff(
+      () => withTimeout(
+        fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: 'You are an SEO expert specializing in real estate content strategy. Return only valid JSON.' },
+              { role: 'user', content: structurePrompt }
+            ],
+          }),
+        }),
+        120000, // 2 minute timeout
+        'AI structure generation timed out'
+      ),
+      3,
+      1000,
+      'Structure generation'
+    );
 
     if (!structureResponse.ok) throw new Error(`AI gateway error: ${structureResponse.status}`);
+
+    // Send heartbeat after major operation
+    await sendHeartbeat(supabase, jobId);
 
     const structureData = await structureResponse.json();
     const structureText = structureData.choices[0].message.content;
@@ -798,12 +851,17 @@ Return ONLY valid JSON:
     console.error(`[Job ${jobId}] ❌ Generation failed:`, error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
-    // Update job with error
+    // Update job with structured error
     await supabase
       .from('cluster_generations')
       .update({
         status: 'failed',
-        error: errorMessage,
+        error: JSON.stringify({
+          message: errorMessage,
+          step: 'unknown',
+          timestamp: new Date().toISOString(),
+          stack: error instanceof Error ? error.stack : undefined
+        }),
         updated_at: new Date().toISOString()
       })
       .eq('id', jobId);

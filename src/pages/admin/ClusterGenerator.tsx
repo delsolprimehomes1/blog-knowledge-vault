@@ -52,6 +52,8 @@ const ClusterGenerator = () => {
   const [hasBackup, setHasBackup] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [generationStartTime, setGenerationStartTime] = useState<number>(0);
+  const [lastBackendUpdate, setLastBackendUpdate] = useState<Date | null>(null);
 
   // Check for saved backup on mount
   useEffect(() => {
@@ -136,7 +138,7 @@ const ClusterGenerator = () => {
     toast.success('Backup cleared');
   };
 
-  // Check job status and update UI
+  // Check job status and update UI with timeout detection
   const checkJobStatus = async (currentJobId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('check-cluster-status', {
@@ -146,6 +148,32 @@ const ClusterGenerator = () => {
       if (error) throw error;
 
       console.log(`Job ${currentJobId} status:`, data.status, data.progress);
+
+      // CLIENT-SIDE TIMEOUT DETECTION
+      if (data.status === 'generating') {
+        const lastUpdate = new Date(data.progress?.updated_at || Date.now());
+        const now = new Date();
+        const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / 1000 / 60;
+
+        setLastBackendUpdate(lastUpdate);
+
+        // If backend hasn't updated in 5 minutes, mark as timed out
+        if (minutesSinceUpdate > 5) {
+          console.error(`Job ${currentJobId} appears stuck. Last update: ${minutesSinceUpdate.toFixed(1)} minutes ago`);
+          
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            setPollingInterval(null);
+          }
+          
+          setIsGenerating(false);
+          setJobId(null);
+          localStorage.removeItem('current_job_id');
+          
+          toast.error('Generation timed out. The backend may have crashed. Please try again.');
+          return;
+        }
+      }
 
       // Update progress UI
       if (data.progress) {
@@ -171,6 +199,7 @@ const ClusterGenerator = () => {
         setGeneratedArticles(data.articles);
         setShowReview(true);
         setIsGenerating(false);
+        setGenerationStartTime(0);
         
         // Clear job ID from storage
         localStorage.removeItem('current_job_id');
@@ -187,6 +216,7 @@ const ClusterGenerator = () => {
         }
         
         setIsGenerating(false);
+        setGenerationStartTime(0);
         localStorage.removeItem('current_job_id');
         setJobId(null);
         
@@ -199,6 +229,38 @@ const ClusterGenerator = () => {
     }
   };
 
+  // Handle aborting generation
+  const handleAbortGeneration = async () => {
+    if (!jobId) return;
+
+    try {
+      // Update job status to failed
+      await supabase
+        .from('cluster_generations')
+        .update({
+          status: 'failed',
+          error: 'Manually aborted by user',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', jobId);
+
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+
+      setIsGenerating(false);
+      setGenerationStartTime(0);
+      setJobId(null);
+      localStorage.removeItem('current_job_id');
+
+      toast.success('Generation aborted');
+    } catch (error) {
+      console.error('Error aborting generation:', error);
+      toast.error('Failed to abort generation');
+    }
+  };
+
   // Auto-resume polling if page refreshed during generation
   useEffect(() => {
     const savedJobId = localStorage.getItem('current_job_id');
@@ -206,13 +268,25 @@ const ClusterGenerator = () => {
       console.log('Resuming generation for job:', savedJobId);
       setJobId(savedJobId);
       setIsGenerating(true);
+      setGenerationStartTime(Date.now());
       toast.info('Resuming generation...');
       
-      const interval = setInterval(() => {
+      // Smart polling: 3s for first 2 min, then 10s
+      let pollCount = 0;
+      const poll = () => {
+        pollCount++;
         checkJobStatus(savedJobId);
-      }, 5000);
+      };
       
+      const interval = setInterval(poll, 3000);
       setPollingInterval(interval);
+      
+      // After 2 minutes, switch to slower polling
+      setTimeout(() => {
+        if (pollingInterval) clearInterval(pollingInterval);
+        const slowInterval = setInterval(poll, 10000);
+        setPollingInterval(slowInterval);
+      }, 120000); // 2 minutes
     }
   }, []);
 
@@ -251,6 +325,8 @@ const ClusterGenerator = () => {
 
     setIsGenerating(true);
     setProgress(0);
+    setGenerationStartTime(Date.now());
+    setLastBackendUpdate(new Date());
     
     // Initialize steps
     const initialSteps: GenerationStep[] = [
@@ -293,12 +369,23 @@ const ClusterGenerator = () => {
 
       toast.success('Generation started! Tracking progress...');
 
-      // Step 2: Start polling for status updates
-      const interval = setInterval(() => {
+      // Step 2: Start smart polling - fast at first, then slower
+      let pollCount = 0;
+      const poll = () => {
+        pollCount++;
         checkJobStatus(newJobId);
-      }, 5000); // Poll every 5 seconds
+      };
 
+      // Start with fast polling (3 seconds)
+      const interval = setInterval(poll, 3000);
       setPollingInterval(interval);
+
+      // After 2 minutes, switch to slower polling (10 seconds)
+      setTimeout(() => {
+        if (pollingInterval) clearInterval(pollingInterval);
+        const slowInterval = setInterval(poll, 10000);
+        setPollingInterval(slowInterval);
+      }, 120000); // 2 minutes
 
       // Initial status check
       checkJobStatus(newJobId);
@@ -307,6 +394,7 @@ const ClusterGenerator = () => {
       console.error("Error generating cluster:", error);
       toast.error(error instanceof Error ? error.message : "Failed to start generation");
       setIsGenerating(false);
+      setGenerationStartTime(0);
       setSteps([]);
       setProgress(0);
     }
@@ -609,6 +697,30 @@ const ClusterGenerator = () => {
                   <span className="text-muted-foreground">{Math.round(progress)}%</span>
                 </div>
                 <Progress value={progress} className="h-3" />
+              </div>
+
+              {/* Abort Button and Elapsed Time */}
+              <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                    Generation in progress...
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                    Elapsed time: {generationStartTime > 0 ? Math.floor((Date.now() - generationStartTime) / 1000 / 60) : 0} minutes
+                    {lastBackendUpdate && (
+                      <span className="ml-2">
+                        (Last update: {Math.floor((Date.now() - lastBackendUpdate.getTime()) / 1000)}s ago)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleAbortGeneration}
+                >
+                  Abort Generation
+                </Button>
               </div>
 
               {/* Step-by-Step Status */}
