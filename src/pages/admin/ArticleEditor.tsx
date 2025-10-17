@@ -616,6 +616,7 @@ const ArticleEditor = () => {
           errors={errors}
           articleContent={detailedContent}
           headline={headline}
+          language={language}
         />
 
         {/* Section 7: Internal Links */}

@@ -72,7 +72,8 @@ export default function AITools() {
       const { data, error } = await supabase.functions.invoke('find-external-links', {
         body: {
           content: "When buying property in Spain, non-residents need to obtain a NIE number from Spanish authorities. The process involves submitting documents to the Spanish consulate.",
-          headline: "Guide to Buying Property in Spain as a Non-Resident"
+          headline: "Guide to Buying Property in Spain as a Non-Resident",
+          language: "es"
         }
       });
 

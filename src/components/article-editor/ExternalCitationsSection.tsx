@@ -12,6 +12,7 @@ interface ExternalCitationsSectionProps {
   errors: Record<string, string>;
   articleContent?: string;
   headline?: string;
+  language?: string;
 }
 
 export const ExternalCitationsSection = ({
@@ -20,6 +21,7 @@ export const ExternalCitationsSection = ({
   errors,
   articleContent = "",
   headline = "",
+  language = "es",
 }: ExternalCitationsSectionProps) => {
   const addCitation = () => {
     onCitationsChange([...citations, { text: "", url: "", source: "" }]);
@@ -36,7 +38,7 @@ export const ExternalCitationsSection = ({
   };
 
   const hasGovDomain = citations.some(c => 
-    c.url.includes('.gov') || c.url.includes('.gob.es')
+    c.url.includes('.gov') || c.url.includes('.gob.es') || c.url.includes('.overheid.nl')
   );
 
   return (
@@ -54,6 +56,7 @@ export const ExternalCitationsSection = ({
           headline={headline}
           currentCitations={citations}
           onCitationsChange={onCitationsChange}
+          language={language}
         />
 
         {/* Manual Citations List */}

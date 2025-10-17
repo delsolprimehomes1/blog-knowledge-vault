@@ -12,6 +12,7 @@ interface ExternalLinkFinderProps {
   headline: string;
   currentCitations: ExternalCitation[];
   onCitationsChange: (citations: ExternalCitation[]) => void;
+  language?: string;
 }
 
 interface FoundCitation {
@@ -26,7 +27,8 @@ export const ExternalLinkFinder = ({
   articleContent, 
   headline,
   currentCitations,
-  onCitationsChange
+  onCitationsChange,
+  language = 'es'
 }: ExternalLinkFinderProps) => {
   const [isSearching, setIsSearching] = useState(false);
   const [foundLinks, setFoundLinks] = useState<FoundCitation[]>([]);
@@ -45,7 +47,8 @@ export const ExternalLinkFinder = ({
       const { data, error } = await supabase.functions.invoke('find-external-links', {
         body: {
           content: articleContent,
-          headline: headline
+          headline: headline,
+          language: language
         }
       });
 
@@ -86,7 +89,7 @@ export const ExternalLinkFinder = ({
   };
 
   const isOfficialGovernment = (url: string) => {
-    return url.includes('.gov') || url.includes('.gob.es');
+    return url.includes('.gov') || url.includes('.gob.es') || url.includes('.overheid.nl');
   };
 
   return (

@@ -21,35 +21,67 @@ serve(async (req) => {
   }
 
   try {
-    const { content, headline } = await req.json();
+    const { content, headline, language = 'es' } = await req.json();
     
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
       throw new Error('PERPLEXITY_API_KEY is not configured');
     }
 
-    const prompt = `Find 3-5 authoritative sources for this Spanish real estate article:
+    // Language-specific configurations
+    const languageConfig: Record<string, {
+      instruction: string;
+      domains: string[];
+      sources: string[];
+      languageName: string;
+      exampleDomain: string;
+    }> = {
+      es: {
+        instruction: 'Find 3-5 authoritative sources for this Spanish real estate article',
+        domains: ['.gob.es', '.es official domains'],
+        sources: ['Spanish government ministries (Ministerios)', 'Property registry (Registradores de España)', 'Financial sources (Banco de España)', 'Legal and regulatory sources'],
+        languageName: 'Spanish',
+        exampleDomain: 'https://www.inclusion.gob.es/...'
+      },
+      en: {
+        instruction: 'Find 3-5 authoritative sources for this English real estate article',
+        domains: ['.gov', '.gov.uk', '.org official domains'],
+        sources: ['Government housing agencies', 'Property registries', 'Financial authorities (SEC, Federal Reserve)', 'Legal and regulatory sources'],
+        languageName: 'English',
+        exampleDomain: 'https://www.hud.gov/...'
+      },
+      nl: {
+        instruction: 'Find 3-5 authoritative sources for this Dutch real estate article',
+        domains: ['.nl', '.overheid.nl', '.gov.nl official domains'],
+        sources: ['Dutch government sources (Nederlandse overheid)', 'Land registry (Kadaster)', 'Financial authorities (De Nederlandsche Bank)', 'Legal and regulatory sources'],
+        languageName: 'Dutch',
+        exampleDomain: 'https://www.kadaster.nl/...'
+      }
+    };
+
+    const config = languageConfig[language] || languageConfig.es;
+
+    const prompt = `${config.instruction}:
 
 Article: "${headline}"
 Content: ${content.substring(0, 2000)}
 
 REQUIREMENTS:
-- Prioritize official Spanish government sources (.gob.es, .es official domains)
-- Include property registry (registradores.org)
-- Include financial sources (Banco de España)
-- Include legal and regulatory sources
+- Prioritize official government sources (${config.domains.join(', ')})
+- Include these types of sources: ${config.sources.join(', ')}
+- All sources MUST be in ${config.languageName} language
 - All sources must be HTTPS and currently active
 - For each source, identify WHERE in the article it should be cited
 
 Return ONLY valid JSON in this exact format:
 [
   {
-    "sourceName": "Spanish Ministry of Inclusion",
-    "url": "https://www.inclusion.gob.es/...",
-    "anchorText": "official NIE application procedures",
-    "contextInArticle": "When discussing NIE requirements for foreign buyers",
+    "sourceName": "Example Government Agency",
+    "url": "${config.exampleDomain}",
+    "anchorText": "official regulatory procedures",
+    "contextInArticle": "When discussing legal requirements",
     "insertAfterHeading": "Legal Requirements",
-    "relevance": "Authoritative government source for NIE procedures"
+    "relevance": "Authoritative government source"
   }
 ]
 
@@ -68,7 +100,7 @@ Return only the JSON array, nothing else.`;
         messages: [
           {
             role: 'system',
-            content: 'You are a research expert finding authoritative sources for real estate articles. Always prioritize official government sources. Return only valid JSON arrays.'
+            content: `You are a research expert finding authoritative ${config.languageName}-language sources for real estate articles. Always prioritize official government sources. Return only valid JSON arrays. ALL sources must be in ${config.languageName}.`
           },
           {
             role: 'user',
