@@ -200,3 +200,18 @@ All colors MUST be HSL.
 .article-content table td {
   @apply p-3 border;
 }
+
+@layer utilities {
+  @keyframes pulse-subtle {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.95;
+    }
+  }
+  
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}

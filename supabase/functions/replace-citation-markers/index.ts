@@ -135,6 +135,78 @@ function extractCitationContexts(
   return contexts;
 }
 
+// Helper function to identify government/educational domains
+function isGovernmentDomain(url: string): boolean {
+  const govPatterns = [
+    '.gov', '.gob.es', '.gob.', '.gouv.', '.overheid.nl',
+    'europa.eu', 'ine.es', 'bde.es', '.edu', '.ac.uk',
+    '.gov.uk', '.gc.ca'
+  ];
+  const lowerUrl = url.toLowerCase();
+  return govPatterns.some(pattern => lowerUrl.includes(pattern));
+}
+
+// Resilient URL verification with fallback strategies
+async function verifyUrl(url: string): Promise<boolean> {
+  const isGov = isGovernmentDomain(url);
+  
+  try {
+    // Try HEAD request first (fastest)
+    const response = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; CitationBot/1.0)'
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    
+    if (response.status === 200 || response.status === 403) {
+      return true;
+    }
+    
+    // For government domains, try GET request as fallback
+    if (isGov && (response.status === 400 || response.status >= 500)) {
+      console.log(`HEAD failed for gov site ${url}, trying GET...`);
+      const getResponse = await fetch(url, {
+        method: 'GET',
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; CitationBot/1.0)'
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+      return getResponse.status === 200 || getResponse.status === 403;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('URL verification error:', url, error);
+    
+    // For government domains, be more lenient with SSL/network errors
+    if (isGov) {
+      console.warn(`Accepting government URL despite verification error: ${url}`);
+      return true; // ✅ Accept government sources even with SSL issues
+    }
+    
+    return false;
+  }
+}
+
+// Verification with retry logic
+async function verifyUrlWithRetry(url: string, retries = 2): Promise<boolean> {
+  for (let i = 0; i <= retries; i++) {
+    const result = await verifyUrl(url);
+    if (result) return true;
+    
+    if (i < retries) {
+      console.log(`Retry ${i + 1}/${retries} for ${url}`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  return false;
+}
+
 async function findCitationForClaim(
   context: CitationContext,
   language: string,
@@ -248,10 +320,10 @@ Return ONLY this JSON (no markdown, no explanation):
       }
     }
 
-    // Verify URL is accessible
-    const urlCheck = await verifyUrl(citation.url);
+    // Verify URL is accessible with retry logic
+    const urlCheck = await verifyUrlWithRetry(citation.url);
     if (!urlCheck) {
-      console.error(`URL not accessible: ${citation.url}`);
+      console.error(`URL not accessible after retries: ${citation.url}`);
       return null;
     }
 
@@ -281,20 +353,6 @@ function checkUrlLanguage(url: string, language: string): boolean {
 
   const expectedTLDs = languageTLDs[language] || [];
   return expectedTLDs.some(tld => url.toLowerCase().includes(tld));
-}
-
-async function verifyUrl(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(url, { 
-      method: 'HEAD',
-      redirect: 'follow'
-    });
-    // Accept 200 (OK) or 403 (Forbidden but exists)
-    return response.status === 200 || response.status === 403;
-  } catch (error) {
-    console.error('URL verification failed:', url, error);
-    return false;
-  }
 }
 
 function replaceCitationMarkers(

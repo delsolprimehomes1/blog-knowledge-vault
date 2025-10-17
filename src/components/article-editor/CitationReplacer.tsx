@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, ExternalLink, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { Loader2, ExternalLink, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -93,6 +93,13 @@ export const CitationReplacer = ({
 
       if (data.citations && data.citations.length > 0) {
         setShowPreview(true);
+        // Show partial success warning
+        if (stats.failedCount > 0) {
+          toast({
+            title: "Partial Success",
+            description: `Found ${data.replacedCount} of ${data.totalMarkers} sources. ${data.failedCount} claims still need citations.`,
+          });
+        }
       } else {
         toast({
           title: "No Citations Found",
@@ -128,19 +135,22 @@ export const CitationReplacer = ({
 
   return (
     <>
-      <Card className="border-amber-200 bg-amber-50/50">
+      <Card className="border-amber-300 bg-amber-50/50 shadow-sm animate-pulse-subtle">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <CardTitle className="text-lg flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <AlertTriangle className="h-5 w-5 text-amber-600 animate-pulse" />
                 Citations Needed
               </CardTitle>
-              <CardDescription className="mt-1">
-                {markerCount} claim{markerCount !== 1 ? 's' : ''} need{markerCount === 1 ? 's' : ''} authoritative sources
+              <CardDescription className="mt-2 space-y-1">
+                <div>{markerCount} claim{markerCount !== 1 ? 's' : ''} need{markerCount === 1 ? 's' : ''} authoritative sources</div>
+                <div className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                  💡 <span>Add <code className="bg-amber-100 px-1 py-0.5 rounded text-xs">[CITATION_NEEDED]</code> in your content where you need sources</span>
+                </div>
               </CardDescription>
             </div>
-            <Badge variant="secondary" className="text-lg font-semibold">
+            <Badge variant="secondary" className="text-lg font-semibold shrink-0 animate-pulse">
               {markerCount}
             </Badge>
           </div>
@@ -269,6 +279,34 @@ export const CitationReplacer = ({
                 ))}
               </div>
             </ScrollArea>
+
+            {stats.failedCount > 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-sm space-y-2">
+                    <p className="font-medium text-amber-900">
+                      {stats.failedCount} claim{stats.failedCount !== 1 ? 's' : ''} couldn't be verified
+                    </p>
+                    <p className="text-amber-700 text-xs">
+                      Some government sources may have SSL issues. You can try searching again or add citations manually.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowPreview(false);
+                        handleFindCitations();
+                      }}
+                      className="gap-2"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Retry Search
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2 justify-end pt-4 border-t">
               <Button

@@ -557,8 +557,8 @@ const ArticleEditor = () => {
           </CardContent>
         </Card>
 
-        {/* Citation Replacement Tool */}
-        {detailedContent.includes('[CITATION_NEEDED]') && (
+        {/* Citation Replacement Tool - Always show helper */}
+        {detailedContent.includes('[CITATION_NEEDED]') ? (
           <CitationReplacer
             content={detailedContent}
             headline={headline}
@@ -566,6 +566,18 @@ const ArticleEditor = () => {
             category={category}
             onContentUpdate={setDetailedContent}
           />
+        ) : detailedContent && (
+          <Card className="border-blue-200 bg-blue-50/30">
+            <CardContent className="py-4">
+              <p className="text-sm text-muted-foreground">
+                💡 <strong>Need citations?</strong> Add{' '}
+                <code className="bg-blue-100 px-2 py-0.5 rounded font-mono text-xs">
+                  [CITATION_NEEDED]
+                </code>{' '}
+                markers in your content where claims need sources, then use AI to find them automatically.
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Citation Quality Validation */}
