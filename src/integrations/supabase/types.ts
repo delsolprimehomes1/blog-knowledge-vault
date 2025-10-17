@@ -233,6 +233,51 @@ export type Database = {
         }
         Relationships: []
       }
+      cluster_generations: {
+        Row: {
+          articles: Json | null
+          created_at: string | null
+          error: string | null
+          id: string
+          language: string
+          primary_keyword: string
+          progress: Json | null
+          status: string
+          target_audience: string
+          topic: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          articles?: Json | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          language: string
+          primary_keyword: string
+          progress?: Json | null
+          status?: string
+          target_audience: string
+          topic: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          articles?: Json | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          language?: string
+          primary_keyword?: string
+          progress?: Json | null
+          status?: string
+          target_audience?: string
+          topic?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null

@@ -6,29 +6,43 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+// Helper function to update job progress
+async function updateProgress(supabase: any, jobId: string, step: number, message: string, articleNum?: number) {
+  await supabase
+    .from('cluster_generations')
+    .update({
+      status: 'generating',
+      progress: {
+        current_step: step,
+        total_steps: 11,
+        current_article: articleNum || 0,
+        total_articles: 6,
+        message
+      },
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', jobId);
+}
+
+// Main generation function (runs in background)
+async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
   try {
-    const { topic, language, targetAudience, primaryKeyword } = await req.json();
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
-
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-
-    console.log('Generating cluster for:', { topic, language, targetAudience, primaryKeyword });
+    console.log(`[Job ${jobId}] Starting generation for:`, { topic, language, targetAudience, primaryKeyword });
+    await updateProgress(supabase, jobId, 0, 'Starting generation...');
 
     // Fetch available authors and categories
     const { data: authors } = await supabase.from('authors').select('*');
     const { data: categories } = await supabase.from('categories').select('*');
 
     // STEP 1: Generate cluster structure
+    await updateProgress(supabase, jobId, 1, 'Generating article structure...');
+    console.log(`[Job ${jobId}] Step 1: Generating structure`);
+
     const structurePrompt = `You are an expert SEO content strategist for a luxury real estate agency in Costa del Sol, Spain.
 
 Create a content cluster structure for the topic: "${topic}"
@@ -93,12 +107,13 @@ Return ONLY valid JSON:
       throw new Error(`Invalid AI response format: ${errorMessage}`);
     }
 
-    console.log('Generated structure for', articleStructures.length, 'articles');
+    console.log(`[Job ${jobId}] Generated structure for`, articleStructures.length, 'articles');
 
     // STEP 2: Generate each article with detailed sections
     const articles = [];
 
     for (let i = 0; i < articleStructures.length; i++) {
+      await updateProgress(supabase, jobId, 2 + i, `Generating article ${i + 1} of ${articleStructures.length}...`, i + 1);
       const plan = articleStructures[i];
       const article: any = {
         funnel_stage: plan.funnelStage,
@@ -106,7 +121,7 @@ Return ONLY valid JSON:
         status: 'draft',
       };
 
-      console.log(`Generating article ${i + 1}/${articleStructures.length}: ${plan.headline}`);
+      console.log(`[Job ${jobId}] Generating article ${i + 1}/${articleStructures.length}: ${plan.headline}`);
 
       // 1. HEADLINE
       article.headline = plan.headline;
@@ -554,8 +569,10 @@ Return ONLY valid JSON:
       console.log(`Article ${i + 1} complete:`, article.headline, `(${wordCount} words)`);
     }
 
+    await updateProgress(supabase, jobId, 8, 'Finding internal links...');
+    console.log(`[Job ${jobId}] All articles generated, now finding internal links...`);
+
     // STEP 3: Find internal links between cluster articles
-    console.log('Finding internal links between cluster articles...');
     
     for (let i = 0; i < articles.length; i++) {
       try {
@@ -679,38 +696,112 @@ Return ONLY valid JSON:
       bofuArticle.related_article_ids = [];
     });
 
-    console.log('Funnel linking complete:', {
-      tofu_articles: tofuArticles.length,
-      mofu_articles: mofuArticles.length,
-      bofu_articles: bofuArticles.length,
-      tofu_cta_targets: tofuArticles[0]?._temp_cta_slugs?.length || 0,
-      mofu_cta_targets: mofuArticles[0]?._temp_cta_slugs?.length || 0,
-    });
+    await updateProgress(supabase, jobId, 10, 'Setting related articles...');
+    console.log(`[Job ${jobId}] Funnel linking complete`);
 
-    console.log('Cluster generation complete:', {
-      total: articles.length,
-      tofu: tofuArticles.length,
-      mofu: mofuArticles.length,
-      bofu: bofuArticles.length,
-    });
+    // STEP 5: Set related articles - Already set in CTA logic above
 
-    return new Response(
-      JSON.stringify({ success: true, articles }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+    await updateProgress(supabase, jobId, 11, 'Completed!');
+    console.log(`[Job ${jobId}] Generation complete!`);
+
+    // Save final articles to job record
+    await supabase
+      .from('cluster_generations')
+      .update({
+        status: 'completed',
+        articles: articles,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
+
+    console.log(`[Job ${jobId}] ✅ Job completed successfully, saved ${articles.length} articles`);
+
+  } catch (error) {
+    console.error(`[Job ${jobId}] ❌ Generation failed:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    // Update job with error
+    await supabase
+      .from('cluster_generations')
+      .update({
+        status: 'failed',
+        error: errorMessage,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
+  }
+}
+
+// Main request handler
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { topic, language, targetAudience, primaryKeyword } = await req.json();
+
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
+
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Get user ID (if authenticated)
+    const authHeader = req.headers.get('authorization');
+    let userId = null;
+    if (authHeader) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+        userId = user?.id;
+      } catch (e) {
+        console.log('Could not get user from auth header:', e);
       }
+    }
+
+    // Create job record
+    const { data: job, error: jobError } = await supabase
+      .from('cluster_generations')
+      .insert({
+        user_id: userId,
+        topic,
+        language,
+        target_audience: targetAudience,
+        primary_keyword: primaryKeyword,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (jobError) {
+      console.error('Failed to create job:', jobError);
+      throw jobError;
+    }
+
+    console.log(`✅ Created job ${job.id}, starting background generation`);
+
+    // Start generation in background (non-blocking)
+    // @ts-ignore - EdgeRuntime is available in Deno Deploy
+    EdgeRuntime.waitUntil(
+      generateCluster(job.id, topic, language, targetAudience, primaryKeyword)
+    );
+
+    // Return job ID immediately
+    return new Response(
+      JSON.stringify({ success: true, jobId: job.id }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error generating cluster:', error);
+    console.error('Error in generate-cluster request handler:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Failed to generate cluster'
-      }),
-      { 
+      JSON.stringify({ success: false, error: errorMessage }),
+      {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
       }
     );
   }

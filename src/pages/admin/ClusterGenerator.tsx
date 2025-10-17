@@ -50,6 +50,8 @@ const ClusterGenerator = () => {
   const [generatedArticles, setGeneratedArticles] = useState<Partial<BlogArticle>[]>([]);
   const [showReview, setShowReview] = useState(false);
   const [hasBackup, setHasBackup] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   // Check for saved backup on mount
   useEffect(() => {
@@ -99,9 +101,108 @@ const ClusterGenerator = () => {
 
   const clearBackup = () => {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('current_job_id');
     setHasBackup(false);
     toast.success('Backup cleared');
   };
+
+  // Check job status and update UI
+  const checkJobStatus = async (currentJobId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-cluster-status', {
+        body: { jobId: currentJobId }
+      });
+
+      if (error) throw error;
+
+      console.log(`Job ${currentJobId} status:`, data.status, data.progress);
+
+      // Update progress UI
+      if (data.progress) {
+        const progressPercent = (data.progress.current_step / data.progress.total_steps) * 100;
+        setProgress(progressPercent);
+
+        // Update steps based on current step
+        setSteps(prev => prev.map((step, idx) => {
+          if (idx < data.progress.current_step) return { ...step, status: 'complete' as StepStatus };
+          if (idx === data.progress.current_step) return { ...step, status: 'running' as StepStatus };
+          return step;
+        }));
+      }
+
+      // Handle completion
+      if (data.status === 'completed') {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+        
+        console.log('✅ Generation complete! Articles:', data.articles);
+        setGeneratedArticles(data.articles);
+        setShowReview(true);
+        setIsGenerating(false);
+        
+        // Clear job ID from storage
+        localStorage.removeItem('current_job_id');
+        setJobId(null);
+        
+        toast.success(`Successfully generated ${data.articles.length} articles!`);
+      }
+
+      // Handle failure
+      if (data.status === 'failed') {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+        
+        setIsGenerating(false);
+        localStorage.removeItem('current_job_id');
+        setJobId(null);
+        
+        toast.error(data.error || 'Generation failed');
+      }
+
+    } catch (error) {
+      console.error('Error checking job status:', error);
+      // Don't stop polling on errors - might be temporary
+    }
+  };
+
+  // Auto-resume polling if page refreshed during generation
+  useEffect(() => {
+    const savedJobId = localStorage.getItem('current_job_id');
+    if (savedJobId && !isGenerating && !jobId) {
+      console.log('Resuming generation for job:', savedJobId);
+      setJobId(savedJobId);
+      setIsGenerating(true);
+      toast.info('Resuming generation...');
+      
+      const interval = setInterval(() => {
+        checkJobStatus(savedJobId);
+      }, 5000);
+      
+      setPollingInterval(interval);
+    }
+  }, []);
+
+  // Save jobId to localStorage when set
+  useEffect(() => {
+    if (jobId) {
+      localStorage.setItem('current_job_id', jobId);
+    } else {
+      localStorage.removeItem('current_job_id');
+    }
+  }, [jobId]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
 
   const handleGenerate = async () => {
     // Validation
@@ -139,78 +240,42 @@ const ClusterGenerator = () => {
     setSteps(initialSteps);
     
     try {
-      console.log('Calling generate-cluster edge function...');
-      toast.info('Generating cluster... This may take 60-90 seconds.');
+      console.log('Starting cluster generation...');
+      toast.info('Starting generation... This will take 3-5 minutes. Feel free to leave this page - we\'ll save your progress!');
       
-      // Add timeout handling (300 seconds / 5 minutes for 6-article generation)
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Generation timeout - cluster may still be processing. Check backup if available.')), 300000)
-      );
-      
-      const generatePromise = supabase.functions.invoke('generate-cluster', {
-        body: {
-          topic,
-          language,
-          targetAudience,
-          primaryKeyword
-        }
+      // Step 1: Start generation (returns immediately with job ID)
+      const { data, error } = await supabase.functions.invoke('generate-cluster', {
+        body: { topic, language, targetAudience, primaryKeyword }
       });
-      
-      const { data, error } = await Promise.race([
-        generatePromise,
-        timeoutPromise
-      ]) as any;
-      
+
       if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(error.message || 'Failed to generate cluster');
+        console.error('Error starting generation:', error);
+        throw new Error(error.message || 'Failed to start generation');
       }
       
-      if (!data?.success || !data?.articles) {
+      if (!data?.success || !data?.jobId) {
         throw new Error('Invalid response from cluster generator');
       }
-      
-      console.log('✅ Cluster generated successfully:', data.articles.length, 'articles');
-      console.log('📄 Articles data:', data.articles);
-      
-      // Simulate progress through steps for visual feedback
-      for (let i = 0; i < initialSteps.length; i++) {
-        setSteps(prev => prev.map((step, idx) => 
-          idx === i ? { ...step, status: 'running' } : step
-        ));
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        setSteps(prev => prev.map((step, idx) => 
-          idx === i ? { ...step, status: 'complete' } : step
-        ));
-        
-        setProgress(((i + 1) / initialSteps.length) * 100);
-      }
-      
-      // Save to localStorage as backup before showing review
-      const backup = {
-        articles: data.articles,
-        topic,
-        language,
-        timestamp: new Date().toISOString()
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
-      console.log('💾 Saved backup to localStorage');
-      
-      // Store generated articles
-      setGeneratedArticles(data.articles);
-      console.log('🔄 Updated generatedArticles state with', data.articles.length, 'articles');
-      
-      toast.success(`Successfully generated ${data.articles.length} articles! Loading review interface...`);
-      
-      // Show review interface immediately (no delay)
-      setShowReview(true);
-      console.log('✨ Setting showReview to true');
+
+      const newJobId = data.jobId;
+      setJobId(newJobId);
+      console.log('✅ Generation started with job ID:', newJobId);
+
+      toast.success('Generation started! Tracking progress...');
+
+      // Step 2: Start polling for status updates
+      const interval = setInterval(() => {
+        checkJobStatus(newJobId);
+      }, 5000); // Poll every 5 seconds
+
+      setPollingInterval(interval);
+
+      // Initial status check
+      checkJobStatus(newJobId);
       
     } catch (error) {
       console.error("Error generating cluster:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to generate cluster");
+      toast.error(error instanceof Error ? error.message : "Failed to start generation");
       setIsGenerating(false);
       setSteps([]);
       setProgress(0);

@@ -15,5 +15,8 @@ verify_jwt = false
 [functions.generate-cluster]
 verify_jwt = false
 
+[functions.check-cluster-status]
+verify_jwt = false
+
 [functions.regenerate-section]
 verify_jwt = false
