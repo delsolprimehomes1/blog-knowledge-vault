@@ -478,6 +478,159 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         return 'luxury property';
       };
 
+      // Detect article topic for contextual image generation
+      const detectArticleTopic = (headline: string): string => {
+        const text = headline.toLowerCase();
+        
+        // Legal/Process articles
+        if (text.match(/\b(buy|buying|purchase|process|legal|documents?|nie|tax|fees?|cost|steps?)\b/)) {
+          return 'process-legal';
+        }
+        
+        // Comparison articles
+        if (text.match(/\b(vs|versus|compare|comparison|best|choose|which|difference)\b/)) {
+          return 'comparison';
+        }
+        
+        // Investment articles
+        if (text.match(/\b(invest|investment|roi|rental|yield|return|profit|market)\b/)) {
+          return 'investment';
+        }
+        
+        // Lifestyle articles
+        if (text.match(/\b(live|living|lifestyle|expat|retire|retirement|community|culture)\b/)) {
+          return 'lifestyle';
+        }
+        
+        // Area/location guides
+        if (text.match(/\b(guide|area|neighborhood|district|zone|where|location)\b/)) {
+          return 'location-guide';
+        }
+        
+        // Property type specific
+        if (text.match(/\b(villa|apartment|penthouse|townhouse)\b/)) {
+          return 'property-showcase';
+        }
+        
+        // Default
+        return 'general-property';
+      };
+
+      // Generate contextual image prompt based on funnel stage and topic
+      const generateContextualImagePrompt = (
+        headline: string,
+        funnelStage: string,
+        topic: string,
+        propertyType: string,
+        location: string
+      ): string => {
+        
+        const baseQuality = 'ultra-realistic, 8k resolution, professional photography, no text, no watermarks';
+        
+        // ========== TOFU (Top of Funnel) - Inspirational & Lifestyle ==========
+        if (funnelStage === 'TOFU') {
+          
+          if (topic === 'lifestyle') {
+            return `Lifestyle photography of ${location}, Costa del Sol: 
+              Happy expats enjoying Mediterranean lifestyle, 
+              outdoor café terrace, palm trees, bright sunshine, 
+              relaxed atmosphere, diverse international community, 
+              authentic Spanish culture, ${baseQuality}`;
+          }
+          
+          if (topic === 'location-guide') {
+            return `Aerial drone shot of ${location}, Costa del Sol: 
+              Panoramic view of the area, 
+              Mediterranean coastline, mountains in background, 
+              beaches, urban development, golf courses visible, 
+              golden hour lighting, ${baseQuality}`;
+          }
+          
+          // Default TOFU: Aspirational property imagery
+          return `Stunning ${propertyType} in ${location}, Costa del Sol: 
+            Luxury Mediterranean property, 
+            sea view from terrace, infinity pool, 
+            palm trees, blue skies, sunset lighting, 
+            lifestyle imagery showing dream home, 
+            ${baseQuality}`;
+        }
+        
+        // ========== MOFU (Middle of Funnel) - Detailed & Comparative ==========
+        if (funnelStage === 'MOFU') {
+          
+          if (topic === 'comparison') {
+            return `Split-screen comparison concept for ${location}: 
+              Side-by-side visual comparison of two Costa del Sol areas, 
+              contrasting property styles and environments, 
+              modern vs traditional architecture, 
+              urban vs beachfront, clean composition, 
+              ${baseQuality}`;
+          }
+          
+          if (topic === 'investment') {
+            return `Investment property photography in ${location}: 
+              Modern ${propertyType} with rental appeal, 
+              high-end finishes, professional staging, 
+              bright interiors, sleek design, 
+              shows property value and ROI potential, 
+              ${baseQuality}`;
+          }
+          
+          if (topic === 'property-showcase') {
+            return `Interior and exterior showcase of ${propertyType} in ${location}: 
+              Multiple angles showing key features, 
+              open-plan living areas, modern kitchen, 
+              terrace with sea view, pool area, 
+              high-quality architectural photography, 
+              ${baseQuality}`;
+          }
+          
+          // Default MOFU: Detailed property features
+          return `Detailed ${propertyType} photography in ${location}, Costa del Sol: 
+            Interior and exterior views, 
+            high-end finishes, spacious rooms, 
+            natural lighting, architectural details, 
+            Mediterranean design elements, 
+            ${baseQuality}`;
+        }
+        
+        // ========== BOFU (Bottom of Funnel) - Professional & Process-Oriented ==========
+        if (funnelStage === 'BOFU') {
+          
+          if (topic === 'process-legal') {
+            return `Professional real estate consultation scene in ${location}: 
+              Property lawyer or agent meeting with international clients, 
+              modern office setting, documents on table, 
+              professional atmosphere, trust and expertise conveyed, 
+              Spanish property transaction context, 
+              ${baseQuality}`;
+          }
+          
+          if (topic === 'comparison') {
+            return `Decision-making concept for property purchase in ${location}: 
+              Property viewing scene, clients examining ${propertyType}, 
+              professional real estate agent showing features, 
+              serious buyers evaluating options, 
+              high-quality consultation imagery, 
+              ${baseQuality}`;
+          }
+          
+          // Default BOFU: Action-ready property
+          return `Move-in ready ${propertyType} in ${location}, Costa del Sol: 
+            Perfect condition property ready for immediate purchase, 
+            pristine interiors, staged furniture, 
+            keys on table symbolizing ownership, 
+            professional marketing photography, 
+            ${baseQuality}`;
+        }
+        
+        // ========== Fallback (should never reach here) ==========
+        return `Professional real estate photography: ${headline}. 
+          Luxury ${propertyType} in ${location}, Costa del Sol, 
+          Mediterranean architecture, bright natural lighting, 
+          ${baseQuality}`;
+      };
+
       const inferLocation = (headline: string) => {
         const text = headline.toLowerCase();
         if (text.includes('marbella')) return 'Marbella';
@@ -491,15 +644,23 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       const propertyType = inferPropertyType(plan.contentAngle, plan.headline);
       const location = inferLocation(plan.headline);
 
-      const imagePrompt = `Professional real estate photography: ${plan.headline}. 
-Luxury Costa del Sol property, ${propertyType}, 
-Mediterranean architecture, Spanish villa style, bright natural lighting, 
-high-end interior design, ${location}, 
-ultra-realistic, 8k resolution, architectural digest style, 
-blue skies, palm trees, sea view, no text, no watermarks`;
+      // Detect article topic and generate contextual prompt
+      const articleTopic = detectArticleTopic(plan.headline);
+      const imagePrompt = generateContextualImagePrompt(
+        plan.headline,
+        plan.funnelStage,
+        articleTopic,
+        propertyType,
+        location
+      );
 
       try {
-        console.log(`🎨 Generating image for: ${plan.headline}`);
+        console.log(`🎨 Image generation context:
+  - Funnel Stage: ${plan.funnelStage}
+  - Detected Topic: ${articleTopic}
+  - Property Type: ${propertyType}
+  - Location: ${location}
+  - Prompt: ${imagePrompt.substring(0, 150)}...`);
         
         const imageResponse = await supabase.functions.invoke('generate-image', {
           body: {
@@ -529,15 +690,21 @@ blue skies, palm trees, sea view, no text, no watermarks`;
           console.log('✅ Image generated successfully:', featuredImageUrl);
 
           // Generate SEO-optimized alt text
+          const funnelIntent = plan.funnelStage === 'TOFU' ? 'awareness/lifestyle' : plan.funnelStage === 'MOFU' ? 'consideration/comparison' : 'decision/action';
+          const funnelStyle = plan.funnelStage === 'TOFU' ? 'inspiring lifestyle' : plan.funnelStage === 'MOFU' ? 'detailed comparison' : 'professional consultation';
+          
           const altPrompt = `Create SEO-optimized alt text for this image:
 
 Article: ${plan.headline}
+Funnel Stage: ${plan.funnelStage} (${funnelIntent})
+Article Topic: ${articleTopic}
 Target Keyword: ${plan.targetKeyword}
 Image shows: ${imagePrompt}
 
 Requirements:
 - Include primary keyword "${plan.targetKeyword}"
-- Describe what's visible in the image
+- Reflect the ${plan.funnelStage} intent (${funnelStyle})
+- Describe what's visible in the image accurately
 - Max 125 characters
 - Natural, descriptive (not keyword stuffed)
 
@@ -557,6 +724,12 @@ Return only the alt text, no quotes, no JSON.`;
 
           const altData = await altResponse.json();
           featuredImageAlt = altData.choices[0].message.content.trim();
+          
+          console.log(`✅ Contextual image generated:
+  - Funnel-appropriate style: ${funnelStyle}
+  - Topic match: ${articleTopic}
+  - Image URL: ${featuredImageUrl}
+  - Alt text: ${featuredImageAlt}`);
         } else {
           console.warn('⚠️ No images in response');
           throw new Error('No images returned from FAL.ai');
