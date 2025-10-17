@@ -75,7 +75,23 @@ Return ONLY valid JSON:
 
     const structureData = await structureResponse.json();
     const structureText = structureData.choices[0].message.content;
-    const { articles: articleStructures } = JSON.parse(structureText.replace(/```json\n?|\n?```/g, ''));
+
+    console.log('Raw AI response:', structureText); // Debug logging
+
+    let articleStructures;
+    try {
+      const parsed = JSON.parse(structureText.replace(/```json\n?|\n?```/g, ''));
+      articleStructures = parsed.articles || [];
+      
+      if (!Array.isArray(articleStructures) || articleStructures.length === 0) {
+        throw new Error('AI did not return valid article structures');
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError);
+      console.error('Response text:', structureText);
+      const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
+      throw new Error(`Invalid AI response format: ${errorMessage}`);
+    }
 
     console.log('Generated structure for', articleStructures.length, 'articles');
 
