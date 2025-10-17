@@ -27,7 +27,7 @@ serve(async (req) => {
   }
 
   try {
-    const { content, headline, language, category } = await req.json();
+    const { content, headline, language, category, preferredSourceTypes = [] } = await req.json();
 
     console.log('Citation replacement request:', { headline, language, category });
 
@@ -54,7 +54,7 @@ serve(async (req) => {
     for (const context of citationContexts) {
       try {
         console.log(`Finding citation for: "${context.claim.substring(0, 50)}..."`);
-        const citation = await findCitationForClaim(context, language);
+        const citation = await findCitationForClaim(context, language, preferredSourceTypes);
         if (citation) {
           citations.push(citation);
           console.log(`✓ Found: ${citation.sourceName}`);
@@ -137,7 +137,8 @@ function extractCitationContexts(
 
 async function findCitationForClaim(
   context: CitationContext,
-  language: string
+  language: string,
+  preferredSourceTypes: string[] = []
 ): Promise<Citation | null> {
   
   const languageInstructions: Record<string, string> = {
@@ -152,6 +153,10 @@ async function findCitationForClaim(
     'hu': 'Find Hungarian-language sources only (.hu, Hungarian sites)',
   };
 
+  const sourcePreferenceText = preferredSourceTypes.length > 0 
+    ? `\n- PRIORITIZE these source types (in order): ${preferredSourceTypes.join(', ')}`
+    : '';
+
   const prompt = `Find ONE authoritative source to cite this claim about "${context.articleTopic}":
 
 CLAIM: "${context.claim}"
@@ -160,7 +165,7 @@ CONTEXT: ${context.surroundingText}
 
 REQUIREMENTS:
 - ${languageInstructions[language] || 'Find English sources'}
-- Prioritize official/government sources (.gov, .gob.es, etc.)
+- Prioritize official/government sources (.gov, .gob.es, etc.)${sourcePreferenceText}
 - Must be a real, accessible URL (verify it exists)
 - Must be directly relevant to the specific claim
 - Must be in ${language.toUpperCase()} language

@@ -36,10 +36,32 @@ export const CitationReplacer = ({
   const [citations, setCitations] = useState<Citation[]>([]);
   const [updatedContent, setUpdatedContent] = useState("");
   const [stats, setStats] = useState({ totalMarkers: 0, replacedCount: 0, failedCount: 0 });
+  const [preferredSources, setPreferredSources] = useState<string[]>([]);
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
   const { toast } = useToast();
 
   // Count [CITATION_NEEDED] markers in content
   const markerCount = (content.match(/\[CITATION_NEEDED\]/g) || []).length;
+
+  const sourceTypeOptions = [
+    { value: '.gov', label: 'Government (.gov)', description: 'US government sources' },
+    { value: '.gob.es', label: 'Spanish Government (.gob.es)', description: 'Official Spanish government' },
+    { value: '.edu', label: 'Educational (.edu)', description: 'Universities and research' },
+    { value: '.org', label: 'Organizations (.org)', description: 'Non-profit organizations' },
+    { value: '.int', label: 'International (.int)', description: 'International organizations' },
+    { value: 'europa.eu', label: 'European Union', description: 'EU official sources' },
+    { value: '.ac.uk', label: 'UK Academic (.ac.uk)', description: 'UK universities' },
+    { value: 'ine.es', label: 'Spanish Statistics (INE)', description: 'Instituto Nacional de Estadística' },
+    { value: 'bde.es', label: 'Bank of Spain', description: 'Banco de España' },
+  ];
+
+  const toggleSourceType = (value: string) => {
+    setPreferredSources(prev => 
+      prev.includes(value) 
+        ? prev.filter(s => s !== value)
+        : [...prev, value]
+    );
+  };
 
   const handleFindCitations = async () => {
     setIsProcessing(true);
@@ -50,7 +72,8 @@ export const CitationReplacer = ({
           content,
           headline,
           language,
-          category
+          category,
+          preferredSourceTypes: preferredSources
         }
       });
 
@@ -122,8 +145,52 @@ export const CitationReplacer = ({
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
-          <Button 
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowSourcePicker(!showSourcePicker)}
+              className="w-full justify-between"
+              type="button"
+            >
+              <span className="flex items-center gap-2">
+                Source Preferences
+                {preferredSources.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {preferredSources.length} selected
+                  </Badge>
+                )}
+              </span>
+              {showSourcePicker ? '▼' : '▶'}
+            </Button>
+
+            {showSourcePicker && (
+              <div className="space-y-2 p-4 border rounded-md bg-background">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Select preferred official source types (optional)
+                </p>
+                {sourceTypeOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-start gap-3 p-2 hover:bg-accent rounded-md cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={preferredSources.includes(option.value)}
+                      onChange={() => toggleSourceType(option.value)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{option.label}</div>
+                      <div className="text-xs text-muted-foreground">{option.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Button
             onClick={handleFindCitations}
             disabled={isProcessing}
             className="w-full"
