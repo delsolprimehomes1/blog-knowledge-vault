@@ -133,26 +133,43 @@ Return ONLY valid JSON:
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '');
 
-      // 3. CATEGORY (infer from available categories)
-      const categoryKeywords = {
-        'buying': ['buy', 'purchase', 'invest', 'acquire'],
-        'market': ['market', 'price', 'trend', 'value'],
-        'guide': ['guide', 'how to', 'what is', 'complete'],
-        'location': ['location', 'area', 'neighborhood', 'where'],
-      };
+      // 3. CATEGORY (infer from available categories - match against database)
+      const headlineLower = plan.headline.toLowerCase();
       
-      let matchedCategory = 'Buying Guide'; // default
+      // Map article content to database category names
+      let matchedCategory = categories?.[0]?.name || 'General'; // Use first available category as fallback
+      
       for (const cat of categories || []) {
-        const catName = cat.name.toLowerCase();
-        if (categoryKeywords[catName as keyof typeof categoryKeywords]) {
-          const keywords = categoryKeywords[catName as keyof typeof categoryKeywords];
-          if (keywords.some(kw => plan.headline.toLowerCase().includes(kw))) {
+        const catNameLower = cat.name.toLowerCase();
+        
+        // Direct matching keywords based on category name
+        if (catNameLower.includes('buying') || catNameLower.includes('guide')) {
+          if (headlineLower.includes('buy') || headlineLower.includes('guide') || 
+              headlineLower.includes('purchase') || headlineLower.includes('invest')) {
+            matchedCategory = cat.name;
+            break;
+          }
+        }
+        
+        if (catNameLower.includes('market')) {
+          if (headlineLower.includes('market') || headlineLower.includes('price') || 
+              headlineLower.includes('trend') || headlineLower.includes('value')) {
+            matchedCategory = cat.name;
+            break;
+          }
+        }
+        
+        if (catNameLower.includes('location') || catNameLower.includes('area')) {
+          if (headlineLower.includes('location') || headlineLower.includes('area') || 
+              headlineLower.includes('neighborhood') || headlineLower.includes('where')) {
             matchedCategory = cat.name;
             break;
           }
         }
       }
+      
       article.category = matchedCategory;
+      console.log(`[Job ${jobId}] Assigned category "${matchedCategory}" to: ${plan.headline}`);
 
       // 4. SEO META TAGS
       const seoPrompt = `Create SEO meta tags for this article:

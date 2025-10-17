@@ -29,6 +29,7 @@ export const ClusterReviewInterface = ({
 }: ClusterReviewInterfaceProps) => {
   const [activeTab, setActiveTab] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [categoryWarnings, setCategoryWarnings] = useState<Record<number, boolean>>({});
 
   const currentArticle = articles[activeTab];
 
@@ -79,10 +80,36 @@ export const ClusterReviewInterface = ({
     },
   });
 
+  // Validate categories whenever they change
+  const validateCategories = () => {
+    if (!categories) return;
+    
+    const warnings: Record<number, boolean> = {};
+    const validCategoryNames = categories.map(c => c.name);
+    
+    articles.forEach((article, index) => {
+      if (article.category && !validCategoryNames.includes(article.category)) {
+        warnings[index] = true;
+      }
+    });
+    
+    setCategoryWarnings(warnings);
+  };
+
+  // Run validation when categories or articles change
+  useState(() => {
+    if (categories) {
+      validateCategories();
+    }
+  });
+
   const updateArticle = (index: number, updates: Partial<BlogArticle>) => {
     const newArticles = [...articles];
     newArticles[index] = { ...newArticles[index], ...updates };
     onArticlesChange(newArticles);
+    
+    // Revalidate after update
+    setTimeout(() => validateCategories(), 100);
   };
 
   const handleRegenerateSection = async (section: string) => {
@@ -127,6 +154,25 @@ export const ClusterReviewInterface = ({
           Review and edit each article before publishing. Topic: <span className="font-semibold">{clusterTopic}</span>
         </p>
       </div>
+
+      {/* Category Warning Banner */}
+      {categoryWarnings[activeTab] && categories && (
+        <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <h3 className="font-semibold text-destructive mb-1">Invalid Category</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                The category "{currentArticle?.category}" doesn't exist in your database. 
+                Please select a valid category from the dropdown in the Basic Info section below.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Valid categories: {categories.map(c => c.name).join(', ')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Article Tabs */}
       <ScrollArea className="w-full">
