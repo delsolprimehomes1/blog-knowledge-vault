@@ -142,9 +142,9 @@ const ClusterGenerator = () => {
       console.log('Calling generate-cluster edge function...');
       toast.info('Generating cluster... This may take 60-90 seconds.');
       
-      // Add timeout handling (150 seconds to match edge function limit)
+      // Add timeout handling (300 seconds / 5 minutes for 6-article generation)
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Generation timeout - cluster may still be processing. Check backup if available.')), 150000)
+        setTimeout(() => reject(new Error('Generation timeout - cluster may still be processing. Check backup if available.')), 300000)
       );
       
       const generatePromise = supabase.functions.invoke('generate-cluster', {
