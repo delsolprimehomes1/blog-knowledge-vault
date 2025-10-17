@@ -42,10 +42,24 @@ export const ArticleCard = ({ article, author }: ArticleCardProps) => {
     ? article.meta_description.substring(0, 100) + "..." 
     : article.meta_description;
 
+  const imageUrl = article.featured_image_url || 
+    'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
+
   const handleMouseEnter = () => {
     // Prefetch article and featured image on hover
     prefetchArticle(article.slug);
-    prefetchImage(article.featured_image_url);
+    if (article.featured_image_url) {
+      prefetchImage(article.featured_image_url);
+    }
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.error('Image failed to load:', {
+      url: imageUrl,
+      article: article.headline,
+      slug: article.slug
+    });
+    e.currentTarget.src = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
   };
 
   return (
@@ -56,11 +70,12 @@ export const ArticleCard = ({ article, author }: ArticleCardProps) => {
       <CardContent className="p-0">
         <div className="relative overflow-hidden aspect-video">
           <OptimizedImage
-            src={article.featured_image_url}
+            src={imageUrl}
             alt={article.headline}
             width={600}
             height={338}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+            onError={handleImageError}
           />
           <Badge className="absolute top-3 left-3" variant="secondary">
             {article.category}
