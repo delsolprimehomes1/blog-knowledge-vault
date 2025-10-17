@@ -23,7 +23,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, headline } = await req.json();
+    const { prompt, headline, imageUrl } = await req.json();
     
     const falKey = Deno.env.get('FAL_KEY');
     if (!falKey) {
@@ -46,15 +46,22 @@ serve(async (req) => {
       bright natural lighting, high-end interior design, 
       ultra-realistic, 8k resolution, architectural digest style`;
 
-    console.log('Generating images with prompt:', finalPrompt);
+    console.log('Editing/generating images with prompt:', finalPrompt);
 
-    const result = await fal.subscribe("fal-ai/flux/schnell", {
-      input: {
-        prompt: finalPrompt,
-        image_size: "landscape_16_9",
-        num_inference_steps: 4,
-        num_images: 4,
-      },
+    const inputConfig: any = {
+      prompt: finalPrompt,
+      image_size: "landscape_16_9",
+      num_images: 4,
+    };
+
+    // Add image_url if provided for editing
+    if (imageUrl) {
+      inputConfig.image_url = imageUrl;
+      console.log('Editing existing image:', imageUrl);
+    }
+
+    const result = await fal.subscribe("fal-ai/nano-banana/edit", {
+      input: inputConfig,
       logs: true,
     }) as FalResult;
 

@@ -28,6 +28,7 @@ export const AIImageGenerator = ({
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<Array<{ url: string }>>([]);
+  const [baseImageForEdit, setBaseImageForEdit] = useState<string>('');
   const { toast } = useToast();
 
   const generateImagePrompt = () => {
@@ -45,7 +46,8 @@ ultra-realistic, 8k resolution, architectural digest style`;
       const { data, error } = await supabase.functions.invoke('generate-image', {
         body: { 
           prompt: prompt || undefined,
-          headline 
+          headline,
+          imageUrl: baseImageForEdit || imageUrl // Use base image if provided
         }
       });
 
@@ -90,7 +92,7 @@ ultra-realistic, 8k resolution, architectural digest style`;
             className="flex-1"
           >
             <Wand2 className="h-4 w-4 mr-2" />
-            Generate with AI
+            Generate/Edit with AI
           </Button>
           <Button
             type="button"
@@ -107,10 +109,33 @@ ultra-realistic, 8k resolution, architectural digest style`;
       {mode === 'ai' && (
         <div className="space-y-4">
           <div>
-            <Label htmlFor="imagePrompt">Image Description (Optional)</Label>
+            <Label htmlFor="baseImage">Base Image URL (Optional - for editing)</Label>
+            <Input
+              id="baseImage"
+              placeholder="Enter image URL to edit, or leave empty to generate new"
+              value={baseImageForEdit}
+              onChange={(e) => setBaseImageForEdit(e.target.value)}
+            />
+            {baseImageForEdit && (
+              <img 
+                src={baseImageForEdit} 
+                alt="Base" 
+                className="mt-2 w-full h-32 object-cover rounded-lg border" 
+              />
+            )}
+          </div>
+          
+          <div>
+            <Label htmlFor="imagePrompt">
+              {baseImageForEdit ? 'Edit Instructions' : 'Image Description (Optional)'}
+            </Label>
             <Textarea
               id="imagePrompt"
-              placeholder="Describe the image you want (leave blank to auto-generate from headline)"
+              placeholder={
+                baseImageForEdit 
+                  ? "Describe how to edit the image..." 
+                  : "Describe the image you want (leave blank to auto-generate from headline)"
+              }
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={3}
@@ -120,30 +145,69 @@ ultra-realistic, 8k resolution, architectural digest style`;
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">💡 Suggestions:</p>
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPrompt(generateImagePrompt())}
-              >
-                Auto-generate from headline
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPrompt("Aerial view of luxury villa in Marbella, Costa del Sol, Mediterranean style, sunset lighting, 8k resolution")}
-              >
-                Aerial property view
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPrompt("Modern interior living room Costa del Sol luxury villa, bright natural light, contemporary furniture, architectural photography")}
-              >
-                Interior shot
-              </Button>
+              {!baseImageForEdit ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPrompt(generateImagePrompt())}
+                  >
+                    Auto-generate from headline
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPrompt("Aerial view of luxury villa in Marbella, Costa del Sol, Mediterranean style, sunset lighting, 8k resolution")}
+                  >
+                    Aerial property view
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPrompt("Modern interior living room Costa del Sol luxury villa, bright natural light, contemporary furniture, architectural photography")}
+                  >
+                    Interior shot
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPrompt('Make it sunset with golden hour lighting')}
+                  >
+                    Sunset Lighting
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPrompt('Add a luxury pool in the foreground')}
+                  >
+                    Add Pool
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPrompt('Make it look more modern and minimalist')}
+                  >
+                    Modernize
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPrompt('Add tropical landscaping and palm trees')}
+                  >
+                    Add Landscaping
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -156,12 +220,12 @@ ultra-realistic, 8k resolution, architectural digest style`;
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating 4 options...
+                {baseImageForEdit ? 'Editing...' : 'Generating 4 options...'}
               </>
             ) : (
               <>
                 <Wand2 className="h-4 w-4 mr-2" />
-                Generate Images
+                {baseImageForEdit ? 'Edit Image' : 'Generate Images'}
               </>
             )}
           </Button>
