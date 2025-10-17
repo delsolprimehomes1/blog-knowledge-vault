@@ -170,18 +170,53 @@ export const ClusterReviewInterface = ({
       {/* Category Warning Banner */}
       {categoryWarnings[activeTab] && categories && (
         <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <span className="text-2xl">⚠️</span>
-            <div className="flex-1">
-              <h3 className="font-semibold text-destructive mb-1">Invalid Category</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                The category "{currentArticle?.category}" doesn't exist in your database. 
-                Please select a valid category from the dropdown in the Basic Info section below.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Valid categories: {categories.map(c => c.name).join(', ')}
-              </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div className="flex-1">
+                <h3 className="font-semibold text-destructive mb-1">Invalid Category</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  The category "{currentArticle?.category}" doesn't exist in your database. 
+                  Please select a valid category from the dropdown in the Basic Info section below.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Valid categories: {categories.map(c => c.name).join(', ')}
+                </p>
+              </div>
             </div>
+            <Button 
+              onClick={() => {
+                const categoryMap: Record<string, string> = {
+                  'Buying Guide': 'Buying Guides',
+                  'Investment Strategy': 'Investment Strategies',
+                  'Legal & Regulation': 'Legal & Regulations',
+                  'Location Insight': 'Location Insights',
+                  'Market': 'Market Analysis',
+                  'Property': 'Property Management',
+                };
+                
+                const updatedArticles = articles.map(article => {
+                  if (article.category && !categories?.find(c => c.name === article.category)) {
+                    const fixedCategory = Object.entries(categoryMap).find(([invalid]) => 
+                      article.category?.toLowerCase().includes(invalid.toLowerCase())
+                    )?.[1];
+                    
+                    return {
+                      ...article,
+                      category: fixedCategory || categories?.[0]?.name || 'Buying Guides'
+                    };
+                  }
+                  return article;
+                });
+                
+                onArticlesChange(updatedArticles);
+                toast.success('Categories fixed!');
+              }} 
+              variant="destructive" 
+              size="sm"
+            >
+              Fix All Categories
+            </Button>
           </div>
         </div>
       )}

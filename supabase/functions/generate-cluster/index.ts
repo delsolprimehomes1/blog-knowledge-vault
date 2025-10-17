@@ -133,43 +133,77 @@ Return ONLY valid JSON:
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '');
 
-      // 3. CATEGORY (infer from available categories - match against database)
-      const headlineLower = plan.headline.toLowerCase();
+      // 3. CATEGORY (AI-based selection from exact database categories)
+      const validCategoryNames = (categories || []).map(c => c.name);
       
-      // Map article content to database category names
-      let matchedCategory = categories?.[0]?.name || 'General'; // Use first available category as fallback
+      const categoryPrompt = `Select the most appropriate category for this article from this EXACT list:
+${validCategoryNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
+
+Article Details:
+- Headline: ${plan.headline}
+- Target Keyword: ${plan.targetKeyword}
+- Content Angle: ${plan.contentAngle}
+- Funnel Stage: ${plan.funnelStage}
+
+Return ONLY the category name exactly as shown above. No explanation, no JSON, just the category name.`;
+
+      let finalCategory;
       
-      for (const cat of categories || []) {
-        const catNameLower = cat.name.toLowerCase();
+      try {
+        const categoryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{ role: 'user', content: categoryPrompt }],
+          }),
+        });
+
+        const categoryData = await categoryResponse.json();
+        const aiSelectedCategory = categoryData.choices[0].message.content.trim();
         
-        // Direct matching keywords based on category name
-        if (catNameLower.includes('buying') || catNameLower.includes('guide')) {
-          if (headlineLower.includes('buy') || headlineLower.includes('guide') || 
-              headlineLower.includes('purchase') || headlineLower.includes('invest')) {
-            matchedCategory = cat.name;
-            break;
-          }
-        }
+        // Validate AI response against database categories
+        const isValidCategory = validCategoryNames.includes(aiSelectedCategory);
         
-        if (catNameLower.includes('market')) {
-          if (headlineLower.includes('market') || headlineLower.includes('price') || 
-              headlineLower.includes('trend') || headlineLower.includes('value')) {
-            matchedCategory = cat.name;
-            break;
+        if (isValidCategory) {
+          finalCategory = aiSelectedCategory;
+          console.log(`[Job ${jobId}] ✅ AI selected valid category: "${finalCategory}"`);
+        } else {
+          console.warn(`[Job ${jobId}] ⚠️ AI returned invalid category: "${aiSelectedCategory}". Using fallback.`);
+          
+          // Intelligent fallback based on headline keywords
+          const headlineLower = plan.headline.toLowerCase();
+          
+          if (headlineLower.includes('buy') || headlineLower.includes('purchase')) {
+            finalCategory = 'Buying Guides';
+          } else if (headlineLower.includes('invest') || headlineLower.includes('return')) {
+            finalCategory = 'Investment Strategies';
+          } else if (headlineLower.includes('market') || headlineLower.includes('price') || headlineLower.includes('trend')) {
+            finalCategory = 'Market Analysis';
+          } else if (headlineLower.includes('location') || headlineLower.includes('area') || headlineLower.includes('where')) {
+            finalCategory = 'Location Insights';
+          } else if (headlineLower.includes('legal') || headlineLower.includes('law') || headlineLower.includes('regulation')) {
+            finalCategory = 'Legal & Regulations';
+          } else if (headlineLower.includes('manage') || headlineLower.includes('maintain')) {
+            finalCategory = 'Property Management';
+          } else {
+            // Ultimate fallback: use most common category for the funnel stage
+            finalCategory = plan.funnelStage === 'TOFU' ? 'Market Analysis' : 'Buying Guides';
           }
+          
+          console.log(`[Job ${jobId}] 🔄 Fallback category assigned: "${finalCategory}"`);
         }
-        
-        if (catNameLower.includes('location') || catNameLower.includes('area')) {
-          if (headlineLower.includes('location') || headlineLower.includes('area') || 
-              headlineLower.includes('neighborhood') || headlineLower.includes('where')) {
-            matchedCategory = cat.name;
-            break;
-          }
-        }
+      } catch (error) {
+        console.error(`[Job ${jobId}] ❌ Error selecting category:`, error);
+        // Error fallback
+        finalCategory = categories?.[0]?.name || 'Buying Guides';
+        console.log(`[Job ${jobId}] 🔄 Error fallback category: "${finalCategory}"`);
       }
       
-      article.category = matchedCategory;
-      console.log(`[Job ${jobId}] Assigned category "${matchedCategory}" to: ${plan.headline}`);
+      article.category = finalCategory;
 
       // 4. SEO META TAGS
       const seoPrompt = `Create SEO meta tags for this article:

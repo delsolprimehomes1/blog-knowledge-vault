@@ -3,6 +3,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CharacterCounter } from "./CharacterCounter";
 import { GooglePreview } from "./GooglePreview";
 import { CitationCard } from "./CitationCard";
@@ -47,6 +48,7 @@ interface ArticleReviewCardProps {
 
 export const ArticleReviewCard = ({
   article,
+  categories,
   authors,
   onRegenerate,
   onEdit,
@@ -135,6 +137,26 @@ export const ArticleReviewCard = ({
                   <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
+            </div>
+
+            {/* Category */}
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select
+                value={article.category}
+                onValueChange={(value) => onEdit({ category: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories?.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Slug */}
