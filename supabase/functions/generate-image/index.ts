@@ -52,12 +52,13 @@ serve(async (req) => {
       prompt: finalPrompt,
       image_size: "landscape_16_9",
       num_images: 4,
+      image_urls: imageUrl ? [imageUrl] : []
     };
 
-    // Add image_url if provided for editing
     if (imageUrl) {
-      inputConfig.image_url = imageUrl;
       console.log('Editing existing image:', imageUrl);
+    } else {
+      console.log('Generating new images from prompt');
     }
 
     const result = await fal.subscribe("fal-ai/nano-banana/edit", {
