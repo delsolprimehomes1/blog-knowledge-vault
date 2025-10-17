@@ -75,6 +75,27 @@ async function generateCluster(jobId: string, topic: string, language: string, t
     console.log(`[Job ${jobId}] Starting generation for:`, { topic, language, targetAudience, primaryKeyword });
     await updateProgress(supabase, jobId, 0, 'Starting generation...');
 
+    // Fetch master content prompt from database
+    console.log(`[Job ${jobId}] Fetching master content prompt...`);
+    const { data: masterPromptData, error: promptError } = await supabase
+      .from('content_settings')
+      .select('setting_value, updated_at')
+      .eq('setting_key', 'master_content_prompt')
+      .single();
+
+    if (promptError) {
+      console.error(`[Job ${jobId}] Error fetching master prompt:`, promptError);
+    }
+
+    const masterPrompt = masterPromptData?.setting_value || '';
+    const hasCustomPrompt = masterPrompt && masterPrompt.trim().length > 100;
+
+    if (hasCustomPrompt) {
+      console.log(`[Job ${jobId}] ✅ Using CUSTOM master prompt (${masterPrompt.length} chars, last updated: ${masterPromptData.updated_at})`);
+    } else {
+      console.log(`[Job ${jobId}] ⚠️ No custom prompt found, using fallback content generation`);
+    }
+
     // Fetch available authors and categories
     const { data: authors } = await supabase.from('authors').select('*');
     const { data: categories } = await supabase.from('categories').select('*');
@@ -335,7 +356,39 @@ Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
       article.speakable_answer = speakableData.choices[0].message.content.trim();
 
       // 6. DETAILED CONTENT (1500-2500 words)
-      const contentPrompt = `Write a comprehensive 2000-word blog article:
+      console.log(`[Job ${jobId}] Generating detailed content for article ${i + 1}: "${plan.headline}"`);
+      
+      // Build content prompt using master prompt if available
+      let contentPromptMessages;
+      
+      if (hasCustomPrompt) {
+        // Replace variables in master prompt
+        const processedPrompt = masterPrompt
+          .replace(/\{\{headline\}\}/g, plan.headline)
+          .replace(/\{\{targetKeyword\}\}/g, plan.targetKeyword || primaryKeyword)
+          .replace(/\{\{searchIntent\}\}/g, plan.searchIntent || 'informational')
+          .replace(/\{\{contentAngle\}\}/g, plan.contentAngle || 'comprehensive guide')
+          .replace(/\{\{funnelStage\}\}/g, plan.funnelStage)
+          .replace(/\{\{targetAudience\}\}/g, targetAudience)
+          .replace(/\{\{language\}\}/g, language);
+
+        console.log(`[Job ${jobId}] ✅ Using master prompt with replaced variables for article ${i + 1}`);
+
+        contentPromptMessages = [
+          {
+            role: "system",
+            content: "You are Hans Beeckman, an expert Costa del Sol property specialist. Follow the master prompt instructions exactly."
+          },
+          {
+            role: "user",
+            content: processedPrompt
+          }
+        ];
+      } else {
+        // Fallback to original prompt structure
+        console.log(`[Job ${jobId}] ⚠️ Using fallback prompt structure for article ${i + 1}`);
+        
+        const contentPrompt = `Write a comprehensive 2000-word blog article:
 
 Headline: ${plan.headline}
 Target Keyword: ${plan.targetKeyword}
@@ -369,6 +422,11 @@ DO NOT include external links yet - just mark citation points with [CITATION_NEE
 
 Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
 
+        contentPromptMessages = [
+          { role: 'user', content: contentPrompt }
+        ];
+      }
+
       const contentResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -377,12 +435,38 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: contentPrompt }],
+          messages: contentPromptMessages,
         }),
       });
 
+      if (!contentResponse.ok) {
+        const errorText = await contentResponse.text();
+        console.error(`[Job ${jobId}] Content generation failed for article ${i + 1}:`, contentResponse.status, errorText);
+        throw new Error(`Content generation failed: ${contentResponse.status}`);
+      }
+
       const contentData = await contentResponse.json();
-      article.detailed_content = contentData.choices[0].message.content.trim();
+      if (!contentData.choices?.[0]?.message?.content) {
+        console.error(`[Job ${jobId}] Invalid content response for article ${i + 1}:`, contentData);
+        throw new Error('Invalid content generation response');
+      }
+
+      const detailedContent = contentData.choices[0].message.content.trim();
+      article.detailed_content = detailedContent;
+      
+      // Log content quality metrics for monitoring
+      const contentWordCount = detailedContent.split(/\s+/).length;
+      const hasSpeakableAnswer = detailedContent.includes('speakable-answer');
+      const internalLinkCount = (detailedContent.match(/\[INTERNAL_LINK:/g) || []).length;
+      const citationCount = (detailedContent.match(/\[CITATION_NEEDED:/g) || []).length;
+      const h2Count = (detailedContent.match(/<h2>/g) || []).length;
+      
+      console.log(`[Job ${jobId}] 📊 Content metrics for article ${i + 1}:`);
+      console.log(`[Job ${jobId}]   • Word count: ${contentWordCount}`);
+      console.log(`[Job ${jobId}]   • Has speakable answer: ${hasSpeakableAnswer}`);
+      console.log(`[Job ${jobId}]   • Internal link markers: ${internalLinkCount}`);
+      console.log(`[Job ${jobId}]   • Citation markers: ${citationCount}`);
+      console.log(`[Job ${jobId}]   • H2 sections: ${h2Count}`);
 
       // 7. FEATURED IMAGE (using existing generate-image function with enhanced prompt)
       const inferPropertyType = (contentAngle: string, headline: string) => {
