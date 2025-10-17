@@ -142,7 +142,12 @@ const ClusterGenerator = () => {
       console.log('Calling generate-cluster edge function...');
       toast.info('Generating cluster... This may take 60-90 seconds.');
       
-      const { data, error } = await supabase.functions.invoke('generate-cluster', {
+      // Add timeout handling (150 seconds to match edge function limit)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Generation timeout - cluster may still be processing. Check backup if available.')), 150000)
+      );
+      
+      const generatePromise = supabase.functions.invoke('generate-cluster', {
         body: {
           topic,
           language,
@@ -150,6 +155,11 @@ const ClusterGenerator = () => {
           primaryKeyword
         }
       });
+      
+      const { data, error } = await Promise.race([
+        generatePromise,
+        timeoutPromise
+      ]) as any;
       
       if (error) {
         console.error('Edge function error:', error);

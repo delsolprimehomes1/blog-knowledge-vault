@@ -30,8 +30,14 @@ serve(async (req) => {
       throw new Error('FAL_KEY is not configured');
     }
 
+    // Trim and validate FAL_KEY to prevent ByteString errors
+    const cleanedFalKey = falKey.trim().replace(/[\r\n]/g, '');
+    if (!cleanedFalKey || cleanedFalKey.length < 10) {
+      throw new Error('FAL_KEY appears to be invalid or corrupted');
+    }
+
     fal.config({
-      credentials: falKey
+      credentials: cleanedFalKey
     });
 
     // Auto-generate prompt from headline if not provided

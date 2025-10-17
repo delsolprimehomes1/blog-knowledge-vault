@@ -19,6 +19,11 @@ serve(async (req) => {
       throw new Error('PERPLEXITY_API_KEY is not configured');
     }
 
+    // Validate content parameter
+    if (!content || typeof content !== 'string') {
+      throw new Error('Content parameter is required and must be a string');
+    }
+
     const prompt = `Analyze this real estate article and create a ${type} diagram in Mermaid syntax.
 
 Article: "${headline}"
