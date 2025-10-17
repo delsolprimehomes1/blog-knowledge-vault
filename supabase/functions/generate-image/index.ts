@@ -57,23 +57,33 @@ serve(async (req) => {
 
     console.log('Editing/generating images with prompt:', finalPrompt);
 
-    const inputConfig: any = {
-      prompt: finalPrompt,
-      image_size: "landscape_16_9",
-      num_images: 4,
-      image_urls: imageUrl ? [imageUrl] : []
-    };
+    let result: FalResult;
 
     if (imageUrl) {
+      // Editing mode - use nano-banana/edit
       console.log('Editing existing image:', imageUrl);
+      result = await fal.subscribe("fal-ai/nano-banana/edit", {
+        input: {
+          prompt: finalPrompt,
+          image_size: "landscape_16_9",
+          num_images: 4,
+          image_urls: [imageUrl]
+        },
+        logs: true,
+      }) as FalResult;
     } else {
+      // Generation mode - use flux/dev
       console.log('Generating new images from prompt');
+      result = await fal.subscribe("fal-ai/flux/dev", {
+        input: {
+          prompt: finalPrompt,
+          image_size: "landscape_16_9",
+          num_inference_steps: 28,
+          num_images: 4,
+        },
+        logs: true,
+      }) as FalResult;
     }
-
-    const result = await fal.subscribe("fal-ai/nano-banana/edit", {
-      input: inputConfig,
-      logs: true,
-    }) as FalResult;
 
     return new Response(
       JSON.stringify({ 
