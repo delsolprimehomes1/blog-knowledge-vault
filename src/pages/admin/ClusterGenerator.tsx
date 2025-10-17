@@ -68,6 +68,36 @@ const ClusterGenerator = () => {
     }
   }, []);
 
+  // Auto-load most recent completed cluster on mount
+  useEffect(() => {
+    const checkForCompletedCluster = async () => {
+      const { data, error } = await supabase
+        .from('cluster_generations')
+        .select('*')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (!error && data && data.articles) {
+        console.log('✅ Found completed cluster:', data.id);
+        setGeneratedArticles(data.articles as Partial<BlogArticle>[]);
+        setTopic(data.topic);
+        setLanguage(data.language as Language);
+        setTargetAudience(data.target_audience);
+        setPrimaryKeyword(data.primary_keyword);
+        setShowReview(true);
+        toast.success(`Loaded completed cluster: ${data.topic}`);
+      }
+    };
+    
+    // Only check if we don't have a job in progress
+    const savedJobId = localStorage.getItem('current_job_id');
+    if (!savedJobId && !showReview) {
+      checkForCompletedCluster();
+    }
+  }, []);
+
   // Prevent navigation during generation
   useEffect(() => {
     if (!isGenerating) return;
