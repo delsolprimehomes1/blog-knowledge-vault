@@ -36,6 +36,15 @@ serve(async (req) => {
       throw new Error('FAL_KEY appears to be invalid or corrupted');
     }
 
+    console.log('============ FAL.ai Configuration ============');
+    console.log('FAL_KEY exists:', !!falKey);
+    console.log('FAL_KEY length:', cleanedFalKey.length);
+    console.log('FAL_KEY first 10 chars:', cleanedFalKey.substring(0, 10) + '...');
+    console.log('Prompt provided:', !!prompt);
+    console.log('Headline provided:', !!headline);
+    console.log('Image URL provided:', !!imageUrl);
+    console.log('=============================================');
+
     fal.config({
       credentials: cleanedFalKey
     });

@@ -311,6 +311,8 @@ ultra-realistic, 8k resolution, architectural digest style,
 blue skies, palm trees, sea view, no text, no watermarks`;
 
       try {
+        console.log(`🎨 Generating image for: ${plan.headline}`);
+        
         const imageResponse = await supabase.functions.invoke('generate-image', {
           body: {
             prompt: imagePrompt,
@@ -318,11 +320,25 @@ blue skies, palm trees, sea view, no text, no watermarks`;
           },
         });
 
+        console.log('📸 Image response error:', imageResponse.error);
+        console.log('📸 Image response data:', JSON.stringify(imageResponse.data));
+
         let featuredImageUrl = '';
         let featuredImageAlt = '';
 
+        if (imageResponse.error) {
+          console.error('❌ Edge function returned error:', imageResponse.error);
+          throw new Error(`Edge function error: ${JSON.stringify(imageResponse.error)}`);
+        }
+
+        if (imageResponse.data?.error) {
+          console.error('❌ FAL.ai API error:', imageResponse.data.error);
+          throw new Error(`FAL.ai error: ${imageResponse.data.error}`);
+        }
+
         if (imageResponse.data?.images?.[0]?.url) {
           featuredImageUrl = imageResponse.data.images[0].url;
+          console.log('✅ Image generated successfully:', featuredImageUrl);
 
           // Generate SEO-optimized alt text
           const altPrompt = `Create SEO-optimized alt text for this image:
@@ -353,16 +369,26 @@ Return only the alt text, no quotes, no JSON.`;
 
           const altData = await altResponse.json();
           featuredImageAlt = altData.choices[0].message.content.trim();
+        } else {
+          console.warn('⚠️ No images in response');
+          throw new Error('No images returned from FAL.ai');
         }
 
         article.featured_image_url = featuredImageUrl;
         article.featured_image_alt = featuredImageAlt;
         article.featured_image_caption = featuredImageUrl ? `${plan.headline} - Luxury real estate in Costa del Sol` : null;
       } catch (error) {
-        console.error('Image generation failed:', error);
-        article.featured_image_url = '';
-        article.featured_image_alt = '';
-        article.featured_image_caption = null;
+        console.error('❌ IMAGE GENERATION FAILED:', error);
+        console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+        console.error('Error message:', error instanceof Error ? error.message : String(error));
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        
+        // Use placeholder image instead of empty string
+        article.featured_image_url = 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=1200';
+        article.featured_image_alt = `${plan.headline} - Costa del Sol luxury real estate`;
+        article.featured_image_caption = `${plan.headline} - Luxury real estate in Costa del Sol`;
+        
+        console.log('⚠️ Using placeholder image for:', plan.headline);
       }
 
       // 8. DIAGRAM (for MOFU/BOFU articles using existing generate-diagram function)
