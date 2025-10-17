@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Author } from "@/types/blog";
 import { AdminLayout } from "@/components/AdminLayout";
@@ -6,9 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Edit, Trash2, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { AuthorDialog } from "@/components/AuthorDialog";
+import { toast } from "@/hooks/use-toast";
 
 const Authors = () => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedAuthor, setSelectedAuthor] = useState<Author | null>(null);
+  const [deleteAuthorId, setDeleteAuthorId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
   const { data: authors, isLoading } = useQuery({
     queryKey: ["authors"],
     queryFn: async () => {
@@ -22,6 +31,71 @@ const Authors = () => {
     },
   });
 
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase.from("authors").insert([data]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["authors"] });
+      toast({ title: "Author created successfully" });
+      setIsDialogOpen(false);
+      setSelectedAuthor(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error creating author", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const { error } = await supabase.from("authors").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["authors"] });
+      toast({ title: "Author updated successfully" });
+      setIsDialogOpen(false);
+      setSelectedAuthor(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating author", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("authors").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["authors"] });
+      toast({ title: "Author deleted successfully" });
+      setDeleteAuthorId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error deleting author", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = async (data: any) => {
+    if (selectedAuthor) {
+      await updateMutation.mutateAsync({ id: selectedAuthor.id, data });
+    } else {
+      await createMutation.mutateAsync(data);
+    }
+  };
+
+  const openCreateDialog = () => {
+    setSelectedAuthor(null);
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (author: Author) => {
+    setSelectedAuthor(author);
+    setIsDialogOpen(true);
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -33,7 +107,7 @@ const Authors = () => {
               Manage content authors and their credentials
             </p>
           </div>
-          <Button size="lg">
+          <Button size="lg" onClick={openCreateDialog}>
             <Plus className="mr-2 h-5 w-5" />
             Add New Author
           </Button>
@@ -100,11 +174,11 @@ const Authors = () => {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-2">
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => openEditDialog(author)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => setDeleteAuthorId(author.id)}>
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
                         </Button>
@@ -127,6 +201,31 @@ const Authors = () => {
             ))
           )}
         </div>
+
+        <AuthorDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          author={selectedAuthor}
+          onSubmit={handleSubmit}
+          isLoading={createMutation.isPending || updateMutation.isPending}
+        />
+
+        <AlertDialog open={!!deleteAuthorId} onOpenChange={() => setDeleteAuthorId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Author</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this author? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteAuthorId && deleteMutation.mutate(deleteAuthorId)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
