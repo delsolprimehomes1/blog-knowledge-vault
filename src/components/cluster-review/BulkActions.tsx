@@ -1,20 +1,24 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, Save, Download, Loader2 } from "lucide-react";
+import { Upload, Save, Download, Loader2, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 interface BulkActionsProps {
   onPublishAll: () => Promise<void>;
   onSaveAllAsDrafts: () => Promise<void>;
   onExportCluster: () => void;
+  onFixAllCitations?: () => Promise<void>;
   articleCount: number;
+  citationsNeeded: number;
 }
 
 export const BulkActions = ({
   onPublishAll,
   onSaveAllAsDrafts,
   onExportCluster,
+  onFixAllCitations,
   articleCount,
+  citationsNeeded,
 }: BulkActionsProps) => {
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -35,6 +39,20 @@ export const BulkActions = ({
             <span className="font-semibold">{articleCount} articles</span> in this cluster
           </div>
           <div className="flex gap-2">
+            {citationsNeeded > 0 && onFixAllCitations && (
+              <Button
+                variant="secondary"
+                onClick={() => handleAction("citations", onFixAllCitations)}
+                disabled={loading !== null}
+              >
+                {loading === "citations" ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                )}
+                Fix {citationsNeeded} Citation{citationsNeeded !== 1 ? 's' : ''}
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={onExportCluster}

@@ -407,7 +407,7 @@ Requirements:
    - BOFU: Action-oriented, conversion-focused, specific CTAs
 4. Include real examples from Costa del Sol (Marbella, Estepona, Málaga, Mijas, Benalmádena, etc.)
 5. Natural tone, 8th-grade reading level
-6. Mark potential external citation points with [CITATION_NEEDED]
+6. Reference claims that need citations naturally, DO NOT use [CITATION_NEEDED] markers
 7. Mark potential internal link opportunities with [INTERNAL_LINK: topic]
 
 Format as HTML with:
@@ -418,7 +418,7 @@ Format as HTML with:
 - <strong> for emphasis
 - <table> if comparing data
 
-DO NOT include external links yet - just mark citation points with [CITATION_NEEDED].
+External citations will be added automatically by the system.
 
 Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
 
@@ -944,6 +944,50 @@ Return ONLY valid JSON:
       } catch (error) {
         console.error('External citations failed:', error);
         article.external_citations = [];
+      }
+
+      // Post-process: Replace any remaining [CITATION_NEEDED] markers
+      const remainingMarkers = (article.detailed_content?.match(/\[CITATION_NEEDED\]/g) || []).length;
+      if (remainingMarkers > 0) {
+        console.log(`[Job ${jobId}] ⚠️ ${remainingMarkers} [CITATION_NEEDED] markers remaining in article ${i+1}. Attempting to replace...`);
+        
+        try {
+          const replacementResponse = await supabase.functions.invoke('replace-citation-markers', {
+            body: {
+              content: article.detailed_content,
+              headline: plan.headline,
+              language: language,
+              category: plan.category || 'Buying Guides'
+            }
+          });
+
+          if (replacementResponse.data?.success && replacementResponse.data.replacedCount > 0) {
+            article.detailed_content = replacementResponse.data.updatedContent;
+            console.log(`[Job ${jobId}] ✅ Replaced ${replacementResponse.data.replacedCount} citation markers`);
+            
+            // Merge any new citations found
+            const newCitations = replacementResponse.data.citations || [];
+            const existingCitations = article.external_citations || [];
+            const mergedCitations = [...existingCitations];
+            
+            newCitations.forEach((newCit: any) => {
+              const exists = mergedCitations.some((existing: any) => existing.url === newCit.url);
+              if (!exists) {
+                mergedCitations.push({
+                  text: newCit.sourceName,
+                  url: newCit.url,
+                  source: newCit.sourceName
+                });
+              }
+            });
+            
+            article.external_citations = mergedCitations;
+          } else {
+            console.log(`[Job ${jobId}] ⚠️ Could not replace all citation markers. ${replacementResponse.data?.failedCount || 0} markers failed.`);
+          }
+        } catch (citError) {
+          console.error(`[Job ${jobId}] Citation marker replacement failed:`, citError);
+        }
       }
 
       // 11. FAQ ENTITIES (for MOFU/BOFU)

@@ -1,5 +1,6 @@
 import { FunnelStage } from "@/types/blog";
 import { Badge } from "@/components/ui/badge";
+import { AlertCircle } from "lucide-react";
 
 interface ArticleTabProps {
   index: number;
@@ -7,6 +8,7 @@ interface ArticleTabProps {
   funnelStage: FunnelStage;
   isActive: boolean;
   onClick: () => void;
+  citationMarkersCount?: number;
 }
 
 const getFunnelBadgeColor = (stage: FunnelStage) => {
@@ -34,6 +36,7 @@ export const ArticleTab = ({
   funnelStage,
   isActive,
   onClick,
+  citationMarkersCount = 0,
 }: ArticleTabProps) => {
   const truncatedHeadline = headline.length > 40 ? headline.substring(0, 40) + "..." : headline;
 
@@ -50,6 +53,12 @@ export const ArticleTab = ({
         {getFunnelStageLabel(funnelStage, index)}
       </Badge>
       <span className="truncate">{truncatedHeadline}</span>
+      {citationMarkersCount > 0 && (
+        <Badge variant="destructive" className="shrink-0 gap-1 ml-1">
+          <AlertCircle className="h-3 w-3" />
+          {citationMarkersCount}
+        </Badge>
+      )}
     </button>
   );
 };

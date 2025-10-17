@@ -32,6 +32,7 @@ import { TranslationsSection } from "@/components/article-editor/TranslationsSec
 import { SchemaPreviewSection } from "@/components/article-editor/SchemaPreviewSection";
 import { SEOPreviewSection } from "@/components/article-editor/SEOPreviewSection";
 import { CitationReplacer } from "@/components/article-editor/CitationReplacer";
+import { CitationValidation } from "@/components/article-editor/CitationValidation";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -564,6 +565,15 @@ const ArticleEditor = () => {
             language={language}
             category={category}
             onContentUpdate={setDetailedContent}
+          />
+        )}
+
+        {/* Citation Quality Validation */}
+        {detailedContent && !detailedContent.includes('[CITATION_NEEDED]') && (
+          <CitationValidation
+            content={detailedContent}
+            externalCitations={externalCitations}
+            language={language}
           />
         )}
 

@@ -33,8 +33,15 @@ export const ClusterReviewInterface = ({
   const [activeTab, setActiveTab] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [categoryWarnings, setCategoryWarnings] = useState<Record<number, boolean>>({});
+  const [isFixingCitations, setIsFixingCitations] = useState(false);
 
   const currentArticle = articles[activeTab];
+
+  // Count articles needing citations
+  const citationsNeeded = articles.reduce((count, article) => {
+    const markerCount = (article.detailed_content?.match(/\[CITATION_NEEDED\]/g) || []).length;
+    return count + markerCount;
+  }, 0);
 
   // Fetch categories
   const { data: categories } = useQuery({
@@ -149,6 +156,56 @@ export const ClusterReviewInterface = ({
     }
   };
 
+  const handleFixAllCitations = async () => {
+    setIsFixingCitations(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (let i = 0; i < articles.length; i++) {
+        const article = articles[i];
+        const markerCount = (article.detailed_content?.match(/\[CITATION_NEEDED\]/g) || []).length;
+        
+        if (markerCount > 0) {
+          try {
+            const { data, error } = await supabase.functions.invoke('replace-citation-markers', {
+              body: {
+                content: article.detailed_content,
+                headline: article.headline,
+                language: article.language || language,
+                category: article.category
+              }
+            });
+
+            if (error) throw error;
+
+            if (data.success && data.replacedCount > 0) {
+              updateArticle(i, { detailed_content: data.updatedContent });
+              successCount += data.replacedCount;
+            } else {
+              failCount += markerCount;
+            }
+          } catch (error) {
+            console.error(`Failed to fix citations for article ${i}:`, error);
+            failCount += markerCount;
+          }
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Fixed ${successCount} citation${successCount !== 1 ? 's' : ''} across all articles`);
+      }
+      if (failCount > 0) {
+        toast.warning(`Could not find sources for ${failCount} citation${failCount !== 1 ? 's' : ''}`);
+      }
+    } catch (error) {
+      console.error('Error fixing citations:', error);
+      toast.error('Failed to fix citations');
+    } finally {
+      setIsFixingCitations(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-card rounded-lg border p-6">
@@ -224,16 +281,20 @@ export const ClusterReviewInterface = ({
       {/* Article Tabs */}
       <ScrollArea className="w-full">
         <div className="flex gap-2 border-b">
-          {articles.map((article, index) => (
-            <ArticleTab
-              key={index}
-              index={index}
-              headline={article.headline || `Article ${index + 1}`}
-              funnelStage={article.funnel_stage as FunnelStage || "TOFU"}
-              isActive={activeTab === index}
-              onClick={() => setActiveTab(index)}
-            />
-          ))}
+          {articles.map((article, index) => {
+            const markerCount = (article.detailed_content?.match(/\[CITATION_NEEDED\]/g) || []).length;
+            return (
+              <ArticleTab
+                key={index}
+                index={index}
+                headline={article.headline || `Article ${index + 1}`}
+                funnelStage={article.funnel_stage as FunnelStage || "TOFU"}
+                isActive={activeTab === index}
+                onClick={() => setActiveTab(index)}
+                citationMarkersCount={markerCount}
+              />
+            );
+          })}
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
@@ -266,7 +327,9 @@ export const ClusterReviewInterface = ({
         onPublishAll={onPublishAll}
         onSaveAllAsDrafts={onSaveAll}
         onExportCluster={onExport}
+        onFixAllCitations={citationsNeeded > 0 ? handleFixAllCitations : undefined}
         articleCount={articles.length}
+        citationsNeeded={citationsNeeded}
       />
     </div>
   );
