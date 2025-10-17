@@ -21,31 +21,37 @@ const BlogIndex = () => {
   const selectedLanguage = searchParams.get("lang") || "all";
 
   // Fetch categories
-  const { data: categories } = useQuery({
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
+      console.log('Fetching categories...');
       const { data, error } = await supabase
         .from("categories")
         .select("id, name")
         .order("name");
-      if (error) throw error;
+      if (error) {
+        console.error('Categories error:', error);
+        throw error;
+      }
+      console.log('Categories loaded:', data);
       return data;
     },
   });
 
   // Fetch articles with filters
-  const { data: articlesData, isLoading } = useQuery({
+  const { data: articlesData, isLoading: articlesLoading, error: articlesError } = useQuery({
     queryKey: ["blog-articles", selectedCategory, selectedLanguage, searchQuery],
-    enabled: !!categories,
     queryFn: async () => {
+      console.log('Fetching articles with filters:', { selectedCategory, selectedLanguage, searchQuery });
+      
       let query = supabase
         .from("blog_articles")
         .select("*, authors(name, photo_url)")
         .eq("status", "published")
         .order("date_published", { ascending: false });
 
-      if (selectedCategory !== "all") {
-        const category = categories?.find(c => c.id === selectedCategory);
+      if (selectedCategory !== "all" && categories) {
+        const category = categories.find(c => c.id === selectedCategory);
         if (category) {
           query = query.eq("category", category.name);
         }
@@ -60,7 +66,11 @@ const BlogIndex = () => {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Articles error:', error);
+        throw error;
+      }
+      console.log('Articles loaded:', data?.length, 'articles');
       return data;
     },
   });
@@ -95,11 +105,28 @@ const BlogIndex = () => {
     setSearchQuery("");
   };
 
+  const isLoading = categoriesLoading || articlesLoading;
+  const hasError = categoriesError || articlesError;
+  
   const totalArticles = articlesData?.length || 0;
   const totalPages = Math.ceil(totalArticles / ARTICLES_PER_PAGE);
   const startIndex = (currentPage - 1) * ARTICLES_PER_PAGE;
   const endIndex = startIndex + ARTICLES_PER_PAGE;
   const currentArticles = articlesData?.slice(startIndex, endIndex) || [];
+
+  if (hasError) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold">Unable to load articles</h2>
+          <p className="text-muted-foreground">
+            {categoriesError ? 'Failed to load categories' : 'Failed to load articles'}
+          </p>
+          <Button onClick={() => window.location.reload()}>Reload Page</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -117,7 +144,7 @@ const BlogIndex = () => {
         resultCount={totalArticles}
       />
 
-      {isLoading || !categories ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="animate-pulse">
