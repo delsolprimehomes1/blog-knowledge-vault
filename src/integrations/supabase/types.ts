@@ -340,9 +340,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_extension_exists: {
+        Args: { extension_name: string }
+        Returns: boolean
+      }
       check_stuck_cluster_jobs: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_database_triggers: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          action_statement: string
+          event_object_table: string
+          trigger_name: string
+        }[]
+      }
+      get_table_columns: {
+        Args: { table_name: string }
+        Returns: {
+          column_name: string
+          data_type: string
+        }[]
       }
       has_role: {
         Args: {
