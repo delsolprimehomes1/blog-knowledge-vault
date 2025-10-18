@@ -10,7 +10,7 @@ export const BlogHeader = ({ totalCount }: BlogHeaderProps) => {
       <img 
         src={logo} 
         alt="Del Sol Prime Homes" 
-        className="h-24 md:h-32 mx-auto drop-shadow-[0_0_25px_rgba(59,130,246,0.4)] hover:drop-shadow-[0_0_35px_rgba(59,130,246,0.6)] transition-all duration-300"
+        className="h-24 md:h-32 mx-auto drop-shadow-[0_0_40px_rgba(30,64,175,0.8)] hover:drop-shadow-[0_0_50px_rgba(30,64,175,0.9)] transition-all duration-300"
       />
       <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight">
         Del Sol Prime Homes Blog
