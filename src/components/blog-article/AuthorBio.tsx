@@ -77,15 +77,15 @@ export const AuthorBio = ({ author }: AuthorBioProps) => {
             {/* Credentials */}
             {author.credentials && author.credentials.length > 0 && (
               <div className="pt-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 text-center md:text-left">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 text-center md:text-left">
                   Professional Credentials
                 </p>
-                <div className="flex flex-wrap gap-1.5 justify-center md:justify-start">
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                   {author.credentials.map((cred, index) => (
                     <Badge 
                       key={index} 
                       variant="secondary" 
-                      className="text-xs bg-muted hover:bg-muted border-0 font-normal"
+                      className="text-xs sm:text-sm bg-muted hover:bg-muted border-0 font-normal py-1.5 px-3 leading-relaxed whitespace-normal text-left max-w-full"
                     >
                       {cred}
                     </Badge>
