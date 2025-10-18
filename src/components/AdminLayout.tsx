@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { LayoutDashboard, FileText, Users, Settings, Menu, Bot, Download, CheckCircle, Sparkles, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import logo from "@/assets/logo.png";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -47,8 +48,8 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r lg:bg-card">
-        <div className="flex h-16 items-center border-b px-6">
-          <h1 className="text-xl font-bold text-primary">Blog CMS</h1>
+        <div className="flex h-16 items-center border-b px-6 justify-center">
+          <img src={logo} alt="Del Sol Prime Homes" className="h-10" />
         </div>
         <nav className="flex-1 space-y-1 p-4">
           <NavLinks />
@@ -65,15 +66,15 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
-              <div className="flex h-16 items-center px-6 border-b">
-                <h1 className="text-xl font-bold text-primary">Blog CMS</h1>
+              <div className="flex h-16 items-center px-6 border-b justify-center">
+                <img src={logo} alt="Del Sol Prime Homes" className="h-10" />
               </div>
               <nav className="flex-1 space-y-1 p-4">
                 <NavLinks />
               </nav>
             </SheetContent>
           </Sheet>
-          <h1 className="text-xl font-bold text-primary">Blog CMS</h1>
+          <img src={logo} alt="Del Sol Prime Homes" className="h-10" />
         </header>
 
         {/* Main Content */}

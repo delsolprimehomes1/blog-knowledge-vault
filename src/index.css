@@ -8,7 +8,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    --background: 40 20% 98%;
     --foreground: 215 25% 15%;
 
     --card: 0 0% 100%;
@@ -17,42 +17,42 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 15%;
 
-    --primary: 246 67% 66%;
+    --primary: 42 58% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 214 32% 91%;
+    --secondary: 204 35% 88%;
     --secondary-foreground: 215 25% 15%;
 
-    --muted: 214 32% 91%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 40 15% 94%;
+    --muted-foreground: 42 15% 45%;
 
-    --accent: 246 67% 66%;
+    --accent: 42 58% 60%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 88%;
-    --input: 214 32% 88%;
-    --ring: 246 67% 66%;
+    --border: 40 15% 90%;
+    --input: 40 15% 90%;
+    --ring: 42 58% 60%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 100%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-foreground: 215 25% 15%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 42 58% 60%;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-primary-foreground: 0 0% 100%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent: 40 15% 94%;
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-accent-foreground: 215 25% 15%;
 
-    --sidebar-border: 220 13% 91%;
+    --sidebar-border: 40 15% 90%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 42 58% 60%;
   }
 
   .dark {
@@ -65,16 +65,16 @@ All colors MUST be HSL.
     --popover: 215 28% 12%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 246 67% 66%;
+    --primary: 42 58% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
+    --secondary: 204 25% 30%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted-foreground: 42 20% 60%;
 
-    --accent: 246 67% 66%;
+    --accent: 42 58% 60%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 31%;
@@ -82,15 +82,15 @@ All colors MUST be HSL.
 
     --border: 217 33% 20%;
     --input: 217 33% 20%;
-    --ring: 246 67% 66%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --ring: 42 58% 60%;
+    --sidebar-background: 215 28% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 42 58% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 42 58% 60%;
   }
 }
 
@@ -177,11 +177,11 @@ All colors MUST be HSL.
 }
 
 .article-content .internal-link {
-  @apply text-[#667eea] hover:underline;
+  @apply text-primary hover:underline;
 }
 
 .article-content .external-link {
-  @apply text-[#764ba2] hover:underline;
+  @apply text-[hsl(42_40%_55%)] hover:underline;
 }
 
 .article-content .citation-marker {
