@@ -209,8 +209,6 @@ const BlogArticle = () => {
 
               <SpeakableBox answer={article.speakable_answer} />
 
-              <TableOfContents content={article.detailed_content} />
-
               <ArticleContent
                 content={article.detailed_content}
                 featuredImageUrl={article.featured_image_url}
