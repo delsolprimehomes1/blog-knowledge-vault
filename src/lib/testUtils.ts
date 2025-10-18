@@ -891,7 +891,7 @@ export async function testPhase19(): Promise<TestResult[]> {
       const hasJsonLD = html.includes('application/ld+json');
       const hasArticleSchema = html.includes('"@type":"BlogPosting"') || html.includes('"@type": "BlogPosting"');
       const hasSpeakableSchema = html.includes('"@type":"SpeakableSpecification"') || html.includes('"@type": "SpeakableSpecification"');
-      const hasOrganizationSchema = html.includes('"@type":"Organization"') || html.includes('"@type": "Organization"');
+      const hasOrganizationSchema = html.includes('"@type":"Organization"') || html.includes('"@type": "Organization"') || html.includes('"@type":"RealEstateAgent"') || html.includes('"@type": "RealEstateAgent"');
       const hasBreadcrumbSchema = html.includes('"@type":"BreadcrumbList"') || html.includes('"@type": "BreadcrumbList"');
       
       const schemaCount = [
