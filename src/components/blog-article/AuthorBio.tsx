@@ -10,123 +10,115 @@ interface AuthorBioProps {
 }
 
 export const AuthorBio = ({ author }: AuthorBioProps) => {
-  const renderRating = (rating: number) => {
-    return (
-      <div className="flex items-center gap-1">
-        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-        <span className="font-semibold">{rating.toFixed(1)}★</span>
-      </div>
-    );
-  };
 
   return (
-    <Card className="my-16 md:my-20 border-2 border-transparent bg-gradient-to-br from-white/90 to-white/70 dark:from-gray-900/90 dark:to-gray-900/70 backdrop-blur-xl shadow-2xl hover:shadow-[0_20px_60px_rgba(42,58,50,0.2)] transition-all duration-500 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-500/5 opacity-50"></div>
-      <CardContent className="p-8 md:p-12 relative">
+    <Card className="my-12 md:my-16 border border-border bg-card shadow-lg overflow-hidden">
+      <CardContent className="p-6 md:p-10">
         {/* Top Badges Bar */}
         {(author.is_expert_verified || author.is_licensed_professional || author.rating) && (
-          <div className="flex flex-wrap items-center gap-3 mb-8 pb-6 border-b border-white/20">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-6">
             {author.is_expert_verified && (
-              <Badge variant="default" className="bg-green-600 hover:bg-green-700 gap-2 shadow-md animate-fade-in-up px-4 py-2 text-sm">
-                <ShieldCheck className="h-4 w-4" />
+              <Badge className="bg-green-600 hover:bg-green-600 text-white border-0 gap-1.5 px-3 py-1.5 text-xs font-medium">
+                <ShieldCheck className="h-3.5 w-3.5" />
                 Expert Verified
               </Badge>
             )}
             {author.is_licensed_professional && (
-              <Badge variant="default" className="bg-blue-600 hover:bg-blue-700 gap-2 shadow-md animate-fade-in-up px-4 py-2 text-sm" style={{ animationDelay: '0.1s' }}>
-                <Award className="h-4 w-4" />
+              <Badge className="bg-blue-600 hover:bg-blue-600 text-white border-0 gap-1.5 px-3 py-1.5 text-xs font-medium">
+                <Award className="h-3.5 w-3.5" />
                 Licensed Professional
               </Badge>
             )}
             {author.rating && (
-              <Badge variant="outline" className="gap-2 backdrop-blur-md bg-white/60 border-white/40 shadow-md animate-fade-in-up px-4 py-2" style={{ animationDelay: '0.2s' }}>
-                {renderRating(author.rating)}
-                Rating
+              <Badge variant="outline" className="border-yellow-500 text-yellow-700 dark:text-yellow-500 gap-1.5 px-3 py-1.5 text-xs font-medium">
+                <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+                {author.rating.toFixed(1)}★ Rating
               </Badge>
             )}
           </div>
         )}
 
         {/* Main Content */}
-        <div className="flex flex-col md:flex-row gap-8 md:gap-10">
-          <div className="relative flex-shrink-0">
-            <div className="absolute -inset-1 bg-gradient-to-br from-primary to-accent rounded-full opacity-75 blur-sm"></div>
-            <Avatar className="relative h-32 w-32 md:h-40 md:w-40 ring-4 ring-gradient-to-br from-primary to-accent shadow-2xl hover:scale-105 transition-transform duration-300">
-              <AvatarImage src={author.photo_url} alt={author.name} />
-              <AvatarFallback className="text-3xl md:text-4xl bg-gradient-to-br from-primary to-accent text-white">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+          {/* Avatar */}
+          <div className="flex justify-center md:justify-start mb-6 md:mb-0">
+            <Avatar className="h-24 w-24 md:h-28 md:w-28 ring-2 ring-primary/20 shadow-lg">
+              <AvatarImage src={author.photo_url} alt={author.name} className="object-cover" />
+              <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
                 {author.name.charAt(0)}
               </AvatarFallback>
             </Avatar>
           </div>
 
-          <div className="flex-1 space-y-5">
-            {/* Introduction Line */}
-            <div>
-              <p className="text-base md:text-lg text-muted-foreground mb-3">
-                Content reviewed and verified by{" "}
-                {author.credentials && author.credentials.length > 0 && (
-                  <span className="font-semibold text-primary">
-                    {author.credentials[0]}-Accredited Property Specialist
-                  </span>
-                )}
-              </p>
-              <h3 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-primary/80 bg-clip-text text-transparent">
-                — {author.name}
+          {/* Content */}
+          <div className="flex-1 space-y-4">
+            {/* Name & Title */}
+            <div className="text-center md:text-left">
+              <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
+                {author.name}
               </h3>
-              <p className="text-lg md:text-xl font-semibold text-primary">{author.job_title}</p>
+              <p className="text-base md:text-lg font-medium text-primary">
+                {author.job_title}
+              </p>
             </div>
 
             {/* Experience Statement */}
             {author.years_experience > 0 && (
-              <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
+              <p className="text-sm text-muted-foreground text-center md:text-left">
                 Over {author.years_experience} years of combined experience within our founding team
               </p>
             )}
 
             {/* Bio */}
-            <p className="text-sm md:text-base leading-relaxed">{author.bio}</p>
+            <p className="text-sm md:text-base leading-relaxed text-foreground/90 text-center md:text-left">
+              {author.bio}
+            </p>
 
-            {/* Credentials as Inline Badges */}
+            {/* Credentials */}
             {author.credentials && author.credentials.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {author.credentials.map((cred, index) => (
-                  <Badge 
-                    key={index} 
-                    variant="secondary" 
-                    className="text-xs backdrop-blur-md bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors animate-fade-in-up"
-                    style={{ animationDelay: `${0.1 * index}s` }}
-                  >
-                    {cred}
-                  </Badge>
-                ))}
+              <div className="pt-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 text-center md:text-left">
+                  Professional Credentials
+                </p>
+                <div className="flex flex-wrap gap-1.5 justify-center md:justify-start">
+                  {author.credentials.map((cred, index) => (
+                    <Badge 
+                      key={index} 
+                      variant="secondary" 
+                      className="text-xs bg-muted hover:bg-muted border-0 font-normal"
+                    >
+                      {cred}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               {author.linkedin_url && (
                 <Button 
                   variant="outline" 
-                  size="default" 
+                  size="lg"
                   asChild
-                  className="backdrop-blur-md bg-white/60 border-primary/30 hover:bg-primary/10 hover:border-primary transition-all shadow-md hover:shadow-lg"
+                  className="flex-1 min-h-[48px] border-primary/30 hover:bg-primary/5 hover:border-primary"
                 >
                   <a
                     href={author.linkedin_url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <Linkedin className="h-5 w-5 mr-2" />
-                    LinkedIn
+                    <Linkedin className="h-4 w-4 mr-2" />
+                    LinkedIn Profile
                   </a>
                 </Button>
               )}
               <Button 
                 variant="default" 
-                size="default"
-                className="bg-gradient-to-r from-primary to-accent hover:shadow-xl hover:scale-105 transition-all shadow-lg active:scale-95 px-6"
+                size="lg"
+                className="flex-1 min-h-[48px] bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg active:scale-[0.98]"
               >
-                <Mail className="h-5 w-5 mr-2" />
+                <Mail className="h-4 w-4 mr-2" />
                 Contact Agent
               </Button>
             </div>
