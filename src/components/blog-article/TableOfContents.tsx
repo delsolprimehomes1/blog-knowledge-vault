@@ -68,7 +68,7 @@ export const TableOfContents = ({ content }: TableOfContentsProps) => {
       {/* Desktop sticky sidebar */}
       <aside className="hidden lg:block">
         <div className="sticky top-24 space-y-2">
-          <h3 className="font-semibold text-sm uppercase tracking-wide text-white/90 mb-3">
+          <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-3">
             Table of Contents
           </h3>
           <nav className="space-y-1">
@@ -78,8 +78,8 @@ export const TableOfContents = ({ content }: TableOfContentsProps) => {
                 onClick={() => scrollToHeading(item.id)}
                 className={`block w-full text-left text-sm py-2 px-3 rounded-md transition-colors ${
                   activeId === item.id
-                    ? "bg-white/20 text-white font-medium"
-                    : "text-white/80 hover:bg-white/10"
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-accent"
                 }`}
               >
                 {item.title}
@@ -93,7 +93,7 @@ export const TableOfContents = ({ content }: TableOfContentsProps) => {
       <div className="lg:hidden mb-6">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
-            <Button variant="outline" className="w-full justify-between text-white border-white/20 bg-white/10 hover:bg-white/20">
+            <Button variant="outline" className="w-full justify-between">
               <div className="flex items-center gap-2">
                 <List className="h-4 w-4" />
                 Table of Contents
@@ -101,7 +101,7 @@ export const TableOfContents = ({ content }: TableOfContentsProps) => {
               <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 border border-white/20 bg-white/5 rounded-lg p-2">
+          <CollapsibleContent className="mt-2 border rounded-lg p-2">
             {items.map((item) => (
               <button
                 key={item.id}
@@ -111,8 +111,8 @@ export const TableOfContents = ({ content }: TableOfContentsProps) => {
                 }}
                 className={`block w-full text-left text-sm py-2 px-3 rounded-md transition-colors ${
                   activeId === item.id
-                    ? "bg-white/20 text-white font-medium"
-                    : "text-white/80 hover:bg-white/10"
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-accent"
                 }`}
               >
                 {item.title}

@@ -34,30 +34,30 @@ export const ArticleHeader = ({ article, author, reviewer, translations }: Artic
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/" className="text-white/80 hover:text-white">Home</BreadcrumbLink>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
           </BreadcrumbItem>
-          <BreadcrumbSeparator className="text-white/60" />
+          <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/blog" className="text-white/80 hover:text-white">Blog</BreadcrumbLink>
+            <BreadcrumbLink href="/blog">Blog</BreadcrumbLink>
           </BreadcrumbItem>
-          <BreadcrumbSeparator className="text-white/60" />
+          <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href={`/blog/category/${article.category.toLowerCase()}`} className="text-white/80 hover:text-white">
+            <BreadcrumbLink href={`/blog/category/${article.category.toLowerCase()}`}>
               {article.category}
             </BreadcrumbLink>
           </BreadcrumbItem>
-          <BreadcrumbSeparator className="text-white/60" />
+          <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage className="text-white">{article.headline}</BreadcrumbPage>
+            <BreadcrumbPage>{article.headline}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
       {Object.keys(translations).length > 0 && (
         <div className="flex items-center gap-2">
-          <Languages className="h-4 w-4 text-white/80" />
+          <Languages className="h-4 w-4 text-muted-foreground" />
           <Select value={article.language} onValueChange={(lang) => navigate(`/blog/${translations[lang]}`)}>
-            <SelectTrigger className="w-[180px] text-white border-white/20 bg-white/10">
+            <SelectTrigger className="w-[180px]">
               <SelectValue>
                 {currentLang?.flag} {currentLang?.name}
               </SelectValue>
@@ -79,7 +79,7 @@ export const ArticleHeader = ({ article, author, reviewer, translations }: Artic
         </div>
       )}
 
-      <h1 className="text-4xl md:text-5xl font-bold leading-tight text-white">{article.headline}</h1>
+      <h1 className="text-4xl md:text-5xl font-bold leading-tight">{article.headline}</h1>
 
       <div className="flex flex-wrap items-center gap-4">
         {author && (
@@ -89,35 +89,35 @@ export const ArticleHeader = ({ article, author, reviewer, translations }: Artic
               <AvatarFallback>{author.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-sm text-white/70">Written by</p>
-              <p className="font-medium text-white">{author.name}, {author.job_title}</p>
+              <p className="text-sm text-muted-foreground">Written by</p>
+              <p className="font-medium">{author.name}, {author.job_title}</p>
             </div>
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-3 text-sm text-white/80">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           {article.date_published && (
             <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4 text-white/80" />
+              <Calendar className="h-4 w-4" />
               <span>{new Date(article.date_published).toLocaleDateString()}</span>
             </div>
           )}
           {article.date_modified && (
             <div className="flex items-center gap-1">
-              <RefreshCw className="h-4 w-4 text-white/80" />
+              <RefreshCw className="h-4 w-4" />
               <span>Updated {new Date(article.date_modified).toLocaleDateString()}</span>
             </div>
           )}
           {article.read_time && (
             <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4 text-white/80" />
+              <Clock className="h-4 w-4" />
               <span>{article.read_time} min read</span>
             </div>
           )}
         </div>
 
         {reviewer && (
-          <Badge variant="secondary" className="gap-2 bg-white/10 text-white border-white/20">
+          <Badge variant="secondary" className="gap-2">
             <Avatar className="h-5 w-5">
               <AvatarImage src={reviewer.photo_url} alt={reviewer.name} />
               <AvatarFallback>{reviewer.name.charAt(0)}</AvatarFallback>
