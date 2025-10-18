@@ -404,12 +404,43 @@ const ClusterGenerator = () => {
     try {
       console.log('Saving', generatedArticles.length, 'articles to database...');
       
-      // Insert articles first (without IDs in cta/related fields)
+      // Step 1: Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error('You must be logged in to save articles');
+        return;
+      }
+      
+      // Step 2: Validate author IDs
+      const articlesWithInvalidAuthors = generatedArticles.filter(a => !a.author_id);
+      if (articlesWithInvalidAuthors.length > 0) {
+        console.warn(`Found ${articlesWithInvalidAuthors.length} articles with missing author_id`);
+        
+        // Fetch default author
+        const { data: defaultAuthor } = await supabase
+          .from('authors')
+          .select('id')
+          .limit(1)
+          .single();
+        
+        if (!defaultAuthor) {
+          toast.error('No authors found in database. Please create an author first.');
+          return;
+        }
+        
+        // Assign default author to articles without one
+        articlesWithInvalidAuthors.forEach(article => {
+          article.author_id = defaultAuthor.id;
+        });
+      }
+      
+      // Step 3: Insert articles first (without IDs in cta/related fields)
       const articlesToInsert = generatedArticles.map(a => {
         const { _temp_cta_slugs, _temp_related_slugs, _reviewed, ...article } = a as any;
         return {
           ...article,
           status: 'draft',
+          last_edited_by: user.id,
           cta_article_ids: [],
           related_article_ids: []
         };
@@ -420,7 +451,21 @@ const ClusterGenerator = () => {
         .insert(articlesToInsert)
         .select();
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        
+        // Provide specific error messages
+        if (insertError.message.includes('foreign key')) {
+          toast.error('Database constraint error. Check author IDs and categories.');
+        } else if (insertError.message.includes('duplicate')) {
+          toast.error('Some articles already exist. Try different slugs.');
+        } else if (insertError.message.includes('violates')) {
+          toast.error('Permission denied. Check your user role.');
+        } else {
+          toast.error(`Failed to insert articles: ${insertError.message}`);
+        }
+        throw insertError;
+      }
       
       console.log('Articles inserted, resolving links...');
       
@@ -443,13 +488,17 @@ const ClusterGenerator = () => {
       
       // Bulk update
       for (const update of updates) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('blog_articles')
           .update({
             cta_article_ids: update.cta_article_ids,
             related_article_ids: update.related_article_ids
           })
           .eq('id', update.id);
+        
+        if (updateError) {
+          console.error(`Error updating article ${update.id}:`, updateError);
+        }
       }
       
       toast.success('All articles saved as drafts!');
@@ -459,9 +508,21 @@ const ClusterGenerator = () => {
         navigate('/admin/articles');
       }, 1500);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving articles:', error);
-      toast.error('Failed to save articles');
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      
+      // Error already handled above, but catch any unexpected errors
+      if (!error.message?.includes('foreign key') && 
+          !error.message?.includes('duplicate') &&
+          !error.message?.includes('violates')) {
+        toast.error(`Unexpected error: ${error.message || 'Failed to save articles'}`);
+      }
     }
   };
 
@@ -469,26 +530,76 @@ const ClusterGenerator = () => {
     try {
       console.log('Publishing', generatedArticles.length, 'articles...');
       
-      // Same as save but with status: 'published' and date_published: now()
+      // Step 1: Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error('You must be logged in to publish articles');
+        return;
+      }
+      
+      // Step 2: Validate author IDs
+      const articlesWithInvalidAuthors = generatedArticles.filter(a => !a.author_id);
+      if (articlesWithInvalidAuthors.length > 0) {
+        console.warn(`Found ${articlesWithInvalidAuthors.length} articles with missing author_id`);
+        
+        // Fetch default author
+        const { data: defaultAuthor } = await supabase
+          .from('authors')
+          .select('id')
+          .limit(1)
+          .single();
+        
+        if (!defaultAuthor) {
+          toast.error('No authors found in database. Please create an author first.');
+          return;
+        }
+        
+        // Assign default author to articles without one
+        articlesWithInvalidAuthors.forEach(article => {
+          article.author_id = defaultAuthor.id;
+        });
+      }
+      
+      // Step 3: Prepare articles for insert
       const articlesToInsert = generatedArticles.map(a => {
         const { _temp_cta_slugs, _temp_related_slugs, _reviewed, ...article } = a as any;
         return {
           ...article,
           status: 'published',
           date_published: new Date().toISOString(),
+          published_by: user.id,
+          last_edited_by: user.id,
           cta_article_ids: [],
           related_article_ids: []
         };
       });
       
+      // Step 4: Insert articles
+      console.log('Inserting articles...', articlesToInsert.length);
       const { data: insertedArticles, error: insertError } = await supabase
         .from('blog_articles')
         .insert(articlesToInsert)
         .select();
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        
+        // Provide specific error messages
+        if (insertError.message.includes('foreign key')) {
+          toast.error('Database constraint error. Check author IDs and categories.');
+        } else if (insertError.message.includes('duplicate')) {
+          toast.error('Some articles already exist. Try different slugs.');
+        } else if (insertError.message.includes('violates')) {
+          toast.error('Permission denied. Check your user role.');
+        } else {
+          toast.error(`Failed to insert articles: ${insertError.message}`);
+        }
+        throw insertError;
+      }
       
-      // Resolve links (same as above)
+      console.log('Articles inserted, resolving links...');
+      
+      // Step 5: Resolve internal links
       const slugToId = new Map(insertedArticles.map(a => [a.slug, a.id]));
       
       const updates = insertedArticles.map((article, idx) => {
@@ -504,25 +615,42 @@ const ClusterGenerator = () => {
         };
       });
       
+      // Step 6: Update with resolved IDs
       for (const update of updates) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('blog_articles')
           .update({
             cta_article_ids: update.cta_article_ids,
             related_article_ids: update.related_article_ids
           })
           .eq('id', update.id);
+        
+        if (updateError) {
+          console.error(`Error updating article ${update.id}:`, updateError);
+        }
       }
       
-      toast.success('All articles published!');
+      toast.success('All articles published successfully!');
       
       setTimeout(() => {
         navigate('/admin/articles');
       }, 1500);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error publishing articles:', error);
-      toast.error('Failed to publish articles');
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      
+      // Error already handled above, but catch any unexpected errors
+      if (!error.message?.includes('foreign key') && 
+          !error.message?.includes('duplicate') &&
+          !error.message?.includes('violates')) {
+        toast.error(`Unexpected error: ${error.message || 'Failed to publish articles'}`);
+      }
     }
   };
 
