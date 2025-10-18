@@ -1,4 +1,4 @@
-import logo from "@/assets/logo-new.png";
+import bgImage from "@/assets/costa-del-sol-bg.jpg";
 
 interface BlogHeaderProps {
   totalCount: number;
@@ -6,23 +6,22 @@ interface BlogHeaderProps {
 
 export const BlogHeader = ({ totalCount }: BlogHeaderProps) => {
   return (
-    <header className="text-center space-y-6 mb-12">
-      <div className="mb-6 bg-[hsl(225,45%,20%)] py-8 -mx-4 px-4 md:-mx-8 md:px-8">
-        <img 
-          src={logo} 
-          alt="Del Sol Prime Homes" 
-          className="h-32 md:h-40 mx-auto"
-        />
+    <header className="relative w-full h-[60vh] min-h-[500px] flex items-center justify-center -mx-4 md:-mx-8 mb-16">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${bgImage})` }}
+      />
+      
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/50" />
+      
+      {/* Content */}
+      <div className="relative z-10 text-center px-4">
+        <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white">
+          LATEST BLOG FOR RENT AND BUY
+        </h1>
       </div>
-      <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight">
-        Del Sol Prime Homes Blog
-      </h1>
-      <p className="text-xl text-muted-foreground">
-        Expert insights on Costa del Sol real estate
-      </p>
-      <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-        Start with these foundational guides. Explore deeper topics through related articles within each post.
-      </p>
     </header>
   );
 };

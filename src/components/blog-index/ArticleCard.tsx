@@ -1,11 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Clock, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { prefetchArticle, prefetchImage } from "@/lib/prefetch";
+import { ArrowRight } from "lucide-react";
 
 interface ArticleCardProps {
   article: {
@@ -38,10 +36,6 @@ const LANGUAGE_FLAGS: Record<string, string> = {
 };
 
 export const ArticleCard = ({ article, author }: ArticleCardProps) => {
-  const excerpt = article.meta_description.length > 100 
-    ? article.meta_description.substring(0, 100) + "..." 
-    : article.meta_description;
-
   const imageUrl = article.featured_image_url || 
     'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
 
@@ -54,73 +48,47 @@ export const ArticleCard = ({ article, author }: ArticleCardProps) => {
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.error('Image failed to load:', {
-      url: imageUrl,
-      article: article.headline,
-      slug: article.slug
-    });
     e.currentTarget.src = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
   };
 
   return (
     <Card 
-      className="h-full overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+      className="h-full overflow-hidden hover:shadow-lg transition-all duration-300 group bg-white"
       onMouseEnter={handleMouseEnter}
     >
       <CardContent className="p-0">
-        <div className="relative overflow-hidden aspect-video">
-          <OptimizedImage
-            src={imageUrl}
-            alt={article.headline}
-            width={600}
-            height={338}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-            onError={handleImageError}
-          />
-          <Badge className="absolute top-3 left-3" variant="secondary">
-            {article.category}
-          </Badge>
-          <div className="absolute top-3 right-3 text-2xl">
-            {LANGUAGE_FLAGS[article.language]}
+        <Link to={`/blog/${article.slug}`} className="block">
+          <div className="relative overflow-hidden aspect-[4/3]">
+            <OptimizedImage
+              src={imageUrl}
+              alt={article.headline}
+              width={600}
+              height={450}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={handleImageError}
+            />
           </div>
-        </div>
 
-        <div className="p-6 space-y-4">
-          <h3 className="font-serif text-xl md:text-2xl font-semibold tracking-tight line-clamp-2 min-h-[3.5rem]">
-            {article.headline}
-          </h3>
-
-          {author && (
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={author.photo_url} alt={author.name} />
-                <AvatarFallback>{author.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm text-muted-foreground">{author.name}</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
+          <div className="p-6 space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
-              <span>{new Date(article.date_published).toLocaleDateString()}</span>
+              <span>{new Date(article.date_published).toLocaleDateString('en-US', { 
+                month: 'long', 
+                day: 'numeric', 
+                year: 'numeric' 
+              })}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              <span>{article.read_time} min</span>
+
+            <h3 className="font-serif text-xl font-semibold tracking-tight line-clamp-2 text-foreground">
+              {article.headline}
+            </h3>
+
+            <div className="flex items-center gap-2 text-primary hover:gap-3 transition-all">
+              <span className="font-medium">Discover more</span>
+              <ArrowRight className="h-4 w-4" />
             </div>
           </div>
-
-          <p className="text-sm text-muted-foreground line-clamp-3">
-            {excerpt}
-          </p>
-
-          <Button asChild className="w-full">
-            <Link to={`/blog/${article.slug}`}>
-              Read Article
-            </Link>
-          </Button>
-        </div>
+        </Link>
       </CardContent>
     </Card>
   );

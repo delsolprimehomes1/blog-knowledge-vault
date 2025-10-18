@@ -10,7 +10,7 @@ import { BlogPagination } from "@/components/blog-index/BlogPagination";
 import { Button } from "@/components/ui/button";
 import { FileQuestion } from "lucide-react";
 
-const ARTICLES_PER_PAGE = 20;
+const ARTICLES_PER_PAGE = 9;
 
 const BlogIndex = () => {
   const [searchParams, setSearchParams] = useSearchParams();
