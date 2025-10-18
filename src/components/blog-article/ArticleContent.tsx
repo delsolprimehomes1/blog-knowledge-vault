@@ -25,9 +25,32 @@ export const ArticleContent = ({
 }: ArticleContentProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   
-  // Process content: bold markers -> external links -> citation markers
+  // Sanitize content to remove HTML document wrapper
+  const sanitizeContent = (htmlContent: string): string => {
+    // Check if content contains full HTML document structure
+    if (htmlContent.includes('<!DOCTYPE') || htmlContent.includes('<html')) {
+      // Extract only the body content
+      const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyMatch && bodyMatch[1]) {
+        return bodyMatch[1].trim();
+      }
+      
+      // Fallback: remove document structure tags
+      return htmlContent
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<\/?html[^>]*>/gi, '')
+        .replace(/<head[\s\S]*?<\/head>/gi, '')
+        .replace(/<\/?body[^>]*>/gi, '')
+        .trim();
+    }
+    
+    return htmlContent;
+  };
+
+  // Process content: sanitize -> bold markers -> external links -> citation markers
   const processContent = (htmlContent: string) => {
-    let processed = htmlContent.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    let processed = sanitizeContent(htmlContent);
+    processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     processed = injectExternalLinks(processed, externalCitations);
     processed = addCitationMarkers(processed, externalCitations);
     return processed;
