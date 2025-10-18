@@ -218,6 +218,7 @@ const BlogArticle = () => {
                 featuredImageCaption={article.featured_image_caption || undefined}
                 diagramUrl={article.diagram_url || undefined}
                 diagramDescription={article.diagram_description || undefined}
+                externalCitations={article.external_citations as ExternalCitation[]}
               />
 
               <InternalLinksSection links={article.internal_links as InternalLink[]} />

@@ -184,6 +184,14 @@ All colors MUST be HSL.
   @apply text-[#764ba2] hover:underline;
 }
 
+.article-content .citation-marker {
+  @apply text-primary font-medium ml-0.5;
+}
+
+.article-content .citation-marker a {
+  @apply no-underline hover:underline;
+}
+
 .article-content ul,
 .article-content ol {
   @apply my-4 space-y-2;

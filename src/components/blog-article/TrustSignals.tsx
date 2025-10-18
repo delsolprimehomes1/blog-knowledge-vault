@@ -60,7 +60,7 @@ export const TrustSignals = ({ reviewerName, dateModified, citations }: TrustSig
           <CollapsibleContent className="mt-4">
             <ol className="list-decimal list-inside space-y-3 text-sm">
               {citations.map((citation, index) => (
-                <li key={index} className="p-3 bg-background rounded border">
+                <li key={index} id={`citation-${index + 1}`} className="p-3 bg-background rounded border scroll-mt-24">
                   <div className="flex items-start gap-2">
                     <span className="font-mono text-xs text-muted-foreground shrink-0">[{index + 1}]</span>
                     <div className="flex-1">

@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { MermaidPreview } from "@/components/MermaidPreview";
+import { ExternalCitation } from "@/types/blog";
+import { injectExternalLinks, addCitationMarkers } from "@/lib/linkInjection";
 
 interface ArticleContentProps {
   content: string;
@@ -9,6 +11,7 @@ interface ArticleContentProps {
   featuredImageCaption?: string;
   diagramUrl?: string;
   diagramDescription?: string;
+  externalCitations?: ExternalCitation[];
 }
 
 export const ArticleContent = ({
@@ -18,12 +21,16 @@ export const ArticleContent = ({
   featuredImageCaption,
   diagramUrl,
   diagramDescription,
+  externalCitations = [],
 }: ArticleContentProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   
-  // Convert markdown bold markers to HTML strong tags
+  // Process content: bold markers -> external links -> citation markers
   const processContent = (htmlContent: string) => {
-    return htmlContent.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    let processed = htmlContent.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    processed = injectExternalLinks(processed, externalCitations);
+    processed = addCitationMarkers(processed, externalCitations);
+    return processed;
   };
   
   const processedContent = processContent(content);
