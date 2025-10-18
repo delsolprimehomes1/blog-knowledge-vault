@@ -20,10 +20,13 @@ export type Database = {
           created_at: string
           credentials: string[] | null
           id: string
+          is_expert_verified: boolean
+          is_licensed_professional: boolean
           job_title: string
           linkedin_url: string
           name: string
           photo_url: string
+          rating: number | null
           years_experience: number
         }
         Insert: {
@@ -31,10 +34,13 @@ export type Database = {
           created_at?: string
           credentials?: string[] | null
           id?: string
+          is_expert_verified?: boolean
+          is_licensed_professional?: boolean
           job_title: string
           linkedin_url: string
           name: string
           photo_url: string
+          rating?: number | null
           years_experience: number
         }
         Update: {
@@ -42,10 +48,13 @@ export type Database = {
           created_at?: string
           credentials?: string[] | null
           id?: string
+          is_expert_verified?: boolean
+          is_licensed_professional?: boolean
           job_title?: string
           linkedin_url?: string
           name?: string
           photo_url?: string
+          rating?: number | null
           years_experience?: number
         }
         Relationships: []

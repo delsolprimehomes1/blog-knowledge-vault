@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { X, Plus } from "lucide-react";
 import { Author } from "@/types/blog";
 import { useState, useEffect } from "react";
@@ -18,6 +19,9 @@ const authorSchema = z.object({
   photo_url: z.string().url("Must be a valid URL"),
   linkedin_url: z.string().url("Must be a valid URL"),
   years_experience: z.coerce.number().min(0, "Must be 0 or greater").max(99),
+  rating: z.coerce.number().min(1.0).max(5.0).nullable().optional(),
+  is_expert_verified: z.boolean().default(false),
+  is_licensed_professional: z.boolean().default(false),
 });
 
 type AuthorFormValues = z.infer<typeof authorSchema>;
@@ -55,6 +59,9 @@ export const AuthorDialog = ({ open, onOpenChange, author, onSubmit, isLoading }
         photo_url: author.photo_url,
         linkedin_url: author.linkedin_url,
         years_experience: author.years_experience,
+        rating: author.rating || null,
+        is_expert_verified: author.is_expert_verified || false,
+        is_licensed_professional: author.is_licensed_professional || false,
       });
       setCredentials(author.credentials || []);
     } else {
@@ -65,6 +72,9 @@ export const AuthorDialog = ({ open, onOpenChange, author, onSubmit, isLoading }
         photo_url: "",
         linkedin_url: "",
         years_experience: 0,
+        rating: null,
+        is_expert_verified: false,
+        is_licensed_professional: false,
       });
       setCredentials([]);
     }
@@ -211,6 +221,70 @@ export const AuthorDialog = ({ open, onOpenChange, author, onSubmit, isLoading }
                     <Input type="number" min="0" {...field} />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="rating"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rating (1.0 - 5.0)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.1" 
+                      min="1.0" 
+                      max="5.0" 
+                      placeholder="4.9"
+                      {...field} 
+                      value={field.value ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="is_expert_verified"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Expert Verified</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Display "Expert Verified" badge on author card
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="is_licensed_professional"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Licensed Professional</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Display "Licensed Professional" badge on author card
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

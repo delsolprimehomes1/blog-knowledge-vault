@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Edit, Trash2, ExternalLink } from "lucide-react";
+import { Plus, Edit, Trash2, ExternalLink, Star, ShieldCheck, Award } from "lucide-react";
 import { useState } from "react";
 import { AuthorDialog } from "@/components/AuthorDialog";
 import { toast } from "@/hooks/use-toast";
@@ -148,6 +148,27 @@ const Authors = () => {
                           <p className="text-sm text-muted-foreground">
                             {author.job_title}
                           </p>
+                          {/* Trust Badges */}
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {author.is_expert_verified && (
+                              <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-[10px] py-0 h-5">
+                                <ShieldCheck className="h-3 w-3 mr-1" />
+                                Expert
+                              </Badge>
+                            )}
+                            {author.is_licensed_professional && (
+                              <Badge variant="default" className="bg-blue-600 hover:bg-blue-700 text-[10px] py-0 h-5">
+                                <Award className="h-3 w-3 mr-1" />
+                                Licensed
+                              </Badge>
+                            )}
+                            {author.rating && (
+                              <Badge variant="outline" className="text-[10px] py-0 h-5">
+                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 mr-1" />
+                                {author.rating.toFixed(1)}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <Badge variant="secondary">
                           {author.years_experience} years

@@ -13,6 +13,9 @@ export interface Author {
   linkedin_url: string;
   credentials: string[];
   years_experience: number;
+  rating?: number;
+  is_expert_verified: boolean;
+  is_licensed_professional: boolean;
   created_at: string;
 }
 
