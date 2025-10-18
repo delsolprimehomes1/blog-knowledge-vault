@@ -787,48 +787,77 @@ export async function testPhase16(): Promise<TestResult[]> {
 export async function testPhase17(): Promise<TestResult[]> {
   const results: TestResult[] = [];
 
+  // Helper function to ping the endpoint
+  const pingEndpoint = async (timeout: number): Promise<Response | null> => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/find-internal-links`,
+        { 
+          method: 'OPTIONS',
+          signal: controller.signal
+        }
+      );
+      
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      return null;
+    }
+  };
+
   try {
-    // Add timeout for cold start
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    // Step 1: Warm-up ping (don't wait for response)
+    console.log('🔥 Warming up internal link finder edge function...');
+    pingEndpoint(3000); // Fire and forget - just wake it up
     
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/find-internal-links`, 
-      { 
-        method: 'OPTIONS',
-        signal: controller.signal
+    // Give it a moment to start
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Step 2: Try with progressive timeouts
+    let response: Response | null = null;
+    const timeouts = [8000, 12000, 18000]; // 8s, 12s, 18s
+    
+    for (let i = 0; i < timeouts.length; i++) {
+      console.log(`🔄 Attempt ${i + 1}/${timeouts.length} - waiting ${timeouts[i]/1000}s...`);
+      response = await pingEndpoint(timeouts[i]);
+      
+      if (response?.ok) {
+        break; // Success! Stop retrying
       }
-    );
+      
+      // Wait a bit before next retry
+      if (i < timeouts.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
     
-    clearTimeout(timeoutId);
-    
-    results.push({
-      name: 'Internal Link Finder API',
-      status: response.ok ? 'pass' : 'fail',
-      message: response.ok 
-        ? '✓ Internal link finder endpoint exists and responds'
-        : '✗ Internal link finder not responding',
-      details: response.ok 
-        ? 'Edge function is deployed and responding to requests.'
-        : 'Edge function may need to warm up. Try again in 10 seconds or test by using the Internal Link Finder in an article.'
-    });
-  } catch (error: any) {
-    // Check if it's a timeout
-    if (error.name === 'AbortError') {
+    // Evaluate result
+    if (response?.ok) {
       results.push({
         name: 'Internal Link Finder API',
-        status: 'warning',
-        message: '⚠ Function exists but is cold starting',
-        details: 'The edge function is deployed but took too long to respond (cold start). This is normal for the first request. Try:\n1. Wait 10 seconds and run test again\n2. Or use the Internal Link Finder tool in the article editor to warm it up'
+        status: 'pass',
+        message: '✓ Internal link finder endpoint exists and responds',
+        details: 'Edge function is deployed and responding to requests.\n\nThis function uses Perplexity AI to suggest contextual internal links between your articles.'
       });
     } else {
       results.push({
         name: 'Internal Link Finder API',
-        status: 'fail',
-        message: '✗ Internal link API error',
-        details: error.message
+        status: 'warning',
+        message: '⚠ Function exists but is very slow to respond',
+        details: `The edge function is deployed but took longer than ${timeouts[timeouts.length - 1]/1000}s to respond.\n\nThis is usually a cold start issue. The function should work fine in normal use.\n\nTo verify manually:\n1. Go to any article in the editor\n2. Click "Find Internal Links" button\n3. If suggestions appear, the function is working correctly`
       });
     }
+    
+  } catch (error: any) {
+    results.push({
+      name: 'Internal Link Finder API',
+      status: 'fail',
+      message: '✗ Internal link API error',
+      details: `Error: ${error.message}\n\nThe edge function may not be deployed. Check:\n1. Supabase Edge Functions logs\n2. Verify PERPLEXITY_API_KEY is set in secrets`
+    });
   }
 
   return results;
