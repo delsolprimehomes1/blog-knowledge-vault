@@ -85,7 +85,7 @@ export const AuthorBio = ({ author }: AuthorBioProps) => {
                     <Badge 
                       key={index} 
                       variant="secondary" 
-                      className="text-xs sm:text-sm bg-muted hover:bg-muted border-0 font-normal py-1.5 px-3 leading-relaxed whitespace-normal text-left max-w-full"
+                      className="inline-block text-xs sm:text-sm bg-muted hover:bg-muted border-0 font-normal py-1.5 px-3 leading-relaxed whitespace-normal text-left break-words"
                     >
                       {cred}
                     </Badge>
