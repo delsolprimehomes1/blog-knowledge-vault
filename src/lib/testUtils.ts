@@ -397,12 +397,14 @@ export async function testPhase7(): Promise<TestResult[]> {
       headline: 'Test Article',
       meta_description: 'Test description',
       slug: 'test-article',
+      detailed_content: '<p>Test content for word counting</p>',
       date_published: new Date().toISOString(),
       date_modified: new Date().toISOString(),
-      featured_image_url: 'https://example.com/image.jpg'
+      featured_image_url: 'https://example.com/image.jpg',
+      external_citations: []
     };
 
-    const schema = generateArticleSchema(testArticle, null, null);
+    const { schema, errors } = generateArticleSchema(testArticle, null, null);
     
     const hasRequired = 
       schema['@context'] === 'https://schema.org' &&

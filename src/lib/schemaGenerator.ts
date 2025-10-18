@@ -61,6 +61,7 @@ export function generatePersonSchema(author: Author | null) {
 }
 
 export function stripHtml(html: string): string {
+  if (!html || typeof html !== 'string') return '';
   return html.replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -175,7 +176,7 @@ export function generateBreadcrumbSchema(
         "@type": "ListItem",
         "position": 3,
         "name": article.category,
-        "item": `${baseUrl}/blog/category/${article.category.toLowerCase().replace(/\s+/g, '-')}`
+        "item": `${baseUrl}/blog/category/${(article.category || 'uncategorized').toLowerCase().replace(/\s+/g, '-')}`
       },
       {
         "@type": "ListItem",
