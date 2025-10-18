@@ -87,26 +87,28 @@ export const ArticleContent = ({
   }, [content]);
 
   return (
-    <article className="prose prose-lg max-w-none">
-      <figure className="my-12 md:my-16">
-        <OptimizedImage
-          src={featuredImageUrl}
-          alt={featuredImageAlt}
-          width={1200}
-          height={675}
-          priority
-          className="w-full rounded-3xl object-cover shadow-2xl hover:shadow-primary/20 transition-all duration-500"
-        />
-        {featuredImageCaption && (
-          <figcaption className="text-center text-sm md:text-base text-muted-foreground mt-4">
-            {featuredImageCaption}
-          </figcaption>
-        )}
-      </figure>
+    <article ref={contentRef} className="space-y-12 md:space-y-16">
+      {/* Featured Image Hero - Full prominence before content */}
+      {featuredImageUrl && (
+        <figure className="my-0 -mx-5 sm:mx-0">
+          <OptimizedImage
+            src={featuredImageUrl}
+            alt={featuredImageAlt}
+            width={1200}
+            height={675}
+            priority
+            className="w-full aspect-[16/9] object-cover rounded-none sm:rounded-3xl shadow-2xl"
+          />
+          {featuredImageCaption && (
+            <div className="relative -mt-16 mx-5 sm:mx-8 backdrop-blur-xl bg-white/90 dark:bg-gray-900/90 border border-white/30 rounded-2xl p-4 shadow-xl">
+              <p className="text-sm text-center font-medium">{featuredImageCaption}</p>
+            </div>
+          )}
+        </figure>
+      )}
 
       <div
-        ref={contentRef}
-        className="article-content space-y-6 md:space-y-8"
+        className="article-content prose prose-lg max-w-none"
         dangerouslySetInnerHTML={{ __html: processedContent }}
       />
 

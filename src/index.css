@@ -174,21 +174,22 @@ All colors MUST be HSL.
   @apply prose max-w-none;
 }
 
+.article-content p {
+  @apply text-base md:text-lg leading-relaxed mb-8;
+  letter-spacing: 0.01em;
+}
+
 .article-content h2 {
-  @apply text-2xl md:text-3xl font-bold mt-16 mb-6 scroll-mt-24;
+  @apply text-2xl md:text-3xl font-bold mt-20 mb-8 scroll-mt-24;
   color: hsl(42 58% 45%);
 }
 
 .article-content h3 {
-  @apply text-xl md:text-2xl font-bold mt-12 mb-4 scroll-mt-24;
-}
-
-.article-content p {
-  @apply text-lg md:text-xl leading-loose mb-6 md:mb-8;
+  @apply text-xl md:text-2xl font-semibold mt-16 mb-6 scroll-mt-24;
 }
 
 .article-content img {
-  @apply rounded-2xl md:rounded-3xl my-8 md:my-12 shadow-xl hover:shadow-2xl transition-all duration-300;
+  @apply rounded-3xl my-12 shadow-2xl hover:shadow-primary/20 transition-all duration-500;
 }
 
 .article-content .internal-link {
@@ -209,7 +210,7 @@ All colors MUST be HSL.
 
 .article-content ul,
 .article-content ol {
-  @apply my-4 space-y-2;
+  @apply my-8 space-y-4 text-base md:text-lg leading-relaxed;
 }
 
 .article-content table {
@@ -225,6 +226,19 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
+  /* Premium Glass Effect */
+  .glass-premium {
+    backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .glass-premium {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
   @keyframes pulse-subtle {
     0%, 100% {
       opacity: 1;

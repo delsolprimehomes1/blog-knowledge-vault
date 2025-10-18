@@ -198,20 +198,15 @@ const BlogArticle = () => {
       </Helmet>
 
       <div className="min-h-screen py-8 md:py-12">
-        <div className="flex flex-col gap-8 md:gap-12">
+        <div className="flex flex-col">
           {/* Mobile-first single column with max-width for readability */}
-          <div className="max-w-4xl mx-auto w-full px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto w-full px-5 sm:px-6 space-y-12 md:space-y-16">
             <ArticleHeader
               article={article}
               author={author || null}
               reviewer={reviewer || null}
               translations={article.translations as Record<string, string>}
             />
-
-            {/* Table of Contents - Sticky on mobile, sidebar on desktop */}
-            <TableOfContents content={article.detailed_content} />
-
-            <SpeakableBox answer={article.speakable_answer} />
 
             <ArticleContent
               content={article.detailed_content}
@@ -222,6 +217,10 @@ const BlogArticle = () => {
               diagramDescription={article.diagram_description || undefined}
               externalCitations={article.external_citations as ExternalCitation[]}
             />
+
+            <SpeakableBox answer={article.speakable_answer} />
+
+            <TableOfContents content={article.detailed_content} />
 
             <InternalLinksSection links={article.internal_links as InternalLink[]} />
 

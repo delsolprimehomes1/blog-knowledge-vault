@@ -20,26 +20,26 @@ export const AuthorBio = ({ author }: AuthorBioProps) => {
   };
 
   return (
-    <Card className="my-12 md:my-16 border-2 border-transparent bg-gradient-to-br from-white/80 to-white/60 dark:from-gray-900/80 dark:to-gray-900/60 backdrop-blur-lg shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
+    <Card className="my-16 md:my-20 border-2 border-transparent bg-gradient-to-br from-white/90 to-white/70 dark:from-gray-900/90 dark:to-gray-900/70 backdrop-blur-xl shadow-2xl hover:shadow-[0_20px_60px_rgba(42,58,50,0.2)] transition-all duration-500 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-500/5 opacity-50"></div>
-      <CardContent className="p-6 md:p-8 relative">
+      <CardContent className="p-8 md:p-12 relative">
         {/* Top Badges Bar */}
         {(author.is_expert_verified || author.is_licensed_professional || author.rating) && (
-          <div className="flex flex-wrap items-center gap-3 mb-6 pb-6 border-b border-white/20">
+          <div className="flex flex-wrap items-center gap-3 mb-8 pb-6 border-b border-white/20">
             {author.is_expert_verified && (
-              <Badge variant="default" className="bg-green-600 hover:bg-green-700 gap-1.5 shadow-md animate-fade-in-up">
-                <ShieldCheck className="h-3.5 w-3.5" />
+              <Badge variant="default" className="bg-green-600 hover:bg-green-700 gap-2 shadow-md animate-fade-in-up px-4 py-2 text-sm">
+                <ShieldCheck className="h-4 w-4" />
                 Expert Verified
               </Badge>
             )}
             {author.is_licensed_professional && (
-              <Badge variant="default" className="bg-blue-600 hover:bg-blue-700 gap-1.5 shadow-md animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-                <Award className="h-3.5 w-3.5" />
+              <Badge variant="default" className="bg-blue-600 hover:bg-blue-700 gap-2 shadow-md animate-fade-in-up px-4 py-2 text-sm" style={{ animationDelay: '0.1s' }}>
+                <Award className="h-4 w-4" />
                 Licensed Professional
               </Badge>
             )}
             {author.rating && (
-              <Badge variant="outline" className="gap-1.5 backdrop-blur-md bg-white/60 border-white/40 shadow-md animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+              <Badge variant="outline" className="gap-2 backdrop-blur-md bg-white/60 border-white/40 shadow-md animate-fade-in-up px-4 py-2" style={{ animationDelay: '0.2s' }}>
                 {renderRating(author.rating)}
                 Rating
               </Badge>
@@ -48,18 +48,21 @@ export const AuthorBio = ({ author }: AuthorBioProps) => {
         )}
 
         {/* Main Content */}
-        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-          <Avatar className="h-24 w-24 md:h-32 md:w-32 flex-shrink-0 ring-4 ring-primary/10 shadow-lg hover:ring-primary/20 transition-all duration-300">
-            <AvatarImage src={author.photo_url} alt={author.name} />
-            <AvatarFallback className="text-2xl md:text-3xl bg-gradient-to-br from-primary to-accent text-white">
-              {author.name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
+        <div className="flex flex-col md:flex-row gap-8 md:gap-10">
+          <div className="relative flex-shrink-0">
+            <div className="absolute -inset-1 bg-gradient-to-br from-primary to-accent rounded-full opacity-75 blur-sm"></div>
+            <Avatar className="relative h-32 w-32 md:h-40 md:w-40 ring-4 ring-gradient-to-br from-primary to-accent shadow-2xl hover:scale-105 transition-transform duration-300">
+              <AvatarImage src={author.photo_url} alt={author.name} />
+              <AvatarFallback className="text-3xl md:text-4xl bg-gradient-to-br from-primary to-accent text-white">
+                {author.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
 
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-5">
             {/* Introduction Line */}
             <div>
-              <p className="text-sm md:text-base text-muted-foreground mb-2">
+              <p className="text-base md:text-lg text-muted-foreground mb-3">
                 Content reviewed and verified by{" "}
                 {author.credentials && author.credentials.length > 0 && (
                   <span className="font-semibold text-primary">
@@ -67,10 +70,10 @@ export const AuthorBio = ({ author }: AuthorBioProps) => {
                   </span>
                 )}
               </p>
-              <h3 className="text-2xl md:text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-primary/80 bg-clip-text text-transparent">
+              <h3 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-primary/80 bg-clip-text text-transparent">
                 — {author.name}
               </h3>
-              <p className="text-base md:text-lg font-semibold text-primary">{author.job_title}</p>
+              <p className="text-lg md:text-xl font-semibold text-primary">{author.job_title}</p>
             </div>
 
             {/* Experience Statement */}
@@ -100,31 +103,31 @@ export const AuthorBio = ({ author }: AuthorBioProps) => {
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-4">
               {author.linkedin_url && (
                 <Button 
                   variant="outline" 
-                  size="sm" 
+                  size="default" 
                   asChild
-                  className="backdrop-blur-md bg-white/60 border-primary/30 hover:bg-primary/10 hover:border-primary transition-all shadow-md"
+                  className="backdrop-blur-md bg-white/60 border-primary/30 hover:bg-primary/10 hover:border-primary transition-all shadow-md hover:shadow-lg"
                 >
                   <a
                     href={author.linkedin_url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <Linkedin className="h-4 w-4 mr-2" />
+                    <Linkedin className="h-5 w-5 mr-2" />
                     LinkedIn
                   </a>
                 </Button>
               )}
               <Button 
                 variant="default" 
-                size="sm"
-                className="bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all shadow-md"
+                size="default"
+                className="bg-gradient-to-r from-primary to-accent hover:shadow-xl hover:scale-105 transition-all shadow-lg active:scale-95 px-6"
               >
-                <Mail className="h-4 w-4 mr-2" />
-                Contact {author.name.split(" ")[0]}
+                <Mail className="h-5 w-5 mr-2" />
+                Contact Agent
               </Button>
             </div>
           </div>
