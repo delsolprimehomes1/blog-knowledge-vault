@@ -121,11 +121,11 @@ const BlogArticle = () => {
   const schemaScripts = injectSchemas(schemas);
 
   const baseUrl = window.location.origin;
-  const currentUrl = `${baseUrl}/article/${article.slug}`;
+  const currentUrl = `${baseUrl}/blog/${article.slug}`;
 
   // Generate hreflang URLs from translations
   const hreflangUrls = Object.entries(article.translations || {}).reduce((acc, [lang, slug]) => {
-    acc[lang] = `${baseUrl}/article/${slug}`;
+    acc[lang] = `${baseUrl}/blog/${slug}`;
     return acc;
   }, {} as Record<string, string>);
 
