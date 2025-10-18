@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { marked } from "marked";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { MermaidPreview } from "@/components/MermaidPreview";
 
@@ -22,8 +21,12 @@ export const ArticleContent = ({
 }: ArticleContentProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   
-  // Convert markdown to HTML
-  const htmlContent = marked.parse(content) as string;
+  // Convert markdown bold markers to HTML strong tags
+  const processContent = (htmlContent: string) => {
+    return htmlContent.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  };
+  
+  const processedContent = processContent(content);
 
   useEffect(() => {
     if (!contentRef.current) return;
@@ -74,7 +77,7 @@ export const ArticleContent = ({
       <div
         ref={contentRef}
         className="article-content"
-        dangerouslySetInnerHTML={{ __html: htmlContent }}
+        dangerouslySetInnerHTML={{ __html: processedContent }}
       />
 
       {diagramUrl && (
