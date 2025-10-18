@@ -105,6 +105,7 @@ All colors MUST be HSL.
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
     scroll-padding-top: 100px;
+    -webkit-tap-highlight-color: transparent;
   }
 
   @media (max-width: 640px) {
@@ -117,6 +118,19 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     font-display: swap;
+    line-height: 1.625;
+  }
+  
+  /* Mobile-optimized button and interactive elements */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Ensure minimum touch targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
   }
   
   /* Rich text editor prose styles */

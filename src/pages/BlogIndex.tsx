@@ -12,6 +12,11 @@ import { FileQuestion } from "lucide-react";
 
 const ARTICLES_PER_PAGE = 9;
 
+// Stagger animation delays for cards
+const getCardDelay = (index: number) => {
+  return `${(index % 9) * 100}ms`;
+};
+
 const BlogIndex = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
@@ -170,14 +175,22 @@ const BlogIndex = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {currentArticles.map((article) => (
-              <ArticleCard
-                key={article.id}
-                article={article}
-                author={article.authors as any}
-              />
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            {currentArticles.map((article, index) => {
+              const authorInfo = article.authors as any;
+              return (
+                <div 
+                  key={article.id}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: getCardDelay(index) }}
+                >
+                  <ArticleCard
+                    article={article}
+                    author={authorInfo}
+                  />
+                </div>
+              );
+            })}
           </div>
 
           <BlogPagination

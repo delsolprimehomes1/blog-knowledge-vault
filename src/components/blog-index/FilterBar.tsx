@@ -40,15 +40,15 @@ export const FilterBar = ({
   const selectedLanguageName = LANGUAGES.find(l => l.code === selectedLanguage)?.name;
 
   return (
-    <div className="space-y-4 mb-8">
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+    <div className="space-y-4 mb-6 md:mb-8">
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-start md:items-center">
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5 text-muted-foreground" />
-          <span className="font-medium">Filters:</span>
+          <span className="font-medium text-base">Filters:</span>
         </div>
 
         <Select value={selectedCategory} onValueChange={onCategoryChange}>
-          <SelectTrigger className="w-full md:w-[200px]">
+          <SelectTrigger className="w-full md:w-[200px] h-12 md:h-10 text-base md:text-sm">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -62,7 +62,7 @@ export const FilterBar = ({
         </Select>
 
         <Select value={selectedLanguage} onValueChange={onLanguageChange}>
-          <SelectTrigger className="w-full md:w-[200px]">
+          <SelectTrigger className="w-full md:w-[200px] h-12 md:h-10 text-base md:text-sm">
             <SelectValue placeholder="All Languages" />
           </SelectTrigger>
           <SelectContent>
@@ -75,7 +75,12 @@ export const FilterBar = ({
         </Select>
 
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={onClearFilters}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onClearFilters}
+            className="min-h-[44px] md:min-h-[36px] w-full md:w-auto"
+          >
             Clear Filters
           </Button>
         )}
@@ -84,17 +89,23 @@ export const FilterBar = ({
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2">
           {selectedCategory !== "all" && (
-            <Badge variant="secondary" className="gap-2">
+            <Badge variant="secondary" className="gap-2 py-2 px-3 text-sm">
               {selectedCategoryName}
-              <button onClick={() => onCategoryChange("all")}>
+              <button 
+                onClick={() => onCategoryChange("all")}
+                className="hover:bg-black/10 rounded-full p-0.5 transition-colors"
+              >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
           )}
           {selectedLanguage !== "all" && (
-            <Badge variant="secondary" className="gap-2">
+            <Badge variant="secondary" className="gap-2 py-2 px-3 text-sm">
               {selectedLanguageName}
-              <button onClick={() => onLanguageChange("all")}>
+              <button 
+                onClick={() => onLanguageChange("all")}
+                className="hover:bg-black/10 rounded-full p-0.5 transition-colors"
+              >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
@@ -102,7 +113,7 @@ export const FilterBar = ({
         </div>
       )}
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-base md:text-sm text-muted-foreground font-medium">
         Showing {resultCount} {resultCount === 1 ? 'article' : 'articles'}
       </p>
     </div>

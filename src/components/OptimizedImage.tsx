@@ -33,13 +33,15 @@ export const OptimizedImage = ({
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
         onLoad={() => setIsLoaded(true)}
-        className={`transition-opacity duration-300 ${
-          isLoaded ? 'opacity-100' : 'opacity-0'
+        className={`transition-all duration-500 ${
+          isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm scale-105'
         } ${className}`}
         {...props}
       />
       {!isLoaded && (
-        <div className="absolute inset-0 bg-muted animate-pulse" />
+        <div className="absolute inset-0 bg-muted">
+          <div className="w-full h-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted animate-pulse" />
+        </div>
       )}
     </div>
   );
