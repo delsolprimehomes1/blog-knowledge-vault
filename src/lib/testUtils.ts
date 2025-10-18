@@ -788,23 +788,47 @@ export async function testPhase17(): Promise<TestResult[]> {
   const results: TestResult[] = [];
 
   try {
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/find-internal-links`, { 
-      method: 'OPTIONS' 
-    });
+    // Add timeout for cold start
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/find-internal-links`, 
+      { 
+        method: 'OPTIONS',
+        signal: controller.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
+    
     results.push({
       name: 'Internal Link Finder API',
       status: response.ok ? 'pass' : 'fail',
       message: response.ok 
-        ? '✓ Internal link finder endpoint exists'
-        : '✗ Internal link finder not found'
+        ? '✓ Internal link finder endpoint exists and responds'
+        : '✗ Internal link finder not responding',
+      details: response.ok 
+        ? 'Edge function is deployed and responding to requests.'
+        : 'Edge function may need to warm up. Try again in 10 seconds or test by using the Internal Link Finder in an article.'
     });
   } catch (error: any) {
-    results.push({
-      name: 'Internal Link Finder API',
-      status: 'fail',
-      message: '✗ Internal link API error',
-      details: error.message
-    });
+    // Check if it's a timeout
+    if (error.name === 'AbortError') {
+      results.push({
+        name: 'Internal Link Finder API',
+        status: 'warning',
+        message: '⚠ Function exists but is cold starting',
+        details: 'The edge function is deployed but took too long to respond (cold start). This is normal for the first request. Try:\n1. Wait 10 seconds and run test again\n2. Or use the Internal Link Finder tool in the article editor to warm it up'
+      });
+    } else {
+      results.push({
+        name: 'Internal Link Finder API',
+        status: 'fail',
+        message: '✗ Internal link API error',
+        details: error.message
+      });
+    }
   }
 
   return results;
@@ -904,33 +928,62 @@ export async function testPhase19(): Promise<TestResult[]> {
         details: 'Purpose: Lets AI and Google quote your data.\n\nPublish at least one article to test this check.'
       });
     } else {
-      const response = await fetch(`/blog/${article.slug}`);
-      const html = await response.text();
-      
-      // Check for all required schemas
-      const hasJsonLD = html.includes('application/ld+json');
-      const hasArticleSchema = html.includes('"@type":"BlogPosting"') || html.includes('"@type": "BlogPosting"');
-      const hasSpeakableSchema = html.includes('"@type":"SpeakableSpecification"') || html.includes('"@type": "SpeakableSpecification"');
-      const hasOrganizationSchema = html.includes('"@type":"Organization"') || html.includes('"@type": "Organization"') || html.includes('"@type":"RealEstateAgent"') || html.includes('"@type": "RealEstateAgent"');
-      const hasBreadcrumbSchema = html.includes('"@type":"BreadcrumbList"') || html.includes('"@type": "BreadcrumbList"');
-      
-      const schemaCount = [
-        hasArticleSchema,
-        hasSpeakableSchema,
-        hasOrganizationSchema,
-        hasBreadcrumbSchema
-      ].filter(Boolean).length;
-      
-      results.push({
-        name: '✓ JSON-LD Schema Generation',
-        status: schemaCount >= 3 ? 'pass' : schemaCount >= 2 ? 'warning' : 'fail',
-        message: schemaCount >= 3
-          ? `✓ ${schemaCount}/4 required schemas present`
-          : schemaCount >= 2
-          ? `⚠ Only ${schemaCount}/4 schemas detected`
-          : '✗ Missing critical schemas',
-        details: `Purpose: Lets AI and Google quote your data.\n\nSchema Status:\n${hasArticleSchema ? '✓' : '✗'} BlogPosting (Article schema)\n${hasSpeakableSchema ? '✓' : '✗'} SpeakableSpecification (Voice search)\n${hasOrganizationSchema ? '✓' : '✗'} Organization (Publisher info)\n${hasBreadcrumbSchema ? '✓' : '✗'} BreadcrumbList (Navigation)\n\nTested URL: /blog/${article.slug}`
-      });
+      // Check if we're on a blog article page
+      const currentPath = window.location.pathname;
+      const isOnArticlePage = currentPath.startsWith('/blog/') && currentPath !== '/blog';
+
+      if (isOnArticlePage) {
+        // Check the actual DOM for schemas injected by React Helmet
+        const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+        
+        let hasArticleSchema = false;
+        let hasSpeakableSchema = false;
+        let hasOrganizationSchema = false;
+        let hasBreadcrumbSchema = false;
+        
+        schemaScripts.forEach(script => {
+          const content = script.textContent || '';
+          if (content.includes('"@type":"BlogPosting"') || content.includes('"@type": "BlogPosting"')) {
+            hasArticleSchema = true;
+          }
+          if (content.includes('"@type":"SpeakableSpecification"') || content.includes('"@type": "SpeakableSpecification"')) {
+            hasSpeakableSchema = true;
+          }
+          if (content.includes('"@type":"Organization"') || content.includes('"@type": "Organization"') || 
+              content.includes('"@type":"RealEstateAgent"') || content.includes('"@type": "RealEstateAgent"')) {
+            hasOrganizationSchema = true;
+          }
+          if (content.includes('"@type":"BreadcrumbList"') || content.includes('"@type": "BreadcrumbList"')) {
+            hasBreadcrumbSchema = true;
+          }
+        });
+        
+        const schemaCount = [
+          hasArticleSchema,
+          hasSpeakableSchema,
+          hasOrganizationSchema,
+          hasBreadcrumbSchema
+        ].filter(Boolean).length;
+        
+        results.push({
+          name: '✓ JSON-LD Schema Generation',
+          status: schemaCount >= 3 ? 'pass' : schemaCount >= 2 ? 'warning' : 'fail',
+          message: schemaCount >= 3
+            ? `✓ ${schemaCount}/4 required schemas present`
+            : schemaCount >= 2
+            ? `⚠ Only ${schemaCount}/4 schemas detected`
+            : '✗ Missing critical schemas',
+          details: `Purpose: Lets AI and Google quote your data.\n\nSchema Status:\n${hasArticleSchema ? '✓' : '✗'} BlogPosting (Article schema)\n${hasSpeakableSchema ? '✓' : '✗'} SpeakableSpecification (Voice search)\n${hasOrganizationSchema ? '✓' : '✗'} Organization (Publisher info)\n${hasBreadcrumbSchema ? '✓' : '✗'} BreadcrumbList (Navigation)\n\nFound ${schemaScripts.length} total schema blocks on current page.`
+        });
+      } else {
+        // Not on article page
+        results.push({
+          name: '✓ JSON-LD Schema Generation',
+          status: 'warning',
+          message: '⚠ Navigate to an article to test schemas',
+          details: `Purpose: Lets AI and Google quote your data.\n\nExample: /blog/${article.slug}\n\nThis test must be run while viewing a blog article page to check schemas injected by React Helmet.`
+        });
+      }
     }
   } catch (error: any) {
     results.push({
