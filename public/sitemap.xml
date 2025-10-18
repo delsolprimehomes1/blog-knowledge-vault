@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  
+  <!-- Homepage -->
+  <url>
+    <loc>https://delsolprimehomes.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <!-- Blog Index -->
+  <url>
+    <loc>https://delsolprimehomes.com/blog</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- Blog Articles -->
+  <url>
+    <loc>https://delsolprimehomes.com/blog/maximizing-connectivity-how-m-laga-airport-links-the-costa-del-sol-to-major-european-cities-for-remote-professionals</loc>
+    <lastmod>2025-10-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/your-essential-checklist-for-internet-mobile-in-a-new-build-home-on-the-costa-del-sol</loc>
+    <lastmod>2025-10-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/comparing-internet-providers-and-mobile-networks-for-new-build-homes-on-the-costa-del-sol</loc>
+    <lastmod>2025-10-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/understanding-internet-coverage-in-coastal-spain-what-to-expect-in-costa-del-sol-new-developments</loc>
+    <lastmod>2025-10-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/ensuring-reliable-connectivity-a-guide-to-internet-and-mobile-options-for-your-new-property-on-the-costa-del-sol</loc>
+    <lastmod>2025-10-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/is-costa-del-sol-a-digital-nomad-s-paradise-assessing-connectivity-in-spain-s-sun-coast</loc>
+    <lastmod>2025-10-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/flying-to-the-costa-del-sol-a-guide-for-uk-irish-buyers-to-access-m-laga-airport</loc>
+    <lastmod>2025-10-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/comparing-flight-options-london-vs-dublin-routes-to-m-laga-airport-for-your-costa-del-sol-home</loc>
+    <lastmod>2025-10-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/your-ultimate-guide-to-seamless-travel-living-on-the-costa-del-sol-with-m-laga-airport-on-your-doorstep</loc>
+    <lastmod>2025-10-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/is-m-laga-airport-the-best-connected-for-uk-irish-buyers-on-the-costa-del-sol</loc>
+    <lastmod>2025-10-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/why-costa-del-sol-property-is-a-breeze-to-reach-for-uk-irish-retirees-via-m-laga-airport</loc>
+    <lastmod>2025-10-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://delsolprimehomes.com/blog/mobile-reception-on-the-costa-del-sol-a-guide-for-expats-and-homebuyers-in-new-complexes</loc>
+    <lastmod>2025-10-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+</urlset>

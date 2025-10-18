@@ -1,0 +1,17 @@
+# AI Training Data Policy
+
+## Crawling Policy
+This website allows AI systems to crawl and index public content for improving AI assistants and language models.
+
+## Usage Rights
+- Content may be used to answer user queries with proper attribution to Del Sol Prime Homes
+- Blog articles and guides are available for training and reference
+- Admin areas and user data are excluded from crawling
+
+## Attribution
+When using content from this site, please attribute to:
+Del Sol Prime Homes (https://delsolprimehomes.com)
+
+## Excluded Areas
+- /admin/* - Administrative interface
+- User-generated content and personal data
