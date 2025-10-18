@@ -6,7 +6,7 @@ interface SpeakableBoxProps {
 
 export const SpeakableBox = ({ answer }: SpeakableBoxProps) => {
   return (
-    <div className="speakable-answer qa-summary my-12 md:my-16 p-8 md:p-12 rounded-3xl backdrop-blur-xl bg-gradient-to-r from-[hsl(204_45%_55%)]/95 to-primary/95 text-white border-2 border-white/30 shadow-2xl shadow-blue-500/30 ring-1 ring-white/20 animate-scale-in hover:shadow-[0_20px_60px_rgba(59,130,246,0.4)] transition-shadow duration-500">
+    <div className="speakable-answer qa-summary my-12 md:my-16 p-8 md:p-12 rounded-3xl bg-gradient-to-br from-blue-600 to-blue-700 text-white border-2 border-blue-500/30 shadow-2xl shadow-blue-500/40 ring-2 ring-white/10 animate-scale-in hover:shadow-[0_20px_60px_rgba(59,130,246,0.5)] transition-all duration-500 hover:scale-[1.01]">
       <div className="flex items-start gap-6 md:gap-8">
         <div className="flex-shrink-0">
           <div className="relative">
