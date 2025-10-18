@@ -138,9 +138,36 @@ function extractCitationContexts(
 // Helper function to identify government/educational domains
 function isGovernmentDomain(url: string): boolean {
   const govPatterns = [
-    '.gov', '.gob.es', '.gob.', '.gouv.', '.overheid.nl',
-    'europa.eu', 'ine.es', 'bde.es', '.edu', '.ac.uk',
-    '.gov.uk', '.gc.ca'
+    // Generic government domains
+    '.gov',                    // US federal/state government
+    '.edu',                    // Educational institutions (US)
+    '.ac.uk',                  // Academic institutions (UK)
+    
+    // UK government
+    '.gov.uk',                 // UK government departments
+    '.nhs.uk',                 // National Health Service
+    'ofcom.org.uk',           // Ofcom (Communications regulator)
+    'fca.org.uk',             // Financial Conduct Authority
+    'cqc.org.uk',             // Care Quality Commission
+    'ons.gov.uk',             // Office for National Statistics
+    
+    // Spanish government
+    '.gob.es',                 // Spanish government
+    '.gob.',                   // Generic Spanish-speaking countries
+    'ine.es',                  // Instituto Nacional de Estadística
+    'bde.es',                  // Banco de España
+    'boe.es',                  // Boletín Oficial del Estado
+    
+    // European Union
+    'europa.eu',               // EU institutions
+    'eurostat.ec.europa.eu',  // Eurostat
+    
+    // Other countries
+    '.gouv.',                  // French-speaking governments (gouv.fr, etc.)
+    '.overheid.nl',            // Netherlands government
+    '.gc.ca',                  // Government of Canada
+    '.gov.au',                 // Australian government
+    '.govt.nz'                 // New Zealand government
   ];
   const lowerUrl = url.toLowerCase();
   return govPatterns.some(pattern => lowerUrl.includes(pattern));
