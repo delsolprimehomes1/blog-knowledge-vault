@@ -585,12 +585,18 @@ const ClusterGenerator = () => {
         console.error('Insert error:', insertError);
         
         // Provide specific error messages
-        if (insertError.message.includes('foreign key')) {
+        if (insertError.message.includes('meta_title_length')) {
+          toast.error('Meta titles are too long. Maximum 70 characters allowed.');
+        } else if (insertError.message.includes('meta_description_length')) {
+          toast.error('Meta descriptions are too long. Maximum 160 characters allowed.');
+        } else if (insertError.message.includes('foreign key')) {
           toast.error('Database constraint error. Check author IDs and categories.');
         } else if (insertError.message.includes('duplicate')) {
           toast.error('Some articles already exist. Try different slugs.');
-        } else if (insertError.message.includes('violates')) {
+        } else if (insertError.message.includes('violates row-level security')) {
           toast.error('Permission denied. Check your user role.');
+        } else if (insertError.message.includes('violates')) {
+          toast.error(`Database constraint violation: ${insertError.message}`);
         } else {
           toast.error(`Failed to insert articles: ${insertError.message}`);
         }
