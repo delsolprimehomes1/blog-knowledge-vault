@@ -65,17 +65,17 @@ export const ArticleContent = ({
 
   return (
     <article className="prose prose-lg max-w-none">
-      <figure className="my-8">
+      <figure className="my-12 md:my-16">
         <OptimizedImage
           src={featuredImageUrl}
           alt={featuredImageAlt}
           width={1200}
           height={675}
           priority
-          className="w-full rounded-lg object-cover"
+          className="w-full rounded-3xl object-cover shadow-2xl hover:shadow-primary/20 transition-all duration-500"
         />
         {featuredImageCaption && (
-          <figcaption className="text-center text-sm text-muted-foreground mt-2">
+          <figcaption className="text-center text-sm md:text-base text-muted-foreground mt-4">
             {featuredImageCaption}
           </figcaption>
         )}
@@ -83,12 +83,12 @@ export const ArticleContent = ({
 
       <div
         ref={contentRef}
-        className="article-content"
+        className="article-content space-y-6 md:space-y-8"
         dangerouslySetInnerHTML={{ __html: processedContent }}
       />
 
       {diagramUrl && (
-        <figure className="my-8">
+        <figure className="my-12 md:my-16">
           {/* Check if diagramUrl contains Mermaid code (not an actual URL) */}
           {(diagramUrl.startsWith('graph') || 
             diagramUrl.startsWith('flowchart') || 
@@ -96,18 +96,18 @@ export const ArticleContent = ({
             diagramUrl.startsWith('gantt') ||
             diagramUrl.startsWith('pie') ||
             diagramUrl.includes('-->')) ? (
-            <MermaidPreview code={diagramUrl} className="w-full" />
+            <MermaidPreview code={diagramUrl} className="w-full rounded-2xl shadow-xl" />
           ) : (
             <OptimizedImage
               src={diagramUrl}
               alt={diagramDescription || "Diagram"}
               width={1200}
               height={800}
-              className="w-full rounded-lg border object-contain"
+              className="w-full rounded-2xl border object-contain shadow-xl"
             />
           )}
           {diagramDescription && (
-            <figcaption className="text-center text-sm text-muted-foreground mt-2">
+            <figcaption className="text-center text-sm md:text-base text-muted-foreground mt-4">
               {diagramDescription}
             </figcaption>
           )}

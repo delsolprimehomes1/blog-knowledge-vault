@@ -11,6 +11,7 @@ import { RelatedArticles } from "@/components/blog-article/RelatedArticles";
 import { TrustSignals } from "@/components/blog-article/TrustSignals";
 import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
+import { StickyMobileCTA } from "@/components/blog-article/StickyMobileCTA";
 import { generateAllSchemas, injectSchemas } from "@/lib/schemaGenerator";
 import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink } from "@/types/blog";
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
@@ -196,53 +197,56 @@ const BlogArticle = () => {
         <script type="application/ld+json">{JSON.stringify(schemas.organization)}</script>
       </Helmet>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-8">
-            <div className="max-w-4xl">
-              <ArticleHeader
-                article={article}
-                author={author || null}
-                reviewer={reviewer || null}
-                translations={article.translations as Record<string, string>}
-              />
+      <div className="min-h-screen py-8 md:py-12">
+        <div className="flex flex-col gap-8 md:gap-12">
+          {/* Mobile-first single column with max-width for readability */}
+          <div className="max-w-4xl mx-auto w-full px-4 sm:px-6">
+            <ArticleHeader
+              article={article}
+              author={author || null}
+              reviewer={reviewer || null}
+              translations={article.translations as Record<string, string>}
+            />
 
-              <SpeakableBox answer={article.speakable_answer} />
-
-              <ArticleContent
-                content={article.detailed_content}
-                featuredImageUrl={article.featured_image_url}
-                featuredImageAlt={article.featured_image_alt}
-                featuredImageCaption={article.featured_image_caption || undefined}
-                diagramUrl={article.diagram_url || undefined}
-                diagramDescription={article.diagram_description || undefined}
-                externalCitations={article.external_citations as ExternalCitation[]}
-              />
-
-              <InternalLinksSection links={article.internal_links as InternalLink[]} />
-
-              <TrustSignals
-                reviewerName={reviewer?.name}
-                dateModified={article.date_modified || undefined}
-                citations={article.external_citations as ExternalCitation[]}
-              />
-
-              {author && <AuthorBio author={author} />}
-
-              {relatedArticles && relatedArticles.length > 0 && (
-                <RelatedArticles articles={relatedArticles} />
-              )}
-
-              <FunnelCTA
-                funnelStage={article.funnel_stage as FunnelStage}
-                ctaArticles={ctaArticles || []}
-              />
-            </div>
-
+            {/* Table of Contents - Sticky on mobile, sidebar on desktop */}
             <TableOfContents content={article.detailed_content} />
+
+            <SpeakableBox answer={article.speakable_answer} />
+
+            <ArticleContent
+              content={article.detailed_content}
+              featuredImageUrl={article.featured_image_url}
+              featuredImageAlt={article.featured_image_alt}
+              featuredImageCaption={article.featured_image_caption || undefined}
+              diagramUrl={article.diagram_url || undefined}
+              diagramDescription={article.diagram_description || undefined}
+              externalCitations={article.external_citations as ExternalCitation[]}
+            />
+
+            <InternalLinksSection links={article.internal_links as InternalLink[]} />
+
+            <TrustSignals
+              reviewerName={reviewer?.name}
+              dateModified={article.date_modified || undefined}
+              citations={article.external_citations as ExternalCitation[]}
+            />
+
+            {author && <AuthorBio author={author} />}
+
+            {relatedArticles && relatedArticles.length > 0 && (
+              <RelatedArticles articles={relatedArticles} />
+            )}
+
+            <FunnelCTA
+              funnelStage={article.funnel_stage as FunnelStage}
+              ctaArticles={ctaArticles || []}
+            />
           </div>
         </div>
       </div>
+
+      {/* Sticky Mobile CTA Footer */}
+      <StickyMobileCTA />
 
       {/* Chatbot Widget - Only for BOFU articles */}
       {article.funnel_stage === "BOFU" && (
