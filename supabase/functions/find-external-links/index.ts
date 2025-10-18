@@ -171,6 +171,7 @@ Article Language: ${config.languageName}
 Content Preview: ${content.substring(0, 2000)}
 
 CRITICAL REQUIREMENTS:
+- Return MINIMUM 3 citations, ideally 3-5 citations
 - Prioritize official government sources (${config.domains.join(', ')})
 - Include these types of sources: ${config.sources.join(', ')}
 - ALL sources MUST be in ${config.languageName} language (no translations, no foreign sites)
@@ -259,6 +260,11 @@ Return only the JSON array, nothing else.`;
 
     const validCitations = verifiedCitations.filter(c => c.verified);
     console.log(`${validCitations.length} citations verified successfully`);
+
+    // Ensure minimum 3 citations
+    if (validCitations.length < 3) {
+      console.warn(`Only found ${validCitations.length} valid citations (minimum 3 required)`);
+    }
 
     // Check if government source requirement is met
     if (requireGovernmentSource) {

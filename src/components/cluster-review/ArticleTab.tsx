@@ -1,6 +1,8 @@
 import { FunnelStage } from "@/types/blog";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
+import { LinkValidationBadge } from "./LinkValidationBadge";
+import { LinkValidationResult } from "@/lib/linkValidation";
 
 interface ArticleTabProps {
   index: number;
@@ -9,6 +11,7 @@ interface ArticleTabProps {
   isActive: boolean;
   onClick: () => void;
   citationMarkersCount?: number;
+  validation?: LinkValidationResult | null;
 }
 
 const getFunnelBadgeColor = (stage: FunnelStage) => {
@@ -37,6 +40,7 @@ export const ArticleTab = ({
   isActive,
   onClick,
   citationMarkersCount = 0,
+  validation,
 }: ArticleTabProps) => {
   const truncatedHeadline = headline.length > 40 ? headline.substring(0, 40) + "..." : headline;
 
@@ -59,6 +63,7 @@ export const ArticleTab = ({
           {citationMarkersCount}
         </Badge>
       )}
+      <LinkValidationBadge validation={validation} compact />
     </button>
   );
 };

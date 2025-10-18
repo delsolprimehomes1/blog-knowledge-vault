@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ClusterReviewInterface } from "@/components/cluster-review/ClusterReviewInterface";
 import { BlogArticle } from "@/types/blog";
+import { validateAllArticles } from "@/lib/linkValidation";
 
 type Language = 'en' | 'es' | 'de' | 'nl' | 'fr' | 'pl' | 'sv' | 'da' | 'hu';
 
@@ -527,10 +528,20 @@ const ClusterGenerator = () => {
   };
 
   const handlePublishAll = async () => {
+    // STEP 1: Validate links before publishing
+    const results = validateAllArticles(generatedArticles);
+    const allValid = Array.from(results.values()).every(r => r.isValid);
+
+    if (!allValid) {
+      const invalidCount = Array.from(results.values()).filter(r => !r.isValid).length;
+      toast.error(`Cannot publish: ${invalidCount} article${invalidCount !== 1 ? 's' : ''} ${invalidCount !== 1 ? 'have' : 'has'} insufficient links. Please fix them first.`);
+      return;
+    }
+
     try {
       console.log('Publishing', generatedArticles.length, 'articles...');
       
-      // Step 1: Get current user
+      // Step 2: Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         toast.error('You must be logged in to publish articles');

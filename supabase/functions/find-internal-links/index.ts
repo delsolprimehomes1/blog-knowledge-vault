@@ -82,7 +82,8 @@ ${articles.map((a: any, i: number) =>
   `${i+1}. "${a.headline}" (${a.funnel_stage}) - ${a.speakable_answer?.substring(0, 100) || 'No description'}`
 ).join('\n')}
 
-Requirements:
+CRITICAL REQUIREMENTS:
+- Return MINIMUM 5 links, ideally 5-8 links
 - ALL articles and anchor text MUST be in ${languageName}
 - Mix of funnel stages (include TOFU, MOFU, BOFU for better content flow)
 - High topical relevance to the current article's topic
@@ -183,10 +184,17 @@ Return ONLY valid JSON in this exact format:
     // Sort by relevance
     enrichedLinks.sort((a: any, b: any) => b.relevanceScore - a.relevanceScore);
 
-    console.log(`Found ${enrichedLinks.length} internal links`);
+    // Ensure minimum 5 links (or all available if less)
+    const finalLinks = enrichedLinks.slice(0, Math.max(8, enrichedLinks.length));
+    
+    if (finalLinks.length < 5) {
+      console.warn(`Only found ${finalLinks.length} internal links (minimum 5 recommended)`);
+    }
+
+    console.log(`Found ${finalLinks.length} internal links`);
 
     return new Response(
-      JSON.stringify({ links: enrichedLinks.slice(0, 8) }),
+      JSON.stringify({ links: finalLinks }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
