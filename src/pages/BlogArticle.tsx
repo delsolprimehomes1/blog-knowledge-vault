@@ -6,12 +6,13 @@ import { ArticleHeader } from "@/components/blog-article/ArticleHeader";
 import { SpeakableBox } from "@/components/blog-article/SpeakableBox";
 import { TableOfContents } from "@/components/blog-article/TableOfContents";
 import { ArticleContent } from "@/components/blog-article/ArticleContent";
+import { InternalLinksSection } from "@/components/blog-article/InternalLinksSection";
 import { RelatedArticles } from "@/components/blog-article/RelatedArticles";
 import { TrustSignals } from "@/components/blog-article/TrustSignals";
 import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
 import { generateAllSchemas, injectSchemas } from "@/lib/schemaGenerator";
-import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage } from "@/types/blog";
+import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink } from "@/types/blog";
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 
 const BlogArticle = () => {
@@ -218,6 +219,8 @@ const BlogArticle = () => {
                 diagramUrl={article.diagram_url || undefined}
                 diagramDescription={article.diagram_description || undefined}
               />
+
+              <InternalLinksSection links={article.internal_links as InternalLink[]} />
 
               <TrustSignals
                 reviewerName={reviewer?.name}

@@ -11,10 +11,10 @@ interface TrustSignalsProps {
 }
 
 export const TrustSignals = ({ reviewerName, dateModified, citations }: TrustSignalsProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="my-12 p-6 border rounded-lg bg-accent/50 space-y-4">
+    <div id="citations" className="my-12 p-6 border rounded-lg bg-accent/50 space-y-4">
       <div className="grid md:grid-cols-3 gap-4">
         {reviewerName && (
           <div className="flex items-center gap-2">
@@ -58,20 +58,25 @@ export const TrustSignals = ({ reviewerName, dateModified, citations }: TrustSig
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4">
-            <ol className="list-decimal list-inside space-y-2 text-sm">
+            <ol className="list-decimal list-inside space-y-3 text-sm">
               {citations.map((citation, index) => (
-                <li key={index}>
-                  <a
-                    href={citation.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    {citation.source}
-                  </a>
-                  {citation.text && (
-                    <span className="text-muted-foreground"> - {citation.text}</span>
-                  )}
+                <li key={index} className="p-3 bg-background rounded border">
+                  <div className="flex items-start gap-2">
+                    <span className="font-mono text-xs text-muted-foreground shrink-0">[{index + 1}]</span>
+                    <div className="flex-1">
+                      <a
+                        href={citation.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-medium break-all"
+                      >
+                        {citation.source}
+                      </a>
+                      {citation.text && (
+                        <p className="text-muted-foreground mt-1 text-xs">{citation.text}</p>
+                      )}
+                    </div>
+                  </div>
                 </li>
               ))}
             </ol>
