@@ -591,40 +591,59 @@ export async function testPhase11(): Promise<TestResult[]> {
     return results;
   }
 
-  try {
-    const response = await fetch(`/blog/${article.slug}`);
-    const html = await response.text();
+  // Check if we're currently on a blog article page
+  const currentPath = window.location.pathname;
+  const isOnArticlePage = currentPath.startsWith('/blog/') && currentPath !== '/blog';
+
+  if (isOnArticlePage) {
+    // Check the actual DOM for meta tags injected by React Helmet
+    const titleTag = document.querySelector('title');
+    const metaDescription = document.querySelector('meta[name="description"]');
+    const ogTags = document.querySelectorAll('meta[property^="og:"]');
+    const canonicalTag = document.querySelector('link[rel="canonical"]');
     
     results.push({
       name: 'Meta Title',
-      status: html.includes('<title>') ? 'pass' : 'fail',
-      message: html.includes('<title>') ? '✓ Title tag present' : '✗ Missing title tag'
+      status: titleTag ? 'pass' : 'fail',
+      message: titleTag 
+        ? `✓ Title tag present: "${titleTag.textContent?.substring(0, 50)}..."` 
+        : '✗ Missing title tag'
     });
     
     results.push({
       name: 'Meta Description',
-      status: html.includes('name="description"') ? 'pass' : 'fail',
-      message: html.includes('name="description"') ? '✓ Meta description present' : '✗ Missing meta description'
+      status: metaDescription ? 'pass' : 'fail',
+      message: metaDescription 
+        ? `✓ Meta description present (${metaDescription.getAttribute('content')?.length} chars)` 
+        : '✗ Missing meta description'
     });
     
     results.push({
       name: 'Open Graph Tags',
-      status: html.includes('property="og:') ? 'pass' : 'fail',
-      message: html.includes('property="og:') ? '✓ OG tags present' : '✗ Missing OG tags'
+      status: ogTags.length > 0 ? 'pass' : 'fail',
+      message: ogTags.length > 0
+        ? `✓ Open Graph tags present (${ogTags.length} tags)` 
+        : '✗ Missing OG tags'
     });
     
     results.push({
       name: 'Canonical Tag',
-      status: html.includes('rel="canonical"') ? 'pass' : 'fail',
-      message: html.includes('rel="canonical"') ? '✓ Canonical tag present' : '✗ Missing canonical'
+      status: canonicalTag ? 'pass' : 'fail',
+      message: canonicalTag 
+        ? `✓ Canonical tag present: ${canonicalTag.getAttribute('href')}` 
+        : '✗ Missing canonical',
+      details: canonicalTag 
+        ? `Points to: ${canonicalTag.getAttribute('href')}` 
+        : undefined
     });
     
-  } catch (error: any) {
+  } else {
+    // Not on article page - provide instructions
     results.push({
       name: 'SEO Meta Tags',
-      status: 'fail',
-      message: '✗ Cannot verify meta tags',
-      details: error.message
+      status: 'warning',
+      message: `⚠ Navigate to an article to test SEO tags`,
+      details: `Example: /blog/${article.slug}\n\nThis test must be run while viewing a blog article page to check meta tags injected by React Helmet.`
     });
   }
 
