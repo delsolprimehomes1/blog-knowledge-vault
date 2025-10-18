@@ -86,7 +86,7 @@ export const ArticleCard = ({ article, author }: ArticleCardProps) => {
         </div>
 
         <div className="p-6 space-y-4">
-          <h3 className="text-xl font-bold line-clamp-2 min-h-[3.5rem]">
+          <h3 className="font-serif text-xl md:text-2xl font-semibold tracking-tight line-clamp-2 min-h-[3.5rem]">
             {article.headline}
           </h3>
 

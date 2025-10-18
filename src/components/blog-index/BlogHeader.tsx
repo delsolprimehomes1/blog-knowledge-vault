@@ -12,7 +12,7 @@ export const BlogHeader = ({ totalCount }: BlogHeaderProps) => {
         alt="Del Sol Prime Homes" 
         className="h-24 md:h-32 mx-auto"
       />
-      <h1 className="text-4xl md:text-5xl font-bold">
+      <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight">
         Del Sol Prime Homes Blog
       </h1>
       <p className="text-xl text-muted-foreground">

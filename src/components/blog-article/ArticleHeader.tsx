@@ -81,7 +81,7 @@ export const ArticleHeader = ({ article, author, reviewer, translations }: Artic
       )}
 
       {/* Title - Large and flowing */}
-      <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mt-8" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+      <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold leading-tight tracking-tight mt-8" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
         {article.headline}
       </h1>
 

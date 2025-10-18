@@ -181,11 +181,15 @@ All colors MUST be HSL.
 
 .article-content h2 {
   @apply text-2xl md:text-3xl font-bold mt-20 mb-8 scroll-mt-24;
+  font-family: 'Cormorant Garamond', serif;
   color: hsl(42 58% 45%);
+  letter-spacing: -0.02em;
 }
 
 .article-content h3 {
   @apply text-xl md:text-2xl font-semibold mt-16 mb-6 scroll-mt-24;
+  font-family: 'Cormorant Garamond', serif;
+  letter-spacing: -0.01em;
 }
 
 .article-content img {
