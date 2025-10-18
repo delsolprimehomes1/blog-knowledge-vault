@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus } from "lucide-react";
 import { Author } from "@/types/blog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const authorSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
@@ -45,6 +45,31 @@ export const AuthorDialog = ({ open, onOpenChange, author, onSubmit, isLoading }
       years_experience: author?.years_experience || 0,
     },
   });
+
+  useEffect(() => {
+    if (author) {
+      form.reset({
+        name: author.name,
+        job_title: author.job_title,
+        bio: author.bio,
+        photo_url: author.photo_url,
+        linkedin_url: author.linkedin_url,
+        years_experience: author.years_experience,
+      });
+      setCredentials(author.credentials || []);
+    } else {
+      form.reset({
+        name: "",
+        job_title: "",
+        bio: "",
+        photo_url: "",
+        linkedin_url: "",
+        years_experience: 0,
+      });
+      setCredentials([]);
+    }
+    setCredentialInput("");
+  }, [author, form]);
 
   const handleSubmit = async (data: AuthorFormValues) => {
     await onSubmit({ ...data, credentials });
