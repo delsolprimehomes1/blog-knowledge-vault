@@ -7,7 +7,7 @@ interface BlogHeaderProps {
 export const BlogHeader = ({ totalCount }: BlogHeaderProps) => {
   return (
     <header className="text-center space-y-6 mb-12">
-      <div className="mb-6">
+      <div className="mb-6 bg-[hsl(225,45%,20%)] py-8 -mx-4 px-4 md:-mx-8 md:px-8">
         <img 
           src={logo} 
           alt="Del Sol Prime Homes" 
