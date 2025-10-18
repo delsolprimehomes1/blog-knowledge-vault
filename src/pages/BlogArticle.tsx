@@ -196,52 +196,57 @@ const BlogArticle = () => {
         <script type="application/ld+json">{JSON.stringify(schemas.organization)}</script>
       </Helmet>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-8">
-            <div className="max-w-4xl">
-              <ArticleHeader
-                article={article}
-                author={author || null}
-                reviewer={reviewer || null}
-                translations={article.translations as Record<string, string>}
-              />
+      <div className="relative">
+        {/* Dark blue gradient overlay */}
+        <div className="absolute top-0 left-0 right-0 h-[400px] md:h-[600px] lg:h-[800px] bg-gradient-to-b from-[hsl(204,60%,20%)] via-[hsl(204,40%,30%)]/50 to-transparent pointer-events-none -z-10" />
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-8">
+              <div className="max-w-4xl">
+                <ArticleHeader
+                  article={article}
+                  author={author || null}
+                  reviewer={reviewer || null}
+                  translations={article.translations as Record<string, string>}
+                />
 
-              <SpeakableBox answer={article.speakable_answer} />
+                <SpeakableBox answer={article.speakable_answer} />
+
+                <TableOfContents content={article.detailed_content} />
+
+                <ArticleContent
+                  content={article.detailed_content}
+                  featuredImageUrl={article.featured_image_url}
+                  featuredImageAlt={article.featured_image_alt}
+                  featuredImageCaption={article.featured_image_caption || undefined}
+                  diagramUrl={article.diagram_url || undefined}
+                  diagramDescription={article.diagram_description || undefined}
+                  externalCitations={article.external_citations as ExternalCitation[]}
+                />
+
+                <InternalLinksSection links={article.internal_links as InternalLink[]} />
+
+                <TrustSignals
+                  reviewerName={reviewer?.name}
+                  dateModified={article.date_modified || undefined}
+                  citations={article.external_citations as ExternalCitation[]}
+                />
+
+                {author && <AuthorBio author={author} />}
+
+                {relatedArticles && relatedArticles.length > 0 && (
+                  <RelatedArticles articles={relatedArticles} />
+                )}
+
+                <FunnelCTA
+                  funnelStage={article.funnel_stage as FunnelStage}
+                  ctaArticles={ctaArticles || []}
+                />
+              </div>
 
               <TableOfContents content={article.detailed_content} />
-
-              <ArticleContent
-                content={article.detailed_content}
-                featuredImageUrl={article.featured_image_url}
-                featuredImageAlt={article.featured_image_alt}
-                featuredImageCaption={article.featured_image_caption || undefined}
-                diagramUrl={article.diagram_url || undefined}
-                diagramDescription={article.diagram_description || undefined}
-                externalCitations={article.external_citations as ExternalCitation[]}
-              />
-
-              <InternalLinksSection links={article.internal_links as InternalLink[]} />
-
-              <TrustSignals
-                reviewerName={reviewer?.name}
-                dateModified={article.date_modified || undefined}
-                citations={article.external_citations as ExternalCitation[]}
-              />
-
-              {author && <AuthorBio author={author} />}
-
-              {relatedArticles && relatedArticles.length > 0 && (
-                <RelatedArticles articles={relatedArticles} />
-              )}
-
-              <FunnelCTA
-                funnelStage={article.funnel_stage as FunnelStage}
-                ctaArticles={ctaArticles || []}
-              />
             </div>
-
-            <TableOfContents content={article.detailed_content} />
           </div>
         </div>
       </div>
