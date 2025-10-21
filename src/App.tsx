@@ -17,7 +17,9 @@ import ClusterGenerator from "./pages/admin/ClusterGenerator";
 import AEOGuide from "./pages/admin/AEOGuide";
 import BatchImageGeneration from "./pages/admin/BatchImageGeneration";
 import CitationHealthDashboard from "./pages/admin/CitationHealthDashboard";
+import UserManagement from "./pages/admin/UserManagement";
 import Auth from "./pages/Auth";
+import PendingApproval from "./pages/PendingApproval";
 import BlogArticle from "./pages/BlogArticle";
 import BlogIndex from "./pages/BlogIndex";
 import Sitemap from "./pages/Sitemap";
@@ -40,10 +42,11 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/blog" replace />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/blog" element={<BlogIndex />} />
-          <Route path="/blog/:slug" element={<BlogArticle />} />
-          <Route path="/sitemap" element={<Sitemap />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/pending-approval" element={<PendingApproval />} />
+        <Route path="/blog" element={<BlogIndex />} />
+        <Route path="/blog/:slug" element={<BlogArticle />} />
+        <Route path="/sitemap" element={<Sitemap />} />
           
           {/* Protected Admin Routes */}
           <Route path="/admin" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -51,6 +54,7 @@ const App = () => (
           <Route path="/admin/articles/new" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />
           <Route path="/admin/articles/:id/edit" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />
           <Route path="/admin/authors" element={<ProtectedRoute><Authors /></ProtectedRoute>} />
+          <Route path="/admin/user-management" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/admin/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
           <Route path="/admin/ai-tools" element={<ProtectedRoute><AITools /></ProtectedRoute>} />

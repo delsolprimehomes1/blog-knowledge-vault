@@ -13,6 +13,7 @@ const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Articles", href: "/admin/articles", icon: FileText },
   { name: "Authors", href: "/admin/authors", icon: Users },
+  { name: "User Management", href: "/admin/user-management", icon: Users },
   { name: "AI Tools", href: "/admin/ai-tools", icon: Bot },
   { name: "Cluster Generator", href: "/admin/cluster-generator", icon: Sparkles },
   { name: "Citation Health", href: "/admin/citation-health", icon: Activity },

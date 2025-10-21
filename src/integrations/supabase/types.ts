@@ -515,22 +515,61 @@ export type Database = {
         }
         Relationships: []
       }
+      user_role_changes: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          performed_by: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          target_user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          target_user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
+          granted_at: string | null
+          granted_by: string | null
           id: string
+          notes: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
           id?: string
+          notes?: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
           id?: string
+          notes?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }

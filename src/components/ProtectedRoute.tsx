@@ -11,6 +11,8 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -30,7 +32,42 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!session?.user) {
+        setIsAdmin(false);
+        setCheckingRole(false);
+        return;
+      }
+
+      try {
+        const { data: roleData, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking admin role:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!roleData);
+        }
+      } catch (error) {
+        console.error('Error in checkAdminRole:', error);
+        setIsAdmin(false);
+      } finally {
+        setCheckingRole(false);
+      }
+    };
+
+    if (!loading) {
+      checkAdminRole();
+    }
+  }, [session, loading]);
+
+  if (loading || checkingRole) {
     return (
       <div className="container mx-auto p-6 space-y-4">
         <Skeleton className="h-12 w-64" />
@@ -41,6 +78,10 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (!session) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/pending-approval" replace />;
   }
 
   return <>{children}</>;
