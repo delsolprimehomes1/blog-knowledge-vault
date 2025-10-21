@@ -2,12 +2,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Plus, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
+import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { ExternalCitation } from "@/types/blog";
 import { ExternalLinkFinder } from "@/components/ExternalLinkFinder";
-import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState } from "react";
 
 interface ExternalCitationsSectionProps {
   citations: ExternalCitation[];
@@ -26,26 +23,6 @@ export const ExternalCitationsSection = ({
   headline = "",
   language = "es",
 }: ExternalCitationsSectionProps) => {
-  const [citationHealth, setCitationHealth] = useState<Map<string, any>>(new Map());
-
-  useEffect(() => {
-    const loadHealthData = async () => {
-      const urls = citations.map(c => c.url).filter(Boolean);
-      if (urls.length === 0) return;
-      
-      const { data } = await supabase
-        .from('external_citation_health')
-        .select('*')
-        .in('url', urls);
-      
-      const healthMap = new Map();
-      data?.forEach(h => healthMap.set(h.url, h));
-      setCitationHealth(healthMap);
-    };
-    
-    loadHealthData();
-  }, [citations]);
-
   const addCitation = () => {
     onCitationsChange([...citations, { text: "", url: "", source: "" }]);
   };
@@ -93,38 +70,19 @@ export const ExternalCitationsSection = ({
             )}
           </div>
 
-        {citations.map((citation, index) => {
-          const health = citationHealth.get(citation.url);
-          return (
-            <div key={index} className="p-4 border rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label>Citation {index + 1}</Label>
-                  {health && (
-                    <Badge variant={health.status === 'active' ? 'default' : 'destructive'} className="gap-1">
-                      {health.status === 'active' ? (
-                        <>
-                          <CheckCircle className="h-3 w-3" />
-                          Active
-                        </>
-                      ) : (
-                        <>
-                          <AlertTriangle className="h-3 w-3" />
-                          {health.status}
-                        </>
-                      )}
-                    </Badge>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeCitation(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+        {citations.map((citation, index) => (
+          <div key={index} className="p-4 border rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Citation {index + 1}</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeCitation(index)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
             <div>
               <Label>Source Name *</Label>
               <Input
@@ -147,12 +105,11 @@ export const ExternalCitationsSection = ({
               <Input
                 value={citation.text}
                 onChange={(e) => updateCitation(index, "text", e.target.value)}
-              placeholder="Descriptive phrase for the link"
-            />
+                placeholder="Descriptive phrase for the link"
+              />
+            </div>
           </div>
-        </div>
-          );
-        })}
+        ))}
 
         {citations.length < 5 && (
           <Button

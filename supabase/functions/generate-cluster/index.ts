@@ -65,19 +65,11 @@ async function retryWithBackoff<T>(
 }
 
 // Main generation function (runs in background)
-async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string, clusterCount: number = 1) {
+async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
   const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  
-  if (!ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Supabase credentials not configured');
-  }
-  
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
   try {
     console.log(`[Job ${jobId}] Starting generation for:`, { topic, language, targetAudience, primaryKeyword });
@@ -171,12 +163,7 @@ Return ONLY valid JSON:
     // Send heartbeat after major operation
     await sendHeartbeat(supabase, jobId);
 
-    // FIX: Wrap json() parsing in timeout
-    const structureData = await withTimeout(
-      structureResponse.json(),
-      30000,
-      'Structure response parsing timed out'
-    );
+    const structureData = await structureResponse.json();
     const structureText = structureData.content[0].text;
 
     console.log('Raw AI response:', structureText); // Debug logging
@@ -239,30 +226,21 @@ Return ONLY the category name exactly as shown above. No explanation, no JSON, j
       let finalCategory;
       
       try {
-      const categoryResponse = await withTimeout(
-          fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'x-api-key': ANTHROPIC_API_KEY,
-              'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'claude-sonnet-4-5',
-              max_tokens: 256,
-              messages: [{ role: 'user', content: categoryPrompt }],
-            }),
+        const categoryResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5',
+            max_tokens: 256,
+            messages: [{ role: 'user', content: categoryPrompt }],
           }),
-          20000,
-          'Category selection timed out after 20 seconds'
-        );
+        });
 
-        // FIX: Wrap json() parsing in timeout
-        const categoryData = await withTimeout(
-          categoryResponse.json(),
-          10000,
-          'Category response parsing timed out'
-        );
+        const categoryData = await categoryResponse.json();
         const aiSelectedCategory = categoryData.content[0].text.trim();
         
         // Validate AI response against database categories
@@ -326,30 +304,21 @@ Return ONLY valid JSON:
   "description": "Description with benefits and CTA (max 160 chars)"
 }`;
 
-      const seoResponse = await withTimeout(
-        fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
-            max_tokens: 512,
-            messages: [{ role: 'user', content: seoPrompt }],
-          }),
+      const seoResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 512,
+          messages: [{ role: 'user', content: seoPrompt }],
         }),
-        30000,
-        'SEO meta tags generation timed out after 30 seconds'
-      );
+      });
 
-      // FIX: Wrap json() parsing in timeout
-      const seoData = await withTimeout(
-        seoResponse.json(),
-        10000,
-        'SEO response parsing timed out'
-      );
+      const seoData = await seoResponse.json();
       const seoText = seoData.content[0].text;
       const seoMeta = JSON.parse(seoText.replace(/```json\n?|\n?```/g, ''));
       
@@ -377,30 +346,21 @@ Example format:
 
 Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
 
-      const speakableResponse = await withTimeout(
-        fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
-            max_tokens: 256,
-            messages: [{ role: 'user', content: speakablePrompt }],
-          }),
+      const speakableResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 256,
+          messages: [{ role: 'user', content: speakablePrompt }],
         }),
-        30000,
-        'Speakable answer generation timed out after 30 seconds'
-      );
+      });
 
-      // FIX: Wrap json() parsing in timeout
-      const speakableData = await withTimeout(
-        speakableResponse.json(),
-        10000,
-        'Speakable response parsing timed out'
-      );
+      const speakableData = await speakableResponse.json();
       article.speakable_answer = speakableData.content[0].text.trim();
 
       // 6. DETAILED CONTENT (1500-2500 words)
@@ -490,47 +450,30 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         claudeRequestBody.messages = contentPromptMessages;
       }
 
-      // Start heartbeat for this long operation
-      const contentHeartbeat = setInterval(() => sendHeartbeat(supabase, jobId), 15000);
-      
-      let detailedContent = '';
-      try {
-        const contentResponse = await withTimeout(
-          fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'x-api-key': ANTHROPIC_API_KEY,
-              'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify(claudeRequestBody),
-          }),
-          180000,
-          'Content generation timed out after 3 minutes'
-        );
+      const contentResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(claudeRequestBody),
+      });
 
-        if (!contentResponse.ok) {
-          const errorText = await contentResponse.text();
-          console.error(`[Job ${jobId}] Content generation failed for article ${i + 1}:`, contentResponse.status, errorText);
-          throw new Error(`Content generation failed: ${contentResponse.status}`);
-        }
-
-        // FIX: Wrap json() parsing in timeout to prevent hanging on slow response streams
-        const contentData = await withTimeout(
-          contentResponse.json(),
-          30000,
-          'Response parsing timed out after 30 seconds'
-        );
-        if (!contentData.content?.[0]?.text) {
-          console.error(`[Job ${jobId}] Invalid content response for article ${i + 1}:`, contentData);
-          throw new Error('Invalid content generation response');
-        }
-
-        detailedContent = contentData.content[0].text.trim();
-        article.detailed_content = detailedContent;
-      } finally {
-        clearInterval(contentHeartbeat);
+      if (!contentResponse.ok) {
+        const errorText = await contentResponse.text();
+        console.error(`[Job ${jobId}] Content generation failed for article ${i + 1}:`, contentResponse.status, errorText);
+        throw new Error(`Content generation failed: ${contentResponse.status}`);
       }
+
+      const contentData = await contentResponse.json();
+      if (!contentData.content?.[0]?.text) {
+        console.error(`[Job ${jobId}] Invalid content response for article ${i + 1}:`, contentData);
+        throw new Error('Invalid content generation response');
+      }
+
+      const detailedContent = contentData.content[0].text.trim();
+      article.detailed_content = detailedContent;
       
       // Log content quality metrics for monitoring
       const contentWordCount = detailedContent.split(/\s+/).length;
@@ -740,16 +683,12 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
   - Location: ${location}
   - Prompt: ${imagePrompt.substring(0, 150)}...`);
         
-        const imageResponse = await withTimeout(
-          supabase.functions.invoke('generate-image', {
-            body: {
-              prompt: imagePrompt,
-              headline: plan.headline,
-            },
-          }),
-          90000,
-          'Image generation timed out after 90 seconds'
-        );
+        const imageResponse = await supabase.functions.invoke('generate-image', {
+          body: {
+            prompt: imagePrompt,
+            headline: plan.headline,
+          },
+        });
 
         console.log('📸 Image response error:', imageResponse.error);
         console.log('📸 Image response data:', JSON.stringify(imageResponse.data));
@@ -826,30 +765,21 @@ Requirements:
 
 Return only the alt text, no quotes, no JSON.`;
 
-          const altResponse = await withTimeout(
-            fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: {
-                'x-api-key': ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'claude-sonnet-4-5',
-                max_tokens: 256,
-                messages: [{ role: 'user', content: altPrompt }],
-              }),
+          const altResponse = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-5',
+              max_tokens: 256,
+              messages: [{ role: 'user', content: altPrompt }],
             }),
-            20000,
-            'Alt text generation timed out after 20 seconds'
-          );
+          });
 
-          // FIX: Wrap json() parsing in timeout
-          const altData = await withTimeout(
-            altResponse.json(),
-            10000,
-            'Alt text response parsing timed out'
-          );
+          const altData = await altResponse.json();
           featuredImageAlt = altData.content[0].text.trim();
           
           console.log(`✅ Contextual image generated:
@@ -882,16 +812,12 @@ Return only the alt text, no quotes, no JSON.`;
       // 8. DIAGRAM (for MOFU/BOFU articles using existing generate-diagram function)
       if (plan.funnelStage !== 'TOFU') {
         try {
-          const diagramResponse = await withTimeout(
-            supabase.functions.invoke('generate-diagram', {
-              body: {
-                articleContent: article.detailed_content,
-                headline: plan.headline,
-              },
-            }),
-            90000,
-            'Diagram generation timed out after 90 seconds'
-          );
+          const diagramResponse = await supabase.functions.invoke('generate-diagram', {
+            body: {
+              articleContent: article.detailed_content,
+              headline: plan.headline,
+            },
+          });
 
           if (diagramResponse.data?.mermaidCode) {
             article.diagram_url = diagramResponse.data.mermaidCode;
@@ -944,30 +870,21 @@ Return ONLY valid JSON:
   "confidence": 90
 }`;
 
-          const authorResponse = await withTimeout(
-            fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: {
-                'x-api-key': ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'claude-sonnet-4-5',
-                max_tokens: 512,
-                messages: [{ role: 'user', content: authorPrompt }],
-              }),
+          const authorResponse = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-5',
+              max_tokens: 512,
+              messages: [{ role: 'user', content: authorPrompt }],
             }),
-            30000,
-            'Author attribution timed out after 30 seconds'
-          );
+          });
 
-          // FIX: Wrap json() parsing in timeout
-          const authorData = await withTimeout(
-            authorResponse.json(),
-            10000,
-            'Author response parsing timed out'
-          );
+          const authorData = await authorResponse.json();
           const authorText = authorData.content[0].text;
           const authorSuggestion = JSON.parse(authorText.replace(/```json\n?|\n?```/g, ''));
 
@@ -994,27 +911,17 @@ Return ONLY valid JSON:
       // 10. EXTERNAL CITATIONS (Perplexity for authoritative sources)
       try {
         console.log(`[Job ${jobId}] Finding external citations for article ${i+1}: "${plan.headline}" (${language})`);
-        
-        // Start heartbeat for this long operation
-        const citationHeartbeat = setInterval(() => sendHeartbeat(supabase, jobId), 15000);
-        
-        try {
-          const citationsResponse = await withTimeout(
-            retryWithBackoff(
-              () => supabase.functions.invoke('find-external-links', {
-                body: {
-                  content: article.detailed_content,
-                  headline: plan.headline,
-                  language: language,
-                },
-              }),
-              3,
-              2000,
-              'External citations'
-            ),
-            120000,
-            'External citation finding timed out after 2 minutes'
-          );
+        const citationsResponse = await retryWithBackoff(
+          () => supabase.functions.invoke('find-external-links', {
+            body: {
+              content: article.detailed_content,
+              headline: plan.headline,
+              language: language,
+            },
+          }),
+          3,
+          2000
+        );
 
         if (citationsResponse.data?.citations && citationsResponse.data.citations.length > 0) {
           console.log(`[Job ${jobId}] Found ${citationsResponse.data.citations.length} external citations (${citationsResponse.data.totalVerified || 0} verified)`);
@@ -1056,11 +963,8 @@ Return ONLY valid JSON:
             url: c.url,
             source: c.sourceName,
           }));
-          } else {
-            article.external_citations = [];
-          }
-        } finally {
-          clearInterval(citationHeartbeat);
+        } else {
+          article.external_citations = [];
         }
       } catch (error) {
         console.error('External citations failed:', error);
@@ -1141,12 +1045,7 @@ Return ONLY valid JSON:
           }),
         });
 
-        // FIX: Wrap json() parsing in timeout
-        const faqData = await withTimeout(
-          faqResponse.json(),
-          10000,
-          'FAQ response parsing timed out'
-        );
+        const faqData = await faqResponse.json();
         const faqText = faqData.content[0].text;
         const faqResult = JSON.parse(faqText.replace(/```json\n?|\n?```/g, ''));
         article.faq_entities = faqResult.faqs;
@@ -1355,16 +1254,15 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, language, targetAudience, primaryKeyword, clusterCount = 1 } = await req.json();
+    const { topic, language, targetAudience, primaryKeyword } = await req.json();
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not configured');
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase credentials not configured');
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
     // Get user ID (if authenticated)
     const authHeader = req.headers.get('authorization');
@@ -1379,7 +1277,6 @@ serve(async (req) => {
     }
 
     // Create job record
-    const totalArticles = clusterCount * 6;
     const { data: job, error: jobError } = await supabase
       .from('cluster_generations')
       .insert({
@@ -1389,9 +1286,6 @@ serve(async (req) => {
         target_audience: targetAudience,
         primary_keyword: primaryKeyword,
         status: 'pending',
-        cluster_count: clusterCount,
-        total_articles: totalArticles,
-        articles_per_cluster: 6
       })
       .select()
       .single();
@@ -1401,12 +1295,12 @@ serve(async (req) => {
       throw jobError;
     }
 
-    console.log(`✅ Created job ${job.id} for ${clusterCount} cluster(s) (${totalArticles} articles), starting background generation`);
+    console.log(`✅ Created job ${job.id}, starting background generation`);
 
     // Start generation in background (non-blocking)
     // @ts-ignore - EdgeRuntime is available in Deno Deploy
     EdgeRuntime.waitUntil(
-      generateCluster(job.id, topic, language, targetAudience, primaryKeyword, clusterCount)
+      generateCluster(job.id, topic, language, targetAudience, primaryKeyword)
     );
 
     // Return job ID immediately

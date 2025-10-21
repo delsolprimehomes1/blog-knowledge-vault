@@ -45,7 +45,6 @@ const ClusterGenerator = () => {
   const [language, setLanguage] = useState<Language>("en");
   const [targetAudience, setTargetAudience] = useState("");
   const [primaryKeyword, setPrimaryKeyword] = useState("");
-  const [clusterCount, setClusterCount] = useState<string>("1");
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [steps, setSteps] = useState<GenerationStep[]>([]);
@@ -56,8 +55,6 @@ const ClusterGenerator = () => {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [generationStartTime, setGenerationStartTime] = useState<number>(0);
   const [lastBackendUpdate, setLastBackendUpdate] = useState<Date | null>(null);
-  const [currentSubstep, setCurrentSubstep] = useState<string>('');
-  const [isStale, setIsStale] = useState(false);
 
   // Check for saved backup on mount
   useEffect(() => {
@@ -74,38 +71,10 @@ const ClusterGenerator = () => {
     }
   }, []);
 
-  // Auto-resume active jobs or load most recent completed cluster on mount
+  // Auto-load most recent completed cluster on mount
   useEffect(() => {
-    const checkForActiveOrCompletedCluster = async () => {
-      // PRIORITY 1: Check for actively generating jobs
-      const { data: activeJob } = await supabase
-        .from('cluster_generations')
-        .select('*')
-        .eq('status', 'generating')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (activeJob) {
-        console.log('✅ Found active generation job:', activeJob.id);
-        setJobId(activeJob.id);
-        setTopic(activeJob.topic);
-        setLanguage(activeJob.language as Language);
-        setTargetAudience(activeJob.target_audience);
-        setPrimaryKeyword(activeJob.primary_keyword);
-        setIsGenerating(true);
-        toast.info('Resuming active cluster generation...');
-        return; // Stop here, don't load completed clusters
-      }
-
-      // PRIORITY 2: Check localStorage for saved job
-      const savedJobId = localStorage.getItem('current_job_id');
-      if (savedJobId) {
-        return; // Let the existing jobId effect handle it
-      }
-
-      // PRIORITY 3: Only if no active jobs, load most recent completed cluster
-      const { data: completedJob, error } = await supabase
+    const checkForCompletedCluster = async () => {
+      const { data, error } = await supabase
         .from('cluster_generations')
         .select('*')
         .eq('status', 'completed')
@@ -113,19 +82,23 @@ const ClusterGenerator = () => {
         .limit(1)
         .maybeSingle();
       
-      if (!error && completedJob && completedJob.articles) {
-        console.log('✅ Found completed cluster:', completedJob.id);
-        setGeneratedArticles(completedJob.articles as Partial<BlogArticle>[]);
-        setTopic(completedJob.topic);
-        setLanguage(completedJob.language as Language);
-        setTargetAudience(completedJob.target_audience);
-        setPrimaryKeyword(completedJob.primary_keyword);
+      if (!error && data && data.articles) {
+        console.log('✅ Found completed cluster:', data.id);
+        setGeneratedArticles(data.articles as Partial<BlogArticle>[]);
+        setTopic(data.topic);
+        setLanguage(data.language as Language);
+        setTargetAudience(data.target_audience);
+        setPrimaryKeyword(data.primary_keyword);
         setShowReview(true);
-        toast.success(`Loaded completed cluster: ${completedJob.topic}`);
+        toast.success(`Loaded completed cluster: ${data.topic}`);
       }
     };
     
-    checkForActiveOrCompletedCluster();
+    // Only check if we don't have a job in progress
+    const savedJobId = localStorage.getItem('current_job_id');
+    if (!savedJobId && !showReview) {
+      checkForCompletedCluster();
+    }
   }, []);
 
   // Prevent navigation during generation
@@ -179,8 +152,7 @@ const ClusterGenerator = () => {
 
       // CLIENT-SIDE TIMEOUT DETECTION
       if (data.status === 'generating') {
-        // FIX: Use root updated_at, not progress.updated_at
-        const lastUpdate = new Date(data.updated_at || Date.now());
+        const lastUpdate = new Date(data.progress?.updated_at || Date.now());
         const now = new Date();
         const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / 1000 / 60;
 
@@ -206,66 +178,14 @@ const ClusterGenerator = () => {
 
       // Update progress UI
       if (data.progress) {
-        const currentArticle = data.progress.current_article || 0;
-        const totalArticles = data.progress.total_articles || 6;
-        const currentStep = data.progress.current_step || 0;
-        
-        // Calculate progress percentage
-        const progressPercent = (currentStep / data.progress.total_steps) * 100;
+        const progressPercent = (data.progress.current_step / data.progress.total_steps) * 100;
         setProgress(progressPercent);
 
-        // Update substep message
-        if (data.progress.substep) {
-          setCurrentSubstep(data.progress.substep);
-        }
-
-        // Update steps based on current step - Map backend steps (1-based) to frontend indices (0-based)
+        // Update steps based on current step
         setSteps(prev => prev.map((step, idx) => {
-          // Map backend steps to frontend indices:
-          // Backend step 1 → Frontend index 0 (structure)
-          // Backend steps 2-7 → Frontend index 1 (content - all articles)
-          // Backend step 8 → Frontend index 5 (internal links)
-          // Backend step 9 → Frontend index 6 (linking)
-          
-          let frontendIndex = -1;
-          
-          if (currentStep === 1) {
-            frontendIndex = 0; // Structure
-          } else if (currentStep >= 2 && currentStep <= 7) {
-            frontendIndex = 1; // Article content (steps 2-7 all map to index 1)
-          } else if (currentStep === 8) {
-            frontendIndex = 5; // Internal links
-          } else if (currentStep === 9) {
-            frontendIndex = 6; // Linking
-          } else if (currentStep >= 10) {
-            frontendIndex = 7; // Complete (beyond all steps)
-          }
-          
-          // Step is complete if we're past it
-          if (idx < frontendIndex) return { ...step, status: 'complete' as StepStatus };
-          
-          // Step is running if it's the current one
-          if (idx === frontendIndex) {
-            let message = step.message;
-            
-            // Update article count for content step
-            if (idx === 1 && currentArticle > 0) {
-              // current_article represents the article BEING generated (1-based)
-              // So completed articles = current_article - 1
-              const articlesFinished = Math.max(0, currentArticle - 1);
-              message = `${articlesFinished}/${totalArticles} articles completed`;
-              
-              // Add substep if available
-              if (currentSubstep) {
-                message += ` • ${currentSubstep}`;
-              }
-            }
-            
-            return { ...step, status: 'running' as StepStatus, message };
-          }
-          
-          // Otherwise pending
-          return { ...step, status: 'pending' as StepStatus };
+          if (idx < data.progress.current_step) return { ...step, status: 'complete' as StepStatus };
+          if (idx === data.progress.current_step) return { ...step, status: 'running' as StepStatus };
+          return step;
         }));
       }
 
@@ -389,28 +309,6 @@ const ClusterGenerator = () => {
     };
   }, [pollingInterval]);
 
-  // Stale detection - warn if no updates for 2+ minutes
-  useEffect(() => {
-    if (!isGenerating || !lastBackendUpdate) return;
-
-    const checkStale = setInterval(() => {
-      const timeSinceUpdate = Date.now() - lastBackendUpdate.getTime();
-      
-      // Warn after 2 minutes
-      if (timeSinceUpdate > 120000 && !isStale) {
-        console.warn('Generation appears slow - no updates for 2+ minutes');
-        setIsStale(true);
-      }
-      
-      // Clear stale flag if we get an update
-      if (timeSinceUpdate < 120000 && isStale) {
-        setIsStale(false);
-      }
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(checkStale);
-  }, [isGenerating, lastBackendUpdate, isStale]);
-
   const handleGenerate = async () => {
     // Validation
     if (!topic.trim()) {
@@ -432,14 +330,17 @@ const ClusterGenerator = () => {
     setLastBackendUpdate(new Date());
     
     // Initialize steps
-    const totalArticles = parseInt(clusterCount) * 6;
     const initialSteps: GenerationStep[] = [
-      { id: 'structure', name: 'Generating cluster structures', message: `${clusterCount} clusters, ${totalArticles} articles`, status: 'pending' },
-      { id: 'content', name: 'Generating article content', message: `0/${totalArticles} articles completed`, status: 'pending' },
-      { id: 'images', name: 'Generating images', message: `0/${totalArticles} images`, status: 'pending' },
-      { id: 'diagrams', name: 'Generating diagrams', message: 'For MOFU/BOFU articles', status: 'pending' },
-      { id: 'citations', name: 'Finding external citations', message: 'Researching authoritative sources', status: 'pending' },
-      { id: 'internal', name: 'Finding internal links', message: 'Connecting articles', status: 'pending' },
+      { id: 'structure', name: 'Generating article structure', message: '3 TOFU, 2 MOFU, 1 BOFU', status: 'pending' },
+      { id: 'tofu1', name: 'Creating TOFU Article 1', message: 'Generating content...', status: 'pending' },
+      { id: 'tofu2', name: 'Creating TOFU Article 2', message: 'Generating content...', status: 'pending' },
+      { id: 'tofu3', name: 'Creating TOFU Article 3', message: 'Generating content...', status: 'pending' },
+      { id: 'mofu1', name: 'Creating MOFU Article 1', message: 'Generating content...', status: 'pending' },
+      { id: 'mofu2', name: 'Creating MOFU Article 2', message: 'Generating content...', status: 'pending' },
+      { id: 'bofu', name: 'Creating BOFU Article', message: 'Generating content...', status: 'pending' },
+      { id: 'images', name: 'Generating images', message: 'Creating visuals for all articles', status: 'pending' },
+      { id: 'internal', name: 'Finding internal links', message: 'Connecting articles across cluster', status: 'pending' },
+      { id: 'external', name: 'Finding external sources', message: 'Researching authoritative citations', status: 'pending' },
       { id: 'linking', name: 'Linking funnel progression', message: 'Creating conversion pathways', status: 'pending' },
     ];
     
@@ -447,12 +348,11 @@ const ClusterGenerator = () => {
     
     try {
       console.log('Starting cluster generation...');
-      const estimatedMinutes = parseInt(clusterCount) * 3;
-      toast.info(`Starting generation... This will take ${estimatedMinutes}-${estimatedMinutes + 5} minutes. Feel free to leave this page - we'll save your progress!`);
+      toast.info('Starting generation... This will take 3-5 minutes. Feel free to leave this page - we\'ll save your progress!');
       
       // Step 1: Start generation (returns immediately with job ID)
       const { data, error } = await supabase.functions.invoke('generate-cluster', {
-        body: { topic, language, targetAudience, primaryKeyword, clusterCount: parseInt(clusterCount) }
+        body: { topic, language, targetAudience, primaryKeyword }
       });
 
       if (error) {
@@ -848,10 +748,10 @@ const ClusterGenerator = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-3xl">
                 <Sparkles className="h-8 w-8" />
-                Multi-Cluster Content Generator
+                AI Content Cluster Generator
               </CardTitle>
               <CardDescription className="text-lg">
-                Generate 6-60 interconnected articles in one click
+                Generate 6 interconnected articles with one click
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -915,26 +815,6 @@ const ClusterGenerator = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="clusterCount" className="text-base">
-                  Number of Clusters <span className="text-destructive">*</span>
-                </Label>
-                <Select value={clusterCount} onValueChange={setClusterCount}>
-                  <SelectTrigger id="clusterCount" className="text-base">
-                    <SelectValue placeholder="Select cluster count" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 cluster (6 articles, ~3 mins)</SelectItem>
-                    <SelectItem value="3">3 clusters (18 articles, ~10 mins)</SelectItem>
-                    <SelectItem value="5">5 clusters (30 articles, ~18 mins)</SelectItem>
-                    <SelectItem value="10">10 clusters (60 articles, ~30 mins)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  Each cluster contains 3 TOFU, 2 MOFU, and 1 BOFU article
-                </p>
-              </div>
-
               <Button
                 onClick={handleGenerate}
                 disabled={isGenerating}
@@ -942,7 +822,7 @@ const ClusterGenerator = () => {
                 className="w-full text-base"
               >
                 <Sparkles className="mr-2 h-5 w-5" />
-                Generate {parseInt(clusterCount) === 1 ? 'Complete Cluster (6 Articles)' : `${parseInt(clusterCount)} Clusters (${parseInt(clusterCount) * 6} Articles)`}
+                Generate Complete Cluster (6 Articles)
               </Button>
             </CardContent>
           </Card>
@@ -964,31 +844,13 @@ const ClusterGenerator = () => {
                 <Progress value={progress} className="h-3" />
               </div>
 
-              {/* Stale Warning */}
-              {isStale && (
-                <div className="p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <Loader2 className="h-5 w-5 text-orange-600 dark:text-orange-400 animate-spin mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-orange-900 dark:text-orange-100">
-                        Slow Progress Detected
-                      </p>
-                      <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
-                        No updates for {lastBackendUpdate ? Math.floor((Date.now() - lastBackendUpdate.getTime()) / 1000 / 60) : 0} minutes. 
-                        This is normal for AI content generation (especially citations). If this persists beyond 5 minutes, consider aborting.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Abort Button and Elapsed Time */}
-              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                 <div>
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
                     Generation in progress...
                   </p>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
                     Elapsed time: {generationStartTime > 0 ? Math.floor((Date.now() - generationStartTime) / 1000 / 60) : 0} minutes
                     {lastBackendUpdate && (
                       <span className="ml-2">
@@ -996,11 +858,6 @@ const ClusterGenerator = () => {
                       </span>
                     )}
                   </p>
-                  {currentSubstep && (
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">
-                      {currentSubstep}
-                    </p>
-                  )}
                 </div>
                 <Button
                   variant="destructive"
@@ -1036,11 +893,6 @@ const ClusterGenerator = () => {
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-sm">{step.name}</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">{step.message}</p>
-                      {step.status === 'running' && currentSubstep && (
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          {currentSubstep}
-                        </p>
-                      )}
                     </div>
                   </div>
                 ))}

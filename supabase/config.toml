@@ -23,15 +23,3 @@ verify_jwt = false
 
 [functions.replace-citation-markers]
 verify_jwt = false
-
-[functions.verify-citation-health]
-verify_jwt = false
-
-[functions.manage-user-role]
-verify_jwt = true
-
-[functions.verify-citation-health.schedule]
-cron = "0 3 * * *"
-
-[functions.find-replacement-citations]
-verify_jwt = false
