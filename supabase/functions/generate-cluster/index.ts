@@ -66,7 +66,7 @@ async function retryWithBackoff<T>(
 
 // Main generation function (runs in background)
 async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
@@ -134,16 +134,18 @@ Return ONLY valid JSON:
     // Wrap AI call with timeout and retry
     const structureResponse = await retryWithBackoff(
       () => withTimeout(
-        fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: 'claude-sonnet-4-5',
+            max_tokens: 4096,
+            system: 'You are an SEO expert specializing in real estate content strategy. Return only valid JSON.',
             messages: [
-              { role: 'system', content: 'You are an SEO expert specializing in real estate content strategy. Return only valid JSON.' },
               { role: 'user', content: structurePrompt }
             ],
           }),
@@ -162,7 +164,7 @@ Return ONLY valid JSON:
     await sendHeartbeat(supabase, jobId);
 
     const structureData = await structureResponse.json();
-    const structureText = structureData.choices[0].message.content;
+    const structureText = structureData.content[0].text;
 
     console.log('Raw AI response:', structureText); // Debug logging
 
@@ -224,20 +226,22 @@ Return ONLY the category name exactly as shown above. No explanation, no JSON, j
       let finalCategory;
       
       try {
-        const categoryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const categoryResponse = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: 'claude-sonnet-4-5',
+            max_tokens: 256,
             messages: [{ role: 'user', content: categoryPrompt }],
           }),
         });
 
         const categoryData = await categoryResponse.json();
-        const aiSelectedCategory = categoryData.choices[0].message.content.trim();
+        const aiSelectedCategory = categoryData.content[0].text.trim();
         
         // Validate AI response against database categories
         const isValidCategory = validCategoryNames.includes(aiSelectedCategory);
@@ -300,20 +304,22 @@ Return ONLY valid JSON:
   "description": "Description with benefits and CTA (max 160 chars)"
 }`;
 
-      const seoResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const seoResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'claude-sonnet-4-5',
+          max_tokens: 512,
           messages: [{ role: 'user', content: seoPrompt }],
         }),
       });
 
       const seoData = await seoResponse.json();
-      const seoText = seoData.choices[0].message.content;
+      const seoText = seoData.content[0].text;
       const seoMeta = JSON.parse(seoText.replace(/```json\n?|\n?```/g, ''));
       
       article.meta_title = seoMeta.title;
@@ -340,20 +346,22 @@ Example format:
 
 Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
 
-      const speakableResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const speakableResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'claude-sonnet-4-5',
+          max_tokens: 256,
           messages: [{ role: 'user', content: speakablePrompt }],
         }),
       });
 
       const speakableData = await speakableResponse.json();
-      article.speakable_answer = speakableData.choices[0].message.content.trim();
+      article.speakable_answer = speakableData.content[0].text.trim();
 
       // 6. DETAILED CONTENT (1500-2500 words)
       console.log(`[Job ${jobId}] Generating detailed content for article ${i + 1}: "${plan.headline}"`);
@@ -427,16 +435,29 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         ];
       }
 
-      const contentResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      // Build Claude request with system message handling
+      let claudeRequestBody: any = {
+        model: 'claude-sonnet-4-5',
+        max_tokens: 8192,
+        messages: [],
+      };
+
+      if (hasCustomPrompt && contentPromptMessages[0]?.role === 'system') {
+        // Extract system message for Claude
+        claudeRequestBody.system = contentPromptMessages[0].content;
+        claudeRequestBody.messages = contentPromptMessages.slice(1);
+      } else {
+        claudeRequestBody.messages = contentPromptMessages;
+      }
+
+      const contentResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: contentPromptMessages,
-        }),
+        body: JSON.stringify(claudeRequestBody),
       });
 
       if (!contentResponse.ok) {
@@ -446,12 +467,12 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       }
 
       const contentData = await contentResponse.json();
-      if (!contentData.choices?.[0]?.message?.content) {
+      if (!contentData.content?.[0]?.text) {
         console.error(`[Job ${jobId}] Invalid content response for article ${i + 1}:`, contentData);
         throw new Error('Invalid content generation response');
       }
 
-      const detailedContent = contentData.choices[0].message.content.trim();
+      const detailedContent = contentData.content[0].text.trim();
       article.detailed_content = detailedContent;
       
       // Log content quality metrics for monitoring
@@ -744,20 +765,22 @@ Requirements:
 
 Return only the alt text, no quotes, no JSON.`;
 
-          const altResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          const altResponse = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
+              'x-api-key': ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
+              model: 'claude-sonnet-4-5',
+              max_tokens: 256,
               messages: [{ role: 'user', content: altPrompt }],
             }),
           });
 
           const altData = await altResponse.json();
-          featuredImageAlt = altData.choices[0].message.content.trim();
+          featuredImageAlt = altData.content[0].text.trim();
           
           console.log(`✅ Contextual image generated:
   - Funnel-appropriate style: ${funnelStyle}
@@ -847,20 +870,22 @@ Return ONLY valid JSON:
   "confidence": 90
 }`;
 
-          const authorResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          const authorResponse = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
+              'x-api-key': ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
+              model: 'claude-sonnet-4-5',
+              max_tokens: 512,
               messages: [{ role: 'user', content: authorPrompt }],
             }),
           });
 
           const authorData = await authorResponse.json();
-          const authorText = authorData.choices[0].message.content;
+          const authorText = authorData.content[0].text;
           const authorSuggestion = JSON.parse(authorText.replace(/```json\n?|\n?```/g, ''));
 
           const primaryAuthorIdx = authorSuggestion.primaryAuthorNumber - 1;
@@ -1006,20 +1031,22 @@ Return ONLY valid JSON:
   ]
 }`;
 
-        const faqResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const faqResponse = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: 'claude-sonnet-4-5',
+            max_tokens: 2048,
             messages: [{ role: 'user', content: faqPrompt }],
           }),
         });
 
         const faqData = await faqResponse.json();
-        const faqText = faqData.choices[0].message.content;
+        const faqText = faqData.content[0].text;
         const faqResult = JSON.parse(faqText.replace(/```json\n?|\n?```/g, ''));
         article.faq_entities = faqResult.faqs;
       } else {
@@ -1229,11 +1256,11 @@ serve(async (req) => {
   try {
     const { topic, language, targetAudience, primaryKeyword } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
+    if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not configured');
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
