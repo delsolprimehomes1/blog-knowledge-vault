@@ -64,6 +64,9 @@ export type Database = {
           author_id: string | null
           canonical_url: string | null
           category: string
+          cluster_id: string | null
+          cluster_number: number | null
+          cluster_theme: string | null
           created_at: string
           cta_article_ids: string[] | null
           date_modified: string | null
@@ -98,6 +101,9 @@ export type Database = {
           author_id?: string | null
           canonical_url?: string | null
           category: string
+          cluster_id?: string | null
+          cluster_number?: number | null
+          cluster_theme?: string | null
           created_at?: string
           cta_article_ids?: string[] | null
           date_modified?: string | null
@@ -132,6 +138,9 @@ export type Database = {
           author_id?: string | null
           canonical_url?: string | null
           category?: string
+          cluster_id?: string | null
+          cluster_number?: number | null
+          cluster_theme?: string | null
           created_at?: string
           cta_article_ids?: string[] | null
           date_modified?: string | null
@@ -168,6 +177,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_articles_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "cluster_generations"
             referencedColumns: ["id"]
           },
           {
@@ -245,6 +261,9 @@ export type Database = {
       cluster_generations: {
         Row: {
           articles: Json | null
+          articles_per_cluster: number | null
+          cluster_count: number | null
+          cluster_focus_areas: Json | null
           created_at: string | null
           error: string | null
           id: string
@@ -256,11 +275,15 @@ export type Database = {
           target_audience: string
           timeout_at: string | null
           topic: string
+          total_articles: number | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           articles?: Json | null
+          articles_per_cluster?: number | null
+          cluster_count?: number | null
+          cluster_focus_areas?: Json | null
           created_at?: string | null
           error?: string | null
           id?: string
@@ -272,11 +295,15 @@ export type Database = {
           target_audience: string
           timeout_at?: string | null
           topic: string
+          total_articles?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           articles?: Json | null
+          articles_per_cluster?: number | null
+          cluster_count?: number | null
+          cluster_focus_areas?: Json | null
           created_at?: string | null
           error?: string | null
           id?: string
@@ -288,6 +315,7 @@ export type Database = {
           target_audience?: string
           timeout_at?: string | null
           topic?: string
+          total_articles?: number | null
           updated_at?: string | null
           user_id?: string | null
         }

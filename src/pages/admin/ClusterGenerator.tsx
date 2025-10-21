@@ -45,6 +45,7 @@ const ClusterGenerator = () => {
   const [language, setLanguage] = useState<Language>("en");
   const [targetAudience, setTargetAudience] = useState("");
   const [primaryKeyword, setPrimaryKeyword] = useState("");
+  const [clusterCount, setClusterCount] = useState<string>("1");
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [steps, setSteps] = useState<GenerationStep[]>([]);
@@ -330,17 +331,14 @@ const ClusterGenerator = () => {
     setLastBackendUpdate(new Date());
     
     // Initialize steps
+    const totalArticles = parseInt(clusterCount) * 6;
     const initialSteps: GenerationStep[] = [
-      { id: 'structure', name: 'Generating article structure', message: '3 TOFU, 2 MOFU, 1 BOFU', status: 'pending' },
-      { id: 'tofu1', name: 'Creating TOFU Article 1', message: 'Generating content...', status: 'pending' },
-      { id: 'tofu2', name: 'Creating TOFU Article 2', message: 'Generating content...', status: 'pending' },
-      { id: 'tofu3', name: 'Creating TOFU Article 3', message: 'Generating content...', status: 'pending' },
-      { id: 'mofu1', name: 'Creating MOFU Article 1', message: 'Generating content...', status: 'pending' },
-      { id: 'mofu2', name: 'Creating MOFU Article 2', message: 'Generating content...', status: 'pending' },
-      { id: 'bofu', name: 'Creating BOFU Article', message: 'Generating content...', status: 'pending' },
-      { id: 'images', name: 'Generating images', message: 'Creating visuals for all articles', status: 'pending' },
-      { id: 'internal', name: 'Finding internal links', message: 'Connecting articles across cluster', status: 'pending' },
-      { id: 'external', name: 'Finding external sources', message: 'Researching authoritative citations', status: 'pending' },
+      { id: 'structure', name: 'Generating cluster structures', message: `${clusterCount} clusters, ${totalArticles} articles`, status: 'pending' },
+      { id: 'content', name: 'Generating article content', message: `0/${totalArticles} articles completed`, status: 'pending' },
+      { id: 'images', name: 'Generating images', message: `0/${totalArticles} images`, status: 'pending' },
+      { id: 'diagrams', name: 'Generating diagrams', message: 'For MOFU/BOFU articles', status: 'pending' },
+      { id: 'citations', name: 'Finding external citations', message: 'Researching authoritative sources', status: 'pending' },
+      { id: 'internal', name: 'Finding internal links', message: 'Connecting articles', status: 'pending' },
       { id: 'linking', name: 'Linking funnel progression', message: 'Creating conversion pathways', status: 'pending' },
     ];
     
@@ -348,11 +346,12 @@ const ClusterGenerator = () => {
     
     try {
       console.log('Starting cluster generation...');
-      toast.info('Starting generation... This will take 3-5 minutes. Feel free to leave this page - we\'ll save your progress!');
+      const estimatedMinutes = parseInt(clusterCount) * 3;
+      toast.info(`Starting generation... This will take ${estimatedMinutes}-${estimatedMinutes + 5} minutes. Feel free to leave this page - we'll save your progress!`);
       
       // Step 1: Start generation (returns immediately with job ID)
       const { data, error } = await supabase.functions.invoke('generate-cluster', {
-        body: { topic, language, targetAudience, primaryKeyword }
+        body: { topic, language, targetAudience, primaryKeyword, clusterCount: parseInt(clusterCount) }
       });
 
       if (error) {
@@ -748,10 +747,10 @@ const ClusterGenerator = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-3xl">
                 <Sparkles className="h-8 w-8" />
-                AI Content Cluster Generator
+                Multi-Cluster Content Generator
               </CardTitle>
               <CardDescription className="text-lg">
-                Generate 6 interconnected articles with one click
+                Generate 6-60 interconnected articles in one click
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -815,6 +814,26 @@ const ClusterGenerator = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="clusterCount" className="text-base">
+                  Number of Clusters <span className="text-destructive">*</span>
+                </Label>
+                <Select value={clusterCount} onValueChange={setClusterCount}>
+                  <SelectTrigger id="clusterCount" className="text-base">
+                    <SelectValue placeholder="Select cluster count" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 cluster (6 articles, ~3 mins)</SelectItem>
+                    <SelectItem value="3">3 clusters (18 articles, ~10 mins)</SelectItem>
+                    <SelectItem value="5">5 clusters (30 articles, ~18 mins)</SelectItem>
+                    <SelectItem value="10">10 clusters (60 articles, ~30 mins)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Each cluster contains 3 TOFU, 2 MOFU, and 1 BOFU article
+                </p>
+              </div>
+
               <Button
                 onClick={handleGenerate}
                 disabled={isGenerating}
@@ -822,7 +841,7 @@ const ClusterGenerator = () => {
                 className="w-full text-base"
               >
                 <Sparkles className="mr-2 h-5 w-5" />
-                Generate Complete Cluster (6 Articles)
+                Generate {parseInt(clusterCount) === 1 ? 'Complete Cluster (6 Articles)' : `${parseInt(clusterCount)} Clusters (${parseInt(clusterCount) * 6} Articles)`}
               </Button>
             </CardContent>
           </Card>

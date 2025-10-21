@@ -65,11 +65,19 @@ async function retryWithBackoff<T>(
 }
 
 // Main generation function (runs in background)
-async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
+async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string, clusterCount: number = 1) {
   const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+  
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY not configured');
+  }
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase credentials not configured');
+  }
+  
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
     console.log(`[Job ${jobId}] Starting generation for:`, { topic, language, targetAudience, primaryKeyword });
@@ -1254,15 +1262,16 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, language, targetAudience, primaryKeyword } = await req.json();
+    const { topic, language, targetAudience, primaryKeyword, clusterCount = 1 } = await req.json();
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not configured');
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase credentials not configured');
 
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Get user ID (if authenticated)
     const authHeader = req.headers.get('authorization');
@@ -1277,6 +1286,7 @@ serve(async (req) => {
     }
 
     // Create job record
+    const totalArticles = clusterCount * 6;
     const { data: job, error: jobError } = await supabase
       .from('cluster_generations')
       .insert({
@@ -1286,6 +1296,9 @@ serve(async (req) => {
         target_audience: targetAudience,
         primary_keyword: primaryKeyword,
         status: 'pending',
+        cluster_count: clusterCount,
+        total_articles: totalArticles,
+        articles_per_cluster: 6
       })
       .select()
       .single();
@@ -1295,12 +1308,12 @@ serve(async (req) => {
       throw jobError;
     }
 
-    console.log(`✅ Created job ${job.id}, starting background generation`);
+    console.log(`✅ Created job ${job.id} for ${clusterCount} cluster(s) (${totalArticles} articles), starting background generation`);
 
     // Start generation in background (non-blocking)
     // @ts-ignore - EdgeRuntime is available in Deno Deploy
     EdgeRuntime.waitUntil(
-      generateCluster(job.id, topic, language, targetAudience, primaryKeyword)
+      generateCluster(job.id, topic, language, targetAudience, primaryKeyword, clusterCount)
     );
 
     // Return job ID immediately
