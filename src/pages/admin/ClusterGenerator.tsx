@@ -74,10 +74,38 @@ const ClusterGenerator = () => {
     }
   }, []);
 
-  // Auto-load most recent completed cluster on mount
+  // Auto-resume active jobs or load most recent completed cluster on mount
   useEffect(() => {
-    const checkForCompletedCluster = async () => {
-      const { data, error } = await supabase
+    const checkForActiveOrCompletedCluster = async () => {
+      // PRIORITY 1: Check for actively generating jobs
+      const { data: activeJob } = await supabase
+        .from('cluster_generations')
+        .select('*')
+        .eq('status', 'generating')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (activeJob) {
+        console.log('✅ Found active generation job:', activeJob.id);
+        setJobId(activeJob.id);
+        setTopic(activeJob.topic);
+        setLanguage(activeJob.language as Language);
+        setTargetAudience(activeJob.target_audience);
+        setPrimaryKeyword(activeJob.primary_keyword);
+        setIsGenerating(true);
+        toast.info('Resuming active cluster generation...');
+        return; // Stop here, don't load completed clusters
+      }
+
+      // PRIORITY 2: Check localStorage for saved job
+      const savedJobId = localStorage.getItem('current_job_id');
+      if (savedJobId) {
+        return; // Let the existing jobId effect handle it
+      }
+
+      // PRIORITY 3: Only if no active jobs, load most recent completed cluster
+      const { data: completedJob, error } = await supabase
         .from('cluster_generations')
         .select('*')
         .eq('status', 'completed')
@@ -85,23 +113,19 @@ const ClusterGenerator = () => {
         .limit(1)
         .maybeSingle();
       
-      if (!error && data && data.articles) {
-        console.log('✅ Found completed cluster:', data.id);
-        setGeneratedArticles(data.articles as Partial<BlogArticle>[]);
-        setTopic(data.topic);
-        setLanguage(data.language as Language);
-        setTargetAudience(data.target_audience);
-        setPrimaryKeyword(data.primary_keyword);
+      if (!error && completedJob && completedJob.articles) {
+        console.log('✅ Found completed cluster:', completedJob.id);
+        setGeneratedArticles(completedJob.articles as Partial<BlogArticle>[]);
+        setTopic(completedJob.topic);
+        setLanguage(completedJob.language as Language);
+        setTargetAudience(completedJob.target_audience);
+        setPrimaryKeyword(completedJob.primary_keyword);
         setShowReview(true);
-        toast.success(`Loaded completed cluster: ${data.topic}`);
+        toast.success(`Loaded completed cluster: ${completedJob.topic}`);
       }
     };
     
-    // Only check if we don't have a job in progress
-    const savedJobId = localStorage.getItem('current_job_id');
-    if (!savedJobId && !showReview) {
-      checkForCompletedCluster();
-    }
+    checkForActiveOrCompletedCluster();
   }, []);
 
   // Prevent navigation during generation
