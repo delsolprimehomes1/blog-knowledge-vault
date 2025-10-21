@@ -221,7 +221,19 @@ const ClusterGenerator = () => {
         localStorage.removeItem('current_job_id');
         setJobId(null);
         
-        toast.error(data.error || 'Generation failed');
+        // Parse error if it's a JSON string
+        let errorMessage = 'Generation failed';
+        if (data.error) {
+          try {
+            const errorObj = typeof data.error === 'string' ? JSON.parse(data.error) : data.error;
+            errorMessage = errorObj.message || data.error;
+          } catch {
+            // If parsing fails, use the raw error string
+            errorMessage = data.error;
+          }
+        }
+        
+        toast.error(errorMessage);
       }
 
     } catch (error) {
