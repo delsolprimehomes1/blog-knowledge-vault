@@ -64,6 +64,25 @@ async function retryWithBackoff<T>(
   throw new Error(`Max retries exceeded for ${operationName}`);
 }
 
+// Heartbeat wrapper - sends periodic updates during long operations
+async function withHeartbeat<T>(
+  supabase: any,
+  jobId: string,
+  promise: Promise<T>,
+  intervalMs: number = 30000
+): Promise<T> {
+  const heartbeatInterval = setInterval(async () => {
+    console.log(`[Job ${jobId}] 💓 Heartbeat - operation still in progress...`);
+    await sendHeartbeat(supabase, jobId);
+  }, intervalMs);
+  
+  try {
+    return await promise;
+  } finally {
+    clearInterval(heartbeatInterval);
+  }
+}
+
 // Main generation function (runs in background)
 async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
   const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
@@ -74,6 +93,36 @@ async function generateCluster(jobId: string, topic: string, language: string, t
   try {
     console.log(`[Job ${jobId}] Starting generation for:`, { topic, language, targetAudience, primaryKeyword });
     await updateProgress(supabase, jobId, 0, 'Starting generation...');
+
+    // Validate ANTHROPIC_API_KEY before starting
+    console.log(`[Job ${jobId}] 🔐 Validating ANTHROPIC_API_KEY...`);
+    try {
+      const testResponse = await withTimeout(
+        fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': ANTHROPIC_API_KEY!,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5',
+            max_tokens: 10,
+            messages: [{ role: 'user', content: 'test' }],
+          }),
+        }),
+        10000,
+        'API key validation timeout'
+      );
+      
+      if (!testResponse.ok && testResponse.status === 401) {
+        throw new Error('ANTHROPIC_API_KEY is invalid or expired');
+      }
+      console.log(`[Job ${jobId}] ✅ ANTHROPIC_API_KEY validated successfully`);
+    } catch (error) {
+      console.error(`[Job ${jobId}] ❌ API key validation failed:`, error);
+      throw new Error(`Claude API key validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
     // Fetch master content prompt from database
     console.log(`[Job ${jobId}] Fetching master content prompt...`);
@@ -450,14 +499,36 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         claudeRequestBody.messages = contentPromptMessages;
       }
 
-      const contentResponse = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(claudeRequestBody),
+      console.log(`[Job ${jobId}] 🤖 Starting Claude API call for article ${i + 1}:`, {
+        headline: plan.headline,
+        funnelStage: plan.funnelStage,
+        hasCustomPrompt,
+        maxTokens: 8192,
+        timestamp: new Date().toISOString()
+      });
+
+      const contentResponse = await withHeartbeat(
+        supabase,
+        jobId,
+        withTimeout(
+          fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': ANTHROPIC_API_KEY!,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify(claudeRequestBody),
+          }),
+          180000, // 3 minutes
+          `Claude API timeout after 3 minutes for article ${i + 1}`
+        )
+      );
+
+      console.log(`[Job ${jobId}] ✅ Claude API responded for article ${i + 1}:`, {
+        status: contentResponse.status,
+        statusText: contentResponse.statusText,
+        timestamp: new Date().toISOString()
       });
 
       if (!contentResponse.ok) {
@@ -474,6 +545,12 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
 
       const detailedContent = contentData.content[0].text.trim();
       article.detailed_content = detailedContent;
+      
+      console.log(`[Job ${jobId}] ✅ Content parsed successfully for article ${i + 1}:`, {
+        contentLength: detailedContent.length,
+        wordCount: detailedContent.split(/\s+/).length,
+        timestamp: new Date().toISOString()
+      });
       
       // Log content quality metrics for monitoring
       const contentWordCount = detailedContent.split(/\s+/).length;
@@ -1297,10 +1374,47 @@ serve(async (req) => {
 
     console.log(`✅ Created job ${job.id}, starting background generation`);
 
-    // Start generation in background (non-blocking)
+    // Start generation in background (non-blocking) with global error boundary
     // @ts-ignore - EdgeRuntime is available in Deno Deploy
     EdgeRuntime.waitUntil(
-      generateCluster(job.id, topic, language, targetAudience, primaryKeyword)
+      (async () => {
+        try {
+          await generateCluster(job.id, topic, language, targetAudience, primaryKeyword);
+        } catch (error) {
+          console.error(`[Job ${job.id}] 🚨 FATAL ERROR - generateCluster crashed:`, {
+            errorType: error?.constructor?.name,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Ensure database is updated even on catastrophic failure
+          try {
+            const supabase = createClient(
+              Deno.env.get('SUPABASE_URL')!,
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+            );
+            
+            await supabase
+              .from('cluster_generations')
+              .update({
+                status: 'failed',
+                error: JSON.stringify({
+                  message: error instanceof Error ? error.message : 'Unknown fatal error',
+                  type: 'FATAL_CRASH',
+                  timestamp: new Date().toISOString(),
+                  stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined
+                }),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', job.id);
+              
+            console.log(`[Job ${job.id}] ✅ Database updated with error status`);
+          } catch (dbError) {
+            console.error(`[Job ${job.id}] ❌ Failed to update database after crash:`, dbError);
+          }
+        }
+      })()
     );
 
     // Return job ID immediately
