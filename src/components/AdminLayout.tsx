@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, FileText, Users, Settings, Menu, Bot, Download, CheckCircle, Sparkles, Image } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Settings, Menu, Bot, Download, CheckCircle, Sparkles, Image, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import logo from "@/assets/logo.png";
@@ -15,6 +15,7 @@ const navigation = [
   { name: "Authors", href: "/admin/authors", icon: Users },
   { name: "AI Tools", href: "/admin/ai-tools", icon: Bot },
   { name: "Cluster Generator", href: "/admin/cluster-generator", icon: Sparkles },
+  { name: "Citation Health", href: "/admin/citation-health", icon: Activity },
   { name: "Batch Image Generation", href: "/admin/tools/batch-image-generation", icon: Image },
   { name: "System Check", href: "/admin/system-check", icon: CheckCircle },
   { name: "Export", href: "/admin/export", icon: Download },

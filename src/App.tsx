@@ -16,6 +16,7 @@ import SystemCheck from "./pages/admin/SystemCheck";
 import ClusterGenerator from "./pages/admin/ClusterGenerator";
 import AEOGuide from "./pages/admin/AEOGuide";
 import BatchImageGeneration from "./pages/admin/BatchImageGeneration";
+import CitationHealthDashboard from "./pages/admin/CitationHealthDashboard";
 import Auth from "./pages/Auth";
 import BlogArticle from "./pages/BlogArticle";
 import BlogIndex from "./pages/BlogIndex";
@@ -57,6 +58,7 @@ const App = () => (
           <Route path="/admin/system-check" element={<ProtectedRoute><SystemCheck /></ProtectedRoute>} />
           <Route path="/admin/tools/batch-image-generation" element={<ProtectedRoute><BatchImageGeneration /></ProtectedRoute>} />
           <Route path="/admin/docs/aeo-sge-guide" element={<ProtectedRoute><AEOGuide /></ProtectedRoute>} />
+          <Route path="/admin/citation-health" element={<ProtectedRoute><CitationHealthDashboard /></ProtectedRoute>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
