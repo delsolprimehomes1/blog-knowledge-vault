@@ -171,7 +171,12 @@ Return ONLY valid JSON:
     // Send heartbeat after major operation
     await sendHeartbeat(supabase, jobId);
 
-    const structureData = await structureResponse.json();
+    // FIX: Wrap json() parsing in timeout
+    const structureData = await withTimeout(
+      structureResponse.json(),
+      30000,
+      'Structure response parsing timed out'
+    );
     const structureText = structureData.content[0].text;
 
     console.log('Raw AI response:', structureText); // Debug logging
@@ -252,7 +257,12 @@ Return ONLY the category name exactly as shown above. No explanation, no JSON, j
           'Category selection timed out after 20 seconds'
         );
 
-        const categoryData = await categoryResponse.json();
+        // FIX: Wrap json() parsing in timeout
+        const categoryData = await withTimeout(
+          categoryResponse.json(),
+          10000,
+          'Category response parsing timed out'
+        );
         const aiSelectedCategory = categoryData.content[0].text.trim();
         
         // Validate AI response against database categories
@@ -334,7 +344,12 @@ Return ONLY valid JSON:
         'SEO meta tags generation timed out after 30 seconds'
       );
 
-      const seoData = await seoResponse.json();
+      // FIX: Wrap json() parsing in timeout
+      const seoData = await withTimeout(
+        seoResponse.json(),
+        10000,
+        'SEO response parsing timed out'
+      );
       const seoText = seoData.content[0].text;
       const seoMeta = JSON.parse(seoText.replace(/```json\n?|\n?```/g, ''));
       
@@ -380,7 +395,12 @@ Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
         'Speakable answer generation timed out after 30 seconds'
       );
 
-      const speakableData = await speakableResponse.json();
+      // FIX: Wrap json() parsing in timeout
+      const speakableData = await withTimeout(
+        speakableResponse.json(),
+        10000,
+        'Speakable response parsing timed out'
+      );
       article.speakable_answer = speakableData.content[0].text.trim();
 
       // 6. DETAILED CONTENT (1500-2500 words)
@@ -495,7 +515,12 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
           throw new Error(`Content generation failed: ${contentResponse.status}`);
         }
 
-        const contentData = await contentResponse.json();
+        // FIX: Wrap json() parsing in timeout to prevent hanging on slow response streams
+        const contentData = await withTimeout(
+          contentResponse.json(),
+          30000,
+          'Response parsing timed out after 30 seconds'
+        );
         if (!contentData.content?.[0]?.text) {
           console.error(`[Job ${jobId}] Invalid content response for article ${i + 1}:`, contentData);
           throw new Error('Invalid content generation response');
@@ -819,7 +844,12 @@ Return only the alt text, no quotes, no JSON.`;
             'Alt text generation timed out after 20 seconds'
           );
 
-          const altData = await altResponse.json();
+          // FIX: Wrap json() parsing in timeout
+          const altData = await withTimeout(
+            altResponse.json(),
+            10000,
+            'Alt text response parsing timed out'
+          );
           featuredImageAlt = altData.content[0].text.trim();
           
           console.log(`✅ Contextual image generated:
@@ -932,7 +962,12 @@ Return ONLY valid JSON:
             'Author attribution timed out after 30 seconds'
           );
 
-          const authorData = await authorResponse.json();
+          // FIX: Wrap json() parsing in timeout
+          const authorData = await withTimeout(
+            authorResponse.json(),
+            10000,
+            'Author response parsing timed out'
+          );
           const authorText = authorData.content[0].text;
           const authorSuggestion = JSON.parse(authorText.replace(/```json\n?|\n?```/g, ''));
 
@@ -1106,7 +1141,12 @@ Return ONLY valid JSON:
           }),
         });
 
-        const faqData = await faqResponse.json();
+        // FIX: Wrap json() parsing in timeout
+        const faqData = await withTimeout(
+          faqResponse.json(),
+          10000,
+          'FAQ response parsing timed out'
+        );
         const faqText = faqData.content[0].text;
         const faqResult = JSON.parse(faqText.replace(/```json\n?|\n?```/g, ''));
         article.faq_entities = faqResult.faqs;

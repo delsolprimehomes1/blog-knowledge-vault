@@ -155,7 +155,8 @@ const ClusterGenerator = () => {
 
       // CLIENT-SIDE TIMEOUT DETECTION
       if (data.status === 'generating') {
-        const lastUpdate = new Date(data.progress?.updated_at || Date.now());
+        // FIX: Use root updated_at, not progress.updated_at
+        const lastUpdate = new Date(data.updated_at || Date.now());
         const now = new Date();
         const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / 1000 / 60;
 
