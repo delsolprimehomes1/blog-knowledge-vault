@@ -56,6 +56,8 @@ const ClusterGenerator = () => {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [generationStartTime, setGenerationStartTime] = useState<number>(0);
   const [lastBackendUpdate, setLastBackendUpdate] = useState<Date | null>(null);
+  const [currentSubstep, setCurrentSubstep] = useState<string>('');
+  const [isStale, setIsStale] = useState(false);
 
   // Check for saved backup on mount
   useEffect(() => {
@@ -179,14 +181,34 @@ const ClusterGenerator = () => {
 
       // Update progress UI
       if (data.progress) {
-        const progressPercent = (data.progress.current_step / data.progress.total_steps) * 100;
+        const currentArticle = data.progress.current_article || 0;
+        const totalArticles = data.progress.total_articles || 6;
+        const currentStep = data.progress.current_step || 0;
+        
+        // Calculate progress percentage
+        const progressPercent = (currentStep / data.progress.total_steps) * 100;
         setProgress(progressPercent);
 
-        // Update steps based on current step
+        // Update substep message
+        if (data.progress.substep) {
+          setCurrentSubstep(data.progress.substep);
+        }
+
+        // Update steps based on current step - ONLY mark complete when we've MOVED PAST it
         setSteps(prev => prev.map((step, idx) => {
-          if (idx < data.progress.current_step) return { ...step, status: 'complete' as StepStatus };
-          if (idx === data.progress.current_step) return { ...step, status: 'running' as StepStatus };
-          return step;
+          // Step is complete only if we're past it
+          if (idx < currentStep) return { ...step, status: 'complete' as StepStatus };
+          // Step is running if it's the current step
+          if (idx === currentStep) {
+            // Update the message with current progress
+            let message = step.message;
+            if (idx === 1 && currentArticle > 0) {
+              message = `${currentArticle}/${totalArticles} articles completed`;
+            }
+            return { ...step, status: 'running' as StepStatus, message };
+          }
+          // Otherwise it's pending
+          return { ...step, status: 'pending' as StepStatus };
         }));
       }
 
@@ -309,6 +331,28 @@ const ClusterGenerator = () => {
       }
     };
   }, [pollingInterval]);
+
+  // Stale detection - warn if no updates for 2+ minutes
+  useEffect(() => {
+    if (!isGenerating || !lastBackendUpdate) return;
+
+    const checkStale = setInterval(() => {
+      const timeSinceUpdate = Date.now() - lastBackendUpdate.getTime();
+      
+      // Warn after 2 minutes
+      if (timeSinceUpdate > 120000 && !isStale) {
+        console.warn('Generation appears slow - no updates for 2+ minutes');
+        setIsStale(true);
+      }
+      
+      // Clear stale flag if we get an update
+      if (timeSinceUpdate < 120000 && isStale) {
+        setIsStale(false);
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(checkStale);
+  }, [isGenerating, lastBackendUpdate, isStale]);
 
   const handleGenerate = async () => {
     // Validation
@@ -863,13 +907,31 @@ const ClusterGenerator = () => {
                 <Progress value={progress} className="h-3" />
               </div>
 
+              {/* Stale Warning */}
+              {isStale && (
+                <div className="p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Loader2 className="h-5 w-5 text-orange-600 dark:text-orange-400 animate-spin mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                        Slow Progress Detected
+                      </p>
+                      <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+                        No updates for {lastBackendUpdate ? Math.floor((Date.now() - lastBackendUpdate.getTime()) / 1000 / 60) : 0} minutes. 
+                        This is normal for AI content generation (especially citations). If this persists beyond 5 minutes, consider aborting.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Abort Button and Elapsed Time */}
-              <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div>
-                  <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
                     Generation in progress...
                   </p>
-                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
                     Elapsed time: {generationStartTime > 0 ? Math.floor((Date.now() - generationStartTime) / 1000 / 60) : 0} minutes
                     {lastBackendUpdate && (
                       <span className="ml-2">
@@ -877,6 +939,11 @@ const ClusterGenerator = () => {
                       </span>
                     )}
                   </p>
+                  {currentSubstep && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">
+                      {currentSubstep}
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="destructive"
@@ -912,6 +979,11 @@ const ClusterGenerator = () => {
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-sm">{step.name}</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">{step.message}</p>
+                      {step.status === 'running' && currentSubstep && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          {currentSubstep}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
