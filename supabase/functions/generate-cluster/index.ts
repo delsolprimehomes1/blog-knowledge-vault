@@ -85,7 +85,7 @@ async function withHeartbeat<T>(
 
 // Main generation function (runs in background)
 async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
-  const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
@@ -94,19 +94,18 @@ async function generateCluster(jobId: string, topic: string, language: string, t
     console.log(`[Job ${jobId}] Starting generation for:`, { topic, language, targetAudience, primaryKeyword });
     await updateProgress(supabase, jobId, 0, 'Starting generation...');
 
-    // Validate ANTHROPIC_API_KEY before starting
-    console.log(`[Job ${jobId}] 🔐 Validating ANTHROPIC_API_KEY...`);
+    // Validate LOVABLE_API_KEY before starting
+    console.log(`[Job ${jobId}] 🔐 Validating LOVABLE_API_KEY...`);
     try {
       const testResponse = await withTimeout(
-        fetch('https://api.anthropic.com/v1/messages', {
+        fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'x-api-key': ANTHROPIC_API_KEY!,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
+            'Authorization': `Bearer ${LOVABLE_API_KEY!}`,
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
+            model: 'google/gemini-2.5-flash',
             max_tokens: 10,
             messages: [{ role: 'user', content: 'test' }],
           }),
@@ -116,12 +115,12 @@ async function generateCluster(jobId: string, topic: string, language: string, t
       );
       
       if (!testResponse.ok && testResponse.status === 401) {
-        throw new Error('ANTHROPIC_API_KEY is invalid or expired');
+        throw new Error('LOVABLE_API_KEY is invalid or expired');
       }
-      console.log(`[Job ${jobId}] ✅ ANTHROPIC_API_KEY validated successfully`);
+      console.log(`[Job ${jobId}] ✅ LOVABLE_API_KEY validated successfully`);
     } catch (error) {
       console.error(`[Job ${jobId}] ❌ API key validation failed:`, error);
-      throw new Error(`Claude API key validation failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Lovable AI key validation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     // Fetch master content prompt from database
@@ -183,18 +182,17 @@ Return ONLY valid JSON:
     // Wrap AI call with timeout and retry
     const structureResponse = await retryWithBackoff(
       () => withTimeout(
-        fetch('https://api.anthropic.com/v1/messages', {
+        fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
+            model: 'google/gemini-2.5-flash',
             max_tokens: 4096,
-            system: 'You are an SEO expert specializing in real estate content strategy. Return only valid JSON.',
             messages: [
+              { role: 'system', content: 'You are an SEO expert specializing in real estate content strategy. Return only valid JSON.' },
               { role: 'user', content: structurePrompt }
             ],
           }),
@@ -207,13 +205,22 @@ Return ONLY valid JSON:
       'Structure generation'
     );
 
-    if (!structureResponse.ok) throw new Error(`AI gateway error: ${structureResponse.status}`);
+    if (!structureResponse.ok) {
+      if (structureResponse.status === 429) {
+        throw new Error('Lovable AI rate limit exceeded. Please wait and try again.');
+      }
+      if (structureResponse.status === 402) {
+        throw new Error('Lovable AI credits depleted. Please add credits in workspace settings.');
+      }
+      const errorText = await structureResponse.text();
+      throw new Error(`Lovable AI error (${structureResponse.status}): ${errorText}`);
+    }
 
     // Send heartbeat after major operation
     await sendHeartbeat(supabase, jobId);
 
     const structureData = await structureResponse.json();
-    const structureText = structureData.content[0].text;
+    const structureText = structureData.choices[0].message.content;
 
     console.log('Raw AI response:', structureText); // Debug logging
 
@@ -275,22 +282,27 @@ Return ONLY the category name exactly as shown above. No explanation, no JSON, j
       let finalCategory;
       
       try {
-        const categoryResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        const categoryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
+            model: 'google/gemini-2.5-flash',
             max_tokens: 256,
             messages: [{ role: 'user', content: categoryPrompt }],
           }),
         });
 
+        if (!categoryResponse.ok) {
+          if (categoryResponse.status === 429 || categoryResponse.status === 402) {
+            throw new Error(`Lovable AI error: ${categoryResponse.status}`);
+          }
+        }
+
         const categoryData = await categoryResponse.json();
-        const aiSelectedCategory = categoryData.content[0].text.trim();
+        const aiSelectedCategory = categoryData.choices[0].message.content.trim();
         
         // Validate AI response against database categories
         const isValidCategory = validCategoryNames.includes(aiSelectedCategory);
@@ -353,22 +365,25 @@ Return ONLY valid JSON:
   "description": "Description with benefits and CTA (max 160 chars)"
 }`;
 
-      const seoResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      const seoResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'google/gemini-2.5-flash',
           max_tokens: 512,
           messages: [{ role: 'user', content: seoPrompt }],
         }),
       });
 
+      if (!seoResponse.ok && (seoResponse.status === 429 || seoResponse.status === 402)) {
+        throw new Error(`Lovable AI error: ${seoResponse.status}`);
+      }
+
       const seoData = await seoResponse.json();
-      const seoText = seoData.content[0].text;
+      const seoText = seoData.choices[0].message.content;
       const seoMeta = JSON.parse(seoText.replace(/```json\n?|\n?```/g, ''));
       
       article.meta_title = seoMeta.title;
@@ -395,22 +410,25 @@ Example format:
 
 Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
 
-      const speakableResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      const speakableResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'google/gemini-2.5-flash',
           max_tokens: 256,
           messages: [{ role: 'user', content: speakablePrompt }],
         }),
       });
 
+      if (!speakableResponse.ok && (speakableResponse.status === 429 || speakableResponse.status === 402)) {
+        throw new Error(`Lovable AI error: ${speakableResponse.status}`);
+      }
+
       const speakableData = await speakableResponse.json();
-      article.speakable_answer = speakableData.content[0].text.trim();
+      article.speakable_answer = speakableData.choices[0].message.content.trim();
 
       // 6. DETAILED CONTENT (1500-2500 words)
       console.log(`[Job ${jobId}] Generating detailed content for article ${i + 1}: "${plan.headline}"`);
@@ -484,22 +502,14 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         ];
       }
 
-      // Build Claude request with system message handling
-      let claudeRequestBody: any = {
-        model: 'claude-sonnet-4-5',
+      // Build Lovable AI request
+      let aiRequestBody: any = {
+        model: 'google/gemini-2.5-flash',
         max_tokens: 8192,
-        messages: [],
+        messages: contentPromptMessages,
       };
 
-      if (hasCustomPrompt && contentPromptMessages[0]?.role === 'system') {
-        // Extract system message for Claude
-        claudeRequestBody.system = contentPromptMessages[0].content;
-        claudeRequestBody.messages = contentPromptMessages.slice(1);
-      } else {
-        claudeRequestBody.messages = contentPromptMessages;
-      }
-
-      console.log(`[Job ${jobId}] 🤖 Starting Claude API call for article ${i + 1}:`, {
+      console.log(`[Job ${jobId}] 🤖 Starting Lovable AI call for article ${i + 1}:`, {
         headline: plan.headline,
         funnelStage: plan.funnelStage,
         hasCustomPrompt,
@@ -511,39 +521,44 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         supabase,
         jobId,
         withTimeout(
-          fetch('https://api.anthropic.com/v1/messages', {
+          fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'x-api-key': ANTHROPIC_API_KEY!,
-              'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
+              'Authorization': `Bearer ${LOVABLE_API_KEY!}`,
+              'Content-Type': 'application/json',
             },
-            body: JSON.stringify(claudeRequestBody),
+            body: JSON.stringify(aiRequestBody),
           }),
           180000, // 3 minutes
-          `Claude API timeout after 3 minutes for article ${i + 1}`
+          `Lovable AI timeout after 3 minutes for article ${i + 1}`
         )
       );
 
-      console.log(`[Job ${jobId}] ✅ Claude API responded for article ${i + 1}:`, {
+      console.log(`[Job ${jobId}] ✅ Lovable AI responded for article ${i + 1}:`, {
         status: contentResponse.status,
         statusText: contentResponse.statusText,
         timestamp: new Date().toISOString()
       });
 
       if (!contentResponse.ok) {
+        if (contentResponse.status === 429) {
+          throw new Error('Lovable AI rate limit exceeded. Please wait and try again.');
+        }
+        if (contentResponse.status === 402) {
+          throw new Error('Lovable AI credits depleted. Please add credits in workspace settings.');
+        }
         const errorText = await contentResponse.text();
         console.error(`[Job ${jobId}] Content generation failed for article ${i + 1}:`, contentResponse.status, errorText);
         throw new Error(`Content generation failed: ${contentResponse.status}`);
       }
 
       const contentData = await contentResponse.json();
-      if (!contentData.content?.[0]?.text) {
+      if (!contentData.choices?.[0]?.message?.content) {
         console.error(`[Job ${jobId}] Invalid content response for article ${i + 1}:`, contentData);
         throw new Error('Invalid content generation response');
       }
 
-      const detailedContent = contentData.content[0].text.trim();
+      const detailedContent = contentData.choices[0].message.content.trim();
       article.detailed_content = detailedContent;
       
       console.log(`[Job ${jobId}] ✅ Content parsed successfully for article ${i + 1}:`, {
@@ -842,22 +857,25 @@ Requirements:
 
 Return only the alt text, no quotes, no JSON.`;
 
-          const altResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          const altResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'x-api-key': ANTHROPIC_API_KEY,
-              'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'claude-sonnet-4-5',
+              model: 'google/gemini-2.5-flash',
               max_tokens: 256,
               messages: [{ role: 'user', content: altPrompt }],
             }),
           });
 
+          if (!altResponse.ok && (altResponse.status === 429 || altResponse.status === 402)) {
+            throw new Error(`Lovable AI error: ${altResponse.status}`);
+          }
+
           const altData = await altResponse.json();
-          featuredImageAlt = altData.content[0].text.trim();
+          featuredImageAlt = altData.choices[0].message.content.trim();
           
           console.log(`✅ Contextual image generated:
   - Funnel-appropriate style: ${funnelStyle}
@@ -947,22 +965,25 @@ Return ONLY valid JSON:
   "confidence": 90
 }`;
 
-          const authorResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          const authorResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'x-api-key': ANTHROPIC_API_KEY,
-              'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'claude-sonnet-4-5',
+              model: 'google/gemini-2.5-flash',
               max_tokens: 512,
               messages: [{ role: 'user', content: authorPrompt }],
             }),
           });
 
+          if (!authorResponse.ok && (authorResponse.status === 429 || authorResponse.status === 402)) {
+            throw new Error(`Lovable AI error: ${authorResponse.status}`);
+          }
+
           const authorData = await authorResponse.json();
-          const authorText = authorData.content[0].text;
+          const authorText = authorData.choices[0].message.content;
           const authorSuggestion = JSON.parse(authorText.replace(/```json\n?|\n?```/g, ''));
 
           const primaryAuthorIdx = authorSuggestion.primaryAuthorNumber - 1;
@@ -1108,22 +1129,25 @@ Return ONLY valid JSON:
   ]
 }`;
 
-        const faqResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        const faqResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
+            model: 'google/gemini-2.5-flash',
             max_tokens: 2048,
             messages: [{ role: 'user', content: faqPrompt }],
           }),
         });
 
+        if (!faqResponse.ok && (faqResponse.status === 429 || faqResponse.status === 402)) {
+          throw new Error(`Lovable AI error: ${faqResponse.status}`);
+        }
+
         const faqData = await faqResponse.json();
-        const faqText = faqData.content[0].text;
+        const faqText = faqData.choices[0].message.content;
         const faqResult = JSON.parse(faqText.replace(/```json\n?|\n?```/g, ''));
         article.faq_entities = faqResult.faqs;
       } else {
@@ -1333,11 +1357,11 @@ serve(async (req) => {
   try {
     const { topic, language, targetAudience, primaryKeyword } = await req.json();
 
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not configured');
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
