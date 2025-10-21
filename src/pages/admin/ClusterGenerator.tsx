@@ -194,20 +194,51 @@ const ClusterGenerator = () => {
           setCurrentSubstep(data.progress.substep);
         }
 
-        // Update steps based on current step - ONLY mark complete when we've MOVED PAST it
+        // Update steps based on current step - Map backend steps (1-based) to frontend indices (0-based)
         setSteps(prev => prev.map((step, idx) => {
-          // Step is complete only if we're past it
-          if (idx < currentStep) return { ...step, status: 'complete' as StepStatus };
-          // Step is running if it's the current step
-          if (idx === currentStep) {
-            // Update the message with current progress
+          // Map backend steps to frontend indices:
+          // Backend step 1 → Frontend index 0 (structure)
+          // Backend steps 2-7 → Frontend index 1 (content - all articles)
+          // Backend step 8 → Frontend index 5 (internal links)
+          // Backend step 9 → Frontend index 6 (linking)
+          
+          let frontendIndex = -1;
+          
+          if (currentStep === 1) {
+            frontendIndex = 0; // Structure
+          } else if (currentStep >= 2 && currentStep <= 7) {
+            frontendIndex = 1; // Article content (steps 2-7 all map to index 1)
+          } else if (currentStep === 8) {
+            frontendIndex = 5; // Internal links
+          } else if (currentStep === 9) {
+            frontendIndex = 6; // Linking
+          } else if (currentStep >= 10) {
+            frontendIndex = 7; // Complete (beyond all steps)
+          }
+          
+          // Step is complete if we're past it
+          if (idx < frontendIndex) return { ...step, status: 'complete' as StepStatus };
+          
+          // Step is running if it's the current one
+          if (idx === frontendIndex) {
             let message = step.message;
+            
+            // Update article count for content step
             if (idx === 1 && currentArticle > 0) {
-              message = `${currentArticle}/${totalArticles} articles completed`;
+              const completedArticles = currentStep - 2; // Step 2 = article 0, step 3 = article 1
+              const articlesFinished = Math.max(0, completedArticles);
+              message = `${articlesFinished}/${totalArticles} articles completed`;
+              
+              // Add substep if available
+              if (currentSubstep) {
+                message += ` • ${currentSubstep}`;
+              }
             }
+            
             return { ...step, status: 'running' as StepStatus, message };
           }
-          // Otherwise it's pending
+          
+          // Otherwise pending
           return { ...step, status: 'pending' as StepStatus };
         }));
       }
