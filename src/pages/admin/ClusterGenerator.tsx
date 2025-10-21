@@ -225,8 +225,9 @@ const ClusterGenerator = () => {
             
             // Update article count for content step
             if (idx === 1 && currentArticle > 0) {
-              const completedArticles = currentStep - 2; // Step 2 = article 0, step 3 = article 1
-              const articlesFinished = Math.max(0, completedArticles);
+              // current_article represents the article BEING generated (1-based)
+              // So completed articles = current_article - 1
+              const articlesFinished = Math.max(0, currentArticle - 1);
               message = `${articlesFinished}/${totalArticles} articles completed`;
               
               // Add substep if available
