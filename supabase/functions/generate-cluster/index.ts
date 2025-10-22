@@ -504,7 +504,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
 
       // Build Lovable AI request
       let aiRequestBody: any = {
-          model: 'google/gemini-2.5-pro',
+          model: 'google/gemini-2.5-flash',
         max_tokens: 8192,
         messages: contentPromptMessages,
       };
@@ -529,8 +529,8 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
             },
             body: JSON.stringify(aiRequestBody),
           }),
-          180000, // 3 minutes
-          `Lovable AI timeout after 3 minutes for article ${i + 1}`
+          120000, // 2 minutes - Flash completes in 1-2 min
+          `Gemini Flash timeout after 2 minutes for article ${i + 1}`
         )
       );
 
