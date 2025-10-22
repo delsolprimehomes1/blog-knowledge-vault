@@ -907,12 +907,16 @@ Return only the alt text, no quotes, no JSON.`;
       // 8. DIAGRAM (for MOFU/BOFU articles using existing generate-diagram function)
       if (plan.funnelStage !== 'TOFU') {
         try {
-          const diagramResponse = await supabase.functions.invoke('generate-diagram', {
-            body: {
-              articleContent: article.detailed_content,
-              headline: plan.headline,
-            },
-          });
+          const diagramResponse = await withTimeout(
+            supabase.functions.invoke('generate-diagram', {
+              body: {
+                articleContent: article.detailed_content,
+                headline: plan.headline,
+              },
+            }),
+            60000,
+            'Diagram generation timeout after 60 seconds'
+          );
 
           if (diagramResponse.data?.mermaidCode) {
             article.diagram_url = diagramResponse.data.mermaidCode;
@@ -1009,16 +1013,20 @@ Return ONLY valid JSON:
       // 10. EXTERNAL CITATIONS (Perplexity for authoritative sources)
       try {
         console.log(`[Job ${jobId}] Finding external citations for article ${i+1}: "${plan.headline}" (${language})`);
-        const citationsResponse = await retryWithBackoff(
-          () => supabase.functions.invoke('find-external-links', {
-            body: {
-              content: article.detailed_content,
-              headline: plan.headline,
-              language: language,
-            },
-          }),
-          3,
-          2000
+        const citationsResponse = await withTimeout(
+          retryWithBackoff(
+            () => supabase.functions.invoke('find-external-links', {
+              body: {
+                content: article.detailed_content,
+                headline: plan.headline,
+                language: language,
+              },
+            }),
+            3,
+            2000
+          ),
+          120000,
+          'External citations lookup timeout after 2 minutes'
         );
 
         if (citationsResponse.data?.citations && citationsResponse.data.citations.length > 0) {
@@ -1075,14 +1083,18 @@ Return ONLY valid JSON:
         console.log(`[Job ${jobId}] ⚠️ ${remainingMarkers} [CITATION_NEEDED] markers remaining in article ${i+1}. Attempting to replace...`);
         
         try {
-          const replacementResponse = await supabase.functions.invoke('replace-citation-markers', {
-            body: {
-              content: article.detailed_content,
-              headline: plan.headline,
-              language: language,
-              category: plan.category || 'Buying Guides'
-            }
-          });
+          const replacementResponse = await withTimeout(
+            supabase.functions.invoke('replace-citation-markers', {
+              body: {
+                content: article.detailed_content,
+                headline: plan.headline,
+                language: language,
+                category: plan.category || 'Buying Guides'
+              }
+            }),
+            90000,
+            'Citation marker replacement timeout after 90 seconds'
+          );
 
           if (replacementResponse.data?.success && replacementResponse.data.replacedCount > 0) {
             article.detailed_content = replacementResponse.data.updatedContent;
@@ -1129,27 +1141,36 @@ Return ONLY valid JSON:
   ]
 }`;
 
-        const faqResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            max_tokens: 2048,
-            messages: [{ role: 'user', content: faqPrompt }],
-          }),
-        });
+        try {
+          const faqResponse = await withTimeout(
+            fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'google/gemini-2.5-flash',
+                max_tokens: 2048,
+                messages: [{ role: 'user', content: faqPrompt }],
+              }),
+            }),
+            45000,
+            'FAQ generation timeout after 45 seconds'
+          );
 
-        if (!faqResponse.ok && (faqResponse.status === 429 || faqResponse.status === 402)) {
-          throw new Error(`Lovable AI error: ${faqResponse.status}`);
+          if (!faqResponse.ok && (faqResponse.status === 429 || faqResponse.status === 402)) {
+            throw new Error(`Lovable AI error: ${faqResponse.status}`);
+          }
+
+          const faqData = await faqResponse.json();
+          const faqText = faqData.choices[0].message.content;
+          const faqResult = JSON.parse(faqText.replace(/```json\n?|\n?```/g, ''));
+          article.faq_entities = faqResult.faqs;
+        } catch (error) {
+          console.error(`[Job ${jobId}] FAQ generation failed for article ${i+1}:`, error);
+          article.faq_entities = [];
         }
-
-        const faqData = await faqResponse.json();
-        const faqText = faqData.choices[0].message.content;
-        const faqResult = JSON.parse(faqText.replace(/```json\n?|\n?```/g, ''));
-        article.faq_entities = faqResult.faqs;
       } else {
         article.faq_entities = [];
       }
