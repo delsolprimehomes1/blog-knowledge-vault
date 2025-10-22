@@ -504,7 +504,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
 
       // Build Lovable AI request
       let aiRequestBody: any = {
-        model: 'google/gemini-2.5-flash',
+          model: 'google/gemini-2.5-pro',
         max_tokens: 8192,
         messages: contentPromptMessages,
       };
