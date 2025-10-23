@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify-ssg": "tsx scripts/verifySsgDeployment.ts"
   },
   "dependencies": {
     "@fal-ai/serverless-client": "^0.15.0",
