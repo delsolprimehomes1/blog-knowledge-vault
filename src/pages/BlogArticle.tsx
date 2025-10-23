@@ -14,7 +14,7 @@ import { TrustSignals } from "@/components/blog-article/TrustSignals";
 import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
 import { StickyMobileCTA } from "@/components/blog-article/StickyMobileCTA";
-import { generateAllSchemas, injectSchemas } from "@/lib/schemaGenerator";
+import { generateAllSchemas } from "@/lib/schemaGenerator";
 import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink } from "@/types/blog";
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 
@@ -147,7 +147,6 @@ const BlogArticle = () => {
   }
 
   const schemas = generateAllSchemas(article, author || null, reviewer || null);
-  const schemaScripts = injectSchemas(schemas);
 
   const baseUrl = window.location.origin;
   const currentUrl = `${baseUrl}/blog/${article.slug}`;

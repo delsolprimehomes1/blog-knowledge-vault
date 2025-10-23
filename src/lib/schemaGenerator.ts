@@ -262,18 +262,3 @@ export function generateAllSchemas(
   };
 }
 
-export function injectSchemas(schemas: GeneratedSchemas): string {
-  const scripts: string[] = [];
-  
-  scripts.push(`<script type="application/ld+json">${JSON.stringify(schemas.article)}</script>`);
-  scripts.push(`<script type="application/ld+json">${JSON.stringify(schemas.speakable)}</script>`);
-  scripts.push(`<script type="application/ld+json">${JSON.stringify(schemas.breadcrumb)}</script>`);
-  
-  if (schemas.faq) {
-    scripts.push(`<script type="application/ld+json">${JSON.stringify(schemas.faq)}</script>`);
-  }
-  
-  scripts.push(`<script type="application/ld+json">${JSON.stringify(schemas.organization)}</script>`);
-  
-  return scripts.join('\n');
-}
