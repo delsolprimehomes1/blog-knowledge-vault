@@ -239,14 +239,8 @@ const ArticleEditor = () => {
       newErrors.externalCitations = "Minimum 2 citations required";
     } else if (externalCitations.length > 5) {
       newErrors.externalCitations = "Maximum 5 citations allowed";
-    } else {
-      const hasGovDomain = externalCitations.some(c => 
-        c.url.includes('.gov') || c.url.includes('.gob.es')
-      );
-      if (!hasGovDomain) {
-        newErrors.externalCitations = "At least one citation must be from a .gov or .gob.es domain";
-      }
     }
+    // Government domains (.gov, .gob.es) are recommended but not required
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
