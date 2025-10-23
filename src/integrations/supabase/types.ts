@@ -515,6 +515,50 @@ export type Database = {
         }
         Relationships: []
       }
+      link_suggestions: {
+        Row: {
+          applied_at: string | null
+          article_id: string | null
+          created_at: string | null
+          id: string
+          old_url: string
+          reason: string
+          relevance_score: number | null
+          status: string | null
+          suggested_url: string
+        }
+        Insert: {
+          applied_at?: string | null
+          article_id?: string | null
+          created_at?: string | null
+          id?: string
+          old_url: string
+          reason: string
+          relevance_score?: number | null
+          status?: string | null
+          suggested_url: string
+        }
+        Update: {
+          applied_at?: string | null
+          article_id?: string | null
+          created_at?: string | null
+          id?: string
+          old_url?: string
+          reason?: string
+          relevance_score?: number | null
+          status?: string | null
+          suggested_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_suggestions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       link_validations: {
         Row: {
           article_id: string
@@ -528,8 +572,9 @@ export type Database = {
           internal_links: Json | null
           irrelevant_links_count: number | null
           language_mismatch_count: number | null
+          recommendations: Json | null
+          status: string | null
           validation_date: string
-          validation_status: string | null
         }
         Insert: {
           article_id: string
@@ -543,8 +588,9 @@ export type Database = {
           internal_links?: Json | null
           irrelevant_links_count?: number | null
           language_mismatch_count?: number | null
+          recommendations?: Json | null
+          status?: string | null
           validation_date?: string
-          validation_status?: string | null
         }
         Update: {
           article_id?: string
@@ -558,8 +604,9 @@ export type Database = {
           internal_links?: Json | null
           irrelevant_links_count?: number | null
           language_mismatch_count?: number | null
+          recommendations?: Json | null
+          status?: string | null
           validation_date?: string
-          validation_status?: string | null
         }
         Relationships: [
           {
