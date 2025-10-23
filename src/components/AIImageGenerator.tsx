@@ -40,6 +40,16 @@ bright natural lighting, high-end interior design,
 ultra-realistic, 8k resolution, architectural digest style`;
   };
 
+  const generateAltText = (prompt: string, headline: string): string => {
+    if (prompt && prompt.length > 20) {
+      // User provided detailed description - use it (max 125 chars for SEO)
+      return prompt.slice(0, 125);
+    }
+    
+    // Auto-generate from headline with location context
+    return `${headline} - Professional Costa del Sol real estate photography`.slice(0, 125);
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     onGeneratingChange?.(true);
@@ -58,11 +68,20 @@ ultra-realistic, 8k resolution, architectural digest style`;
 
       if (data?.images && data.images.length > 0) {
         setGeneratedImages(data.images);
-        // Automatically select the single generated image
-        onImageChange(data.images[0].url, prompt || headline);
+        const generatedUrl = data.images[0].url;
+        
+        // Auto-fill base image URL for easy editing
+        setBaseImageForEdit(generatedUrl);
+        
+        // Generate SEO-friendly ALT text
+        const autoAltText = generateAltText(prompt, headline);
+        
+        // Set as featured image with improved ALT text
+        onImageChange(generatedUrl, autoAltText);
+        
         toast({
           title: 'Image generated!',
-          description: 'Featured image has been set.',
+          description: 'Image ready for use or further editing.',
         });
       }
     } catch (error) {
