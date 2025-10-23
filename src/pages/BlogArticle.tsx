@@ -27,8 +27,11 @@ const BlogArticle = () => {
         .select("*")
         .eq("slug", slug)
         .eq("status", "published")
-        .single();
+        .maybeSingle();
+
       if (error) throw error;
+      if (!data) throw new Error("Article not found");
+
       return data as unknown as BlogArticleType;
     },
     enabled: !!slug,

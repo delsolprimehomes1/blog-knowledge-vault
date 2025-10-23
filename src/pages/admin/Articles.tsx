@@ -30,6 +30,8 @@ const Articles = () => {
         .order("updated_at", { ascending: false });
       
       if (error) throw error;
+      if (!data) return [];
+
       return data as unknown as BlogArticle[];
     },
   });
