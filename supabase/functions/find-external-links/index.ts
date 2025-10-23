@@ -273,23 +273,21 @@ Return only the JSON array, nothing else.`;
       throw new Error(`Only found ${validCitations.length} verified citations. Need at least 2.`);
     }
 
-    // Check if government source requirement is met
-    if (requireGovernmentSource) {
-      const hasGovSource = validCitations.some(c => isGovernmentDomain(c.url));
-      
-      if (!hasGovSource) {
-        console.error('No government source found despite requirement');
-        throw new Error('Failed to find required government source. Please try again or uncheck the requirement to search without this restriction.');
-      }
-      
-      console.log('✓ Government source requirement satisfied');
+    // Check if government source is present (warn instead of blocking)
+    const hasGovSource = validCitations.some(c => isGovernmentDomain(c.url));
+    
+    if (requireGovernmentSource && !hasGovSource) {
+      console.warn('⚠️ No government source found (requirement enabled but not blocking results)');
+    } else if (hasGovSource) {
+      console.log('✓ Government source found');
     }
 
     return new Response(
       JSON.stringify({ 
         citations: validCitations,
         totalFound: citations.length,
-        totalVerified: validCitations.length
+        totalVerified: validCitations.length,
+        hasGovernmentSource: hasGovSource
       }),
       { 
         headers: { 

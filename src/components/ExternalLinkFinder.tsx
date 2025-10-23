@@ -34,7 +34,8 @@ export const ExternalLinkFinder = ({
 }: ExternalLinkFinderProps) => {
   const [isSearching, setIsSearching] = useState(false);
   const [foundLinks, setFoundLinks] = useState<FoundCitation[]>([]);
-  const [requireGovSource, setRequireGovSource] = useState(true);
+  const [requireGovSource, setRequireGovSource] = useState(false);
+  const [hasGovernmentSource, setHasGovernmentSource] = useState(false);
 
   const findAuthoritativeSources = async () => {
     if (!articleContent || !headline) {
@@ -60,10 +61,17 @@ export const ExternalLinkFinder = ({
 
       if (data?.citations && data.citations.length > 0) {
         setFoundLinks(data.citations);
+        setHasGovernmentSource(data.hasGovernmentSource || false);
         toast.success(`Found ${data.citations.length} authoritative sources!`);
+        
+        // Show warning if government source was required but not found
+        if (requireGovSource && !data.hasGovernmentSource) {
+          toast.warning("No government sources found. Consider adding one manually for better authority.");
+        }
       } else {
         toast.info("No authoritative sources found. Try adding more content or search manually.");
         setFoundLinks([]);
+        setHasGovernmentSource(false);
       }
     } catch (error) {
       console.error('Error finding external links:', error);
@@ -146,11 +154,15 @@ export const ExternalLinkFinder = ({
             <Badge variant="secondary">
               {foundLinks.length} sources found
             </Badge>
-            {foundLinks.some(link => isOfficialGovernment(link.url)) && (
+            {hasGovernmentSource ? (
               <Badge variant="default">
-                Includes official government sources
+                ✓ Includes official government sources
               </Badge>
-            )}
+            ) : requireGovSource ? (
+              <Badge variant="outline" className="text-amber-600 border-amber-600">
+                ⚠️ No government sources found
+              </Badge>
+            ) : null}
           </div>
 
           <div className="space-y-3">
