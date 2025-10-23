@@ -173,6 +173,132 @@ const analysis = await analyzeLinksWithPerplexity(
 
 ---
 
+## Phase 3: Better Citation Discovery ✅ IMPLEMENTED
+
+### AI-Powered Citation Finder
+
+**Location**: `supabase/functions/shared/citationFinder.ts`
+
+**Purpose**: Proactively discover NEW high-authority sources (not just validate existing ones)
+
+**Key Features**:
+- **Multilingual Support**: 9 languages (EN, ES, DE, NL, FR, PL, SV, DA, HU)
+- **Domain Preferences**: Language-specific authority domains (.gov, .gob.es, .edu, etc.)
+- **Smart Deduplication**: Avoids suggesting sources already in use
+- **Contextual Placement**: Suggests WHERE in article to place each citation
+- **Verification**: Checks URL accessibility before recommending
+
+**Function**: `findBetterCitations()`
+```typescript
+const citations = await findBetterCitations(
+  articleTopic,        // "Buying Property in Spain"
+  articleLanguage,     // "es"
+  articleContent,      // Full article text
+  currentCitations,    // URLs to avoid duplicating
+  perplexityApiKey,
+  focusArea           // Optional: "Costa del Sol real estate"
+);
+
+// Returns:
+[
+  {
+    url: "https://www.registradores.org/...",
+    sourceName: "Registradores de España",
+    description: "Official land registry data...",
+    relevance: "Why this source fits the article",
+    authorityScore: 9,
+    language: "es",
+    suggestedContext: "Legal requirements section",
+    verified: true,
+    statusCode: 200
+  }
+]
+```
+
+### Edge Function: `find-better-citations`
+
+**Purpose**: Discovers 5-8 new authoritative sources for an article
+
+**Input**:
+```json
+{
+  "articleTopic": "Buying Property in Spain",
+  "articleLanguage": "es",
+  "articleContent": "...",
+  "currentCitations": ["https://existing1.com", "https://existing2.com"],
+  "focusArea": "Costa del Sol real estate",
+  "verifyUrls": true
+}
+```
+
+**Output**:
+```json
+{
+  "success": true,
+  "citations": [
+    {
+      "url": "https://www.registradores.org/...",
+      "sourceName": "Registradores de España",
+      "description": "Official property registry with current regulations",
+      "relevance": "Primary source for legal property requirements",
+      "authorityScore": 9,
+      "language": "es",
+      "suggestedContext": "Legal Requirements section",
+      "verified": true
+    }
+  ],
+  "totalFound": 8,
+  "verifiedCount": 7,
+  "language": "es"
+}
+```
+
+### UI Component: BetterCitationFinder
+
+**Location**: `src/components/admin/BetterCitationFinder.tsx`
+
+**Integrated In**: Article Editor → External Citations Section
+
+**Features**:
+1. **One-Click Discovery**: "Find Better Citations" button
+2. **Rich Previews**: Shows description, relevance, authority score
+3. **Contextual Placement**: AI suggests WHERE to place each citation
+4. **One-Click Add**: "Add to Article" instantly adds citation
+5. **Verification Status**: Shows which URLs are accessible
+6. **Copy URL**: Quick copy to clipboard
+
+**Usage**:
+```tsx
+<BetterCitationFinder
+  articleTopic={headline}
+  articleLanguage={language}
+  articleContent={content}
+  currentCitations={existingUrls}
+  onAddCitation={(citation) => {
+    // Adds citation to article
+  }}
+/>
+```
+
+### Language Support
+
+**Supported Languages**:
+- 🇬🇧 **English** (EN): .gov, .gov.uk, .edu, .ac.uk
+- 🇪🇸 **Spanish** (ES): .gob.es, .es, Spanish ministries
+- 🇩🇪 **German** (DE): .de, .gov.de, German authorities
+- 🇳🇱 **Dutch** (NL): .nl, .overheid.nl, Kadaster
+- 🇫🇷 **French** (FR): .gouv.fr, .fr, French ministries
+- 🇵🇱 **Polish** (PL): .gov.pl, .pl, Polish authorities
+- 🇸🇪 **Swedish** (SV): .se, Swedish authorities
+- 🇩🇰 **Danish** (DA): .dk, Danish authorities
+- 🇭🇺 **Hungarian** (HU): .hu, Hungarian authorities
+
+**Special Features**:
+- **Costa del Sol Focus**: Automatically detected from article topic
+- **Regional Preferences**: Prioritizes region-specific sources when applicable
+
+---
+
 ## UI Component
 
 ### LinkValidationPanel
@@ -217,7 +343,28 @@ Link Health Score =
 
 ## Workflow Example
 
-### Admin Reviews Article
+### Admin Creates New Article
+
+1. **Write Article Content** in Editor
+2. **Click "Find Better Citations"** in External Citations section
+3. System:
+   - Analyzes article topic and content
+   - Searches for authoritative sources via Perplexity
+   - **Avoids duplicating** existing citations
+   - Verifies all suggested URLs are accessible
+   - Returns 5-8 high-authority sources
+4. **Review AI Suggestions**:
+   - Each shows: Description, Relevance, Authority Score, Suggested Placement
+   - Verified sources marked with ✅
+   - See exactly where to place each citation
+5. **Add Citations**:
+   - Click "Add to Article" to instantly add
+   - Or click "Copy URL" to manually add later
+6. **Validate Links** (optional):
+   - Use "Validate All Links" to check all citations
+   - Get relevance scores and quality ratings
+
+### Admin Reviews Existing Article
 
 1. **Click "Validate All Links"** in Article Editor
 2. System:
@@ -320,15 +467,17 @@ const { data } = await supabase.functions.invoke('replace-article-links', {
 
 ## Future Enhancements (Not Yet Implemented)
 
-### Phase 3: Automated Monitoring
+### Phase 4: Automated Monitoring
 - Scheduled link validation (daily/weekly)
 - Email alerts for broken links
 - Automatic replacement of dead links
+- Citation health dashboards
 
-### Phase 4: Advanced Analytics
+### Phase 5: Advanced Analytics
 - Link quality trends over time
 - Authority score analytics
 - Content citation patterns
+- Source diversity metrics
 
 ---
 
@@ -343,6 +492,13 @@ const { data } = await supabase.functions.invoke('replace-article-links', {
 - Check PERPLEXITY_API_KEY is configured
 - Verify API rate limits not exceeded
 - Review edge function logs
+- Try with shorter article content
+
+### "No suitable citations found"
+- Article topic may be too niche
+- Try different language setting
+- Add more content context
+- Check if topic is searchable
 
 ### Low relevance scores
 - Links may not match article topic
@@ -353,11 +509,14 @@ const { data } = await supabase.functions.invoke('replace-article-links', {
 
 ## Best Practices
 
-1. **Validate Early**: Run validation before publishing
-2. **Review AI Suggestions**: Don't blindly accept all alternatives
-3. **Prioritize Government Sources**: Always prefer .gov/.gob sources
-4. **Language Consistency**: Ensure all links match article language
-5. **Re-validate After Changes**: Confirm improvements worked
+1. **Start with Citation Discovery**: Use "Find Better Citations" BEFORE writing
+2. **Validate Early**: Run link validation before publishing
+3. **Review AI Suggestions**: Don't blindly accept all alternatives - verify relevance
+4. **Prioritize Government Sources**: Always prefer .gov/.gob sources
+5. **Language Consistency**: Ensure all links match article language
+6. **Re-validate After Changes**: Confirm improvements worked
+7. **Use Suggested Context**: Place citations where AI recommends
+8. **Diversify Sources**: Mix government, educational, and organizational sources
 
 ---
 
@@ -409,12 +568,38 @@ const { data } = await supabase.functions.invoke('replace-article-links', {
 
 ## Summary
 
-The Intelligent Link Validation System ensures your blog content maintains the highest quality by:
+The Intelligent Link Validation & Citation Discovery System ensures your blog content maintains the highest quality by:
 
-1. ✅ **Detecting Issues**: Finds broken, irrelevant, or mismatched links
-2. 🤖 **AI-Powered Intelligence**: Uses Perplexity for deep link analysis
-3. 🔗 **Smart Alternatives**: Suggests better, more authoritative sources
-4. ⚡ **One-Click Fixes**: Replaces problematic links instantly
-5. 📊 **Quality Scoring**: Provides actionable health metrics
+1. ✅ **Discovering Quality Sources**: AI finds 5-8 authoritative sources per article
+2. 🔍 **Detecting Issues**: Finds broken, irrelevant, or mismatched links
+3. 🤖 **AI-Powered Intelligence**: Uses Perplexity for deep link analysis
+4. 🔗 **Smart Alternatives**: Suggests better, more authoritative sources
+5. ⚡ **One-Click Fixes**: Replaces problematic links instantly
+6. 📊 **Quality Scoring**: Provides actionable health metrics
+7. 🌍 **Multilingual**: Supports 9 languages with region-specific preferences
+8. 🎯 **Contextual Placement**: Tells you WHERE to place each citation
 
 **Result**: Professional, high-authority content that readers and search engines trust.
+
+### Complete Feature Set
+
+**Phase 1 - Validation**: ✅
+- Database schema for tracking
+- Link accessibility checking
+- Internal link validation
+- Results storage and history
+
+**Phase 2 - Intelligence**: ✅
+- Batch Perplexity analysis
+- Rich link intelligence (relevance, authority, quality)
+- Automatic alternative suggestions
+- Enhanced UI with quality indicators
+
+**Phase 3 - Discovery**: ✅
+- Proactive citation finding
+- 9-language support
+- Domain-specific preferences
+- Contextual placement suggestions
+- One-click citation addition
+
+**Next**: Automated monitoring (Phase 4) and advanced analytics (Phase 5)

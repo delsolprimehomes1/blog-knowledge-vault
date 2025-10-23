@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { ExternalCitation } from "@/types/blog";
 import { ExternalLinkFinder } from "@/components/ExternalLinkFinder";
+import { BetterCitationFinder } from "@/components/admin/BetterCitationFinder";
 
 interface ExternalCitationsSectionProps {
   citations: ExternalCitation[];
@@ -25,6 +26,15 @@ export const ExternalCitationsSection = ({
 }: ExternalCitationsSectionProps) => {
   const addCitation = () => {
     onCitationsChange([...citations, { text: "", url: "", source: "" }]);
+  };
+
+  const handleAddCitationFromFinder = (citation: { url: string; sourceName: string; anchorText: string }) => {
+    const newCitation: ExternalCitation = {
+      text: citation.anchorText,
+      url: citation.url,
+      source: citation.sourceName,
+    };
+    onCitationsChange([...citations, newCitation]);
   };
 
   const updateCitation = (index: number, field: keyof ExternalCitation, value: string) => {
@@ -50,7 +60,18 @@ export const ExternalCitationsSection = ({
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* AI-Powered Source Finder */}
+        {/* AI-Powered Better Citation Finder (New - Perplexity) */}
+        {headline && articleContent && (
+          <BetterCitationFinder
+            articleTopic={headline}
+            articleLanguage={language}
+            articleContent={articleContent}
+            currentCitations={citations.map(c => c.url)}
+            onAddCitation={handleAddCitationFromFinder}
+          />
+        )}
+
+        {/* Original External Link Finder (Backup) */}
         <ExternalLinkFinder
           articleContent={articleContent}
           headline={headline}
