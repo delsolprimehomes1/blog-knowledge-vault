@@ -66,7 +66,7 @@ serve(async (req) => {
         input: {
           prompt: finalPrompt,
           image_size: "landscape_16_9",
-          num_images: 4,
+          num_images: 1,
           image_urls: [imageUrl]
         },
         logs: true,
@@ -79,7 +79,7 @@ serve(async (req) => {
           prompt: finalPrompt,
           image_size: "landscape_16_9",
           num_inference_steps: 28,
-          num_images: 4,
+          num_images: 1,
         },
         logs: true,
       }) as FalResult;

@@ -53,11 +53,13 @@ ultra-realistic, 8k resolution, architectural digest style`;
 
       if (error) throw error;
 
-      if (data?.images) {
+      if (data?.images && data.images.length > 0) {
         setGeneratedImages(data.images);
+        // Automatically select the single generated image
+        onImageChange(data.images[0].url, prompt || headline);
         toast({
-          title: 'Images generated!',
-          description: 'Select one of the 4 generated images.',
+          title: 'Image generated!',
+          description: 'Featured image has been set.',
         });
       }
     } catch (error) {
@@ -242,34 +244,26 @@ ultra-realistic, 8k resolution, architectural digest style`;
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {baseImageForEdit ? 'Editing image...' : 'Generating 4 options...'}
+                {baseImageForEdit ? 'Editing image...' : 'Generating image...'}
               </>
             ) : (
               <>
                 <Wand2 className="h-4 w-4 mr-2" />
-                {baseImageForEdit ? '✨ Edit Image with AI' : '🎨 Generate 4 New Images'}
+                {baseImageForEdit ? '✨ Edit Image with AI' : '🎨 Generate Image with AI'}
               </>
             )}
           </Button>
 
           {generatedImages.length > 0 && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {generatedImages.map((img, i) => (
                 <div key={i} className="space-y-2">
-                  <div
-                    className="relative group cursor-pointer border rounded-lg overflow-hidden hover:border-primary transition-colors"
-                    onClick={() => selectImage(img)}
-                  >
+                  <div className="relative border rounded-lg overflow-hidden">
                     <img
                       src={img.url}
-                      alt={`Option ${i + 1}`}
+                      alt="Generated image"
                       className="w-full aspect-video object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button size="sm" variant="secondary">
-                        Select This
-                      </Button>
-                    </div>
                   </div>
                   <Button
                     type="button"
