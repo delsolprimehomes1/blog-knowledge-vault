@@ -267,14 +267,46 @@ Return only the JSON array, nothing else.`;
     const validCitations = verifiedCitations.filter(c => c.verified);
     console.log(`${validCitations.length} citations verified successfully`);
 
+    // ✅ AUTHORITY SCORING - Prioritize high-quality sources
+    const citationsWithScores = validCitations.map((citation: any) => {
+      let authorityScore = 5; // baseline
+      
+      // Government/official sources (highest authority)
+      if (isGovernmentDomain(citation.url)) authorityScore += 5;
+      
+      // Domain authority indicators
+      if (citation.url.includes('.edu')) authorityScore += 4;
+      if (citation.url.includes('.org')) authorityScore += 3;
+      
+      // Established real estate platforms
+      const authoritative = ['idealista', 'kyero', 'propertyportal', 'boe.es', 'registradores', 'notariado', 'europa.eu'];
+      if (authoritative.some(domain => citation.url.toLowerCase().includes(domain))) authorityScore += 4;
+      
+      // Source name credibility
+      const sourceLower = citation.sourceName.toLowerCase();
+      if (sourceLower.includes('official')) authorityScore += 2;
+      if (sourceLower.includes('government') || sourceLower.includes('ministry')) authorityScore += 3;
+      if (sourceLower.includes('university') || sourceLower.includes('research')) authorityScore += 2;
+      
+      return {
+        ...citation,
+        authorityScore: Math.min(authorityScore, 10)
+      };
+    });
+
+    // Sort by authority score (highest first)
+    citationsWithScores.sort((a: any, b: any) => b.authorityScore - a.authorityScore);
+    
+    console.log(`Authority scores: ${citationsWithScores.map((c: any) => `${c.sourceName}: ${c.authorityScore}`).join(', ')}`);
+
     // Ensure minimum 2 citations (relaxed due to SSL verification issues)
-    if (validCitations.length < 2) {
-      console.warn(`Only found ${validCitations.length} valid citations (minimum 2 required)`);
-      throw new Error(`Only found ${validCitations.length} verified citations. Need at least 2.`);
+    if (citationsWithScores.length < 2) {
+      console.warn(`Only found ${citationsWithScores.length} valid citations (minimum 2 required)`);
+      throw new Error(`Only found ${citationsWithScores.length} verified citations. Need at least 2.`);
     }
 
     // Check if government source is present (warn instead of blocking)
-    const hasGovSource = validCitations.some(c => isGovernmentDomain(c.url));
+    const hasGovSource = citationsWithScores.some((c: any) => isGovernmentDomain(c.url));
     
     if (requireGovernmentSource && !hasGovSource) {
       console.warn('⚠️ No government source found (requirement enabled but not blocking results)');
@@ -284,10 +316,11 @@ Return only the JSON array, nothing else.`;
 
     return new Response(
       JSON.stringify({ 
-        citations: validCitations,
+        citations: citationsWithScores,
         totalFound: citations.length,
-        totalVerified: validCitations.length,
-        hasGovernmentSource: hasGovSource
+        totalVerified: citationsWithScores.length,
+        hasGovernmentSource: hasGovSource,
+        averageAuthorityScore: citationsWithScores.reduce((acc: number, c: any) => acc + c.authorityScore, 0) / citationsWithScores.length
       }),
       { 
         headers: { 

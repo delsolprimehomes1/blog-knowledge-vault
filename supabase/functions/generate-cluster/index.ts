@@ -64,6 +64,79 @@ async function retryWithBackoff<T>(
   throw new Error(`Max retries exceeded for ${operationName}`);
 }
 
+// Content quality validation - Ensures articles meet minimum standards
+function validateContentQuality(article: any, plan: any): {
+  isValid: boolean;
+  issues: string[];
+  score: number;
+} {
+  const issues: string[] = [];
+  let score = 100;
+  
+  // Check headline coverage in content
+  const headlineWords = plan.headline.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+  const contentLower = article.detailed_content.toLowerCase();
+  const mentionedWords = headlineWords.filter((w: string) => contentLower.includes(w)).length;
+  
+  if (mentionedWords < headlineWords.length * 0.5) {
+    issues.push('Content may not fully address headline topic');
+    score -= 15;
+  }
+  
+  // Check keyword presence
+  if (plan.targetKeyword && !contentLower.includes(plan.targetKeyword.toLowerCase())) {
+    issues.push('Target keyword not found in content');
+    score -= 10;
+  }
+  
+  // Check for repetitive phrases (indicates poor quality)
+  const sentences = article.detailed_content.split(/[.!?]+/).filter((s: string) => s.trim().length > 0);
+  const seenSentences = new Set();
+  const duplicates: string[] = [];
+  
+  sentences.forEach((s: string) => {
+    const normalized = s.trim().toLowerCase();
+    if (normalized.length > 30) {
+      if (seenSentences.has(normalized)) {
+        duplicates.push(normalized.substring(0, 50));
+      } else {
+        seenSentences.add(normalized);
+      }
+    }
+  });
+  
+  if (duplicates.length > 0) {
+    issues.push(`${duplicates.length} duplicate sentences found`);
+    score -= 20;
+  }
+  
+  // Check headings structure
+  const h2Count = (article.detailed_content.match(/<h2>/gi) || []).length;
+  if (h2Count < 4) {
+    issues.push('Insufficient content structure (need 4+ H2 headings)');
+    score -= 10;
+  }
+  
+  // Check citation markers resolved
+  if (article.detailed_content.includes('[CITATION_NEEDED]')) {
+    issues.push('Unresolved citation markers present');
+    score -= 25;
+  }
+  
+  // Check minimum word count
+  const wordCount = article.detailed_content.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).length;
+  if (wordCount < 1200) {
+    issues.push(`Content too short (${wordCount} words, minimum 1200)`);
+    score -= 15;
+  }
+  
+  return {
+    isValid: score >= 60,
+    issues,
+    score
+  };
+}
+
 // Heartbeat wrapper - sends periodic updates during long operations
 async function withHeartbeat<T>(
   supabase: any,
@@ -655,17 +728,30 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         funnelStage: string,
         topic: string,
         propertyType: string,
-        location: string
+        location: string,
+        articleIndex: number
       ): string => {
         
         const baseQuality = 'ultra-realistic, 8k resolution, professional photography, no text, no watermarks';
         
-        // Time variety (rotate to avoid repetition)
-        const timeOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening'][Math.floor(Math.random() * 4)];
+        // UNIQUENESS TRACKING: Vary perspectives based on article index to prevent repetition
+        const perspectives = [
+          'wide-angle perspective',
+          'intimate close-up details',
+          'aerial drone view',
+          'interior-focused composition',
+          'lifestyle-centered framing',
+          'architectural detail focus'
+        ];
+        const perspective = perspectives[articleIndex % perspectives.length];
         
-        // Architectural style variety
-        const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Spanish colonial'];
-        const archStyle = archStyles[Math.floor(Math.random() * archStyles.length)];
+        // Time variety (deterministic based on article index for consistency)
+        const timesOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening', 'sunset glow', 'early sunrise'];
+        const timeOfDay = timesOfDay[articleIndex % timesOfDay.length];
+        
+        // Architectural style variety (also deterministic)
+        const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Spanish colonial', 'Andalusian classic', 'sleek modernist'];
+        const archStyle = archStyles[articleIndex % archStyles.length];
         
         // ========== TOFU (Top of Funnel) - Inspirational & Lifestyle ==========
         if (funnelStage === 'TOFU') {
@@ -678,7 +764,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               Costa del Sol skyline visible through office windows, 
               business professionals in meeting, contemporary workspace, 
               laptops and digital presentations, ${timeOfDay}, 
-              focus on DATA and BUSINESS not properties, 
+              ${perspective}, focus on DATA and BUSINESS not properties, 
               ${baseQuality}`;
           }
           
@@ -689,7 +775,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               laptops and coffee, minimalist design, 
               Mediterranean views from windows, natural plants, 
               professional yet relaxed atmosphere, diverse professionals, 
-              ${timeOfDay}, NOT luxury villas, focus on WORK lifestyle, 
+              ${timeOfDay}, ${perspective}, NOT luxury villas, focus on WORK lifestyle, 
               ${baseQuality}`;
           }
           
@@ -700,7 +786,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               outdoor market or plaza scene, palm trees, 
               café culture, community interaction, 
               NO properties visible, focus on PEOPLE and CULTURE, 
-              ${timeOfDay}, documentary style, 
+              ${timeOfDay}, ${perspective}, documentary style, 
               ${baseQuality}`;
           }
           
@@ -710,7 +796,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               Panoramic town view showing character and layout, 
               Mediterranean coastline and beaches, 
               mountains in background, urban planning visible, 
-              ${timeOfDay}, NOT focusing on specific properties, 
+              ${timeOfDay}, ${perspective}, NOT focusing on specific properties, 
               wide establishing shot of the area, 
               ${baseQuality}`;
           }
@@ -721,18 +807,18 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               Two distinct Costa del Sol locations side by side, 
               contrasting environments and atmospheres, 
               beach town vs mountain town, or urban vs rural, 
-              clean graphic composition, ${timeOfDay}, 
+              clean graphic composition, ${timeOfDay}, ${perspective}, 
               NOT property interiors, focus on LOCATION character, 
               ${baseQuality}`;
           }
           
           // Default TOFU: Aspirational but varied
           const tofuVariations = [
-            `Coastal lifestyle in ${location}, Costa del Sol: Beach promenade with palm trees, people walking, Mediterranean sea, ${timeOfDay}, NOT infinity pools, ${baseQuality}`,
-            `Mountain view from ${location}, Costa del Sol: Sierra Blanca mountains, hiking trails, nature and outdoor lifestyle, ${timeOfDay}, NOT luxury properties, ${baseQuality}`,
-            `${location} town center: Charming Spanish plaza, traditional architecture, outdoor dining, local atmosphere, ${timeOfDay}, NO villas, ${baseQuality}`
+            `Coastal lifestyle in ${location}, Costa del Sol: Beach promenade with palm trees, people walking, Mediterranean sea, ${timeOfDay}, ${perspective}, NOT infinity pools, ${baseQuality}`,
+            `Mountain view from ${location}, Costa del Sol: Sierra Blanca mountains, hiking trails, nature and outdoor lifestyle, ${timeOfDay}, ${perspective}, NOT luxury properties, ${baseQuality}`,
+            `${location} town center: Charming Spanish plaza, traditional architecture, outdoor dining, local atmosphere, ${timeOfDay}, ${perspective}, NO villas, ${baseQuality}`
           ];
-          return tofuVariations[Math.floor(Math.random() * tofuVariations.length)];
+          return tofuVariations[articleIndex % tofuVariations.length];
         }
         
         // ========== MOFU (Middle of Funnel) - Detailed & Comparative ==========
@@ -744,7 +830,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               Financial charts and property market data on screens, 
               professional investment consultant reviewing portfolios, 
               ROI graphs and statistics visible, modern office interior, 
-              ${timeOfDay}, NOT showing properties, focus on ANALYSIS, 
+              ${timeOfDay}, ${perspective}, NOT showing properties, focus on ANALYSIS, 
               ${baseQuality}`;
           }
           
@@ -753,7 +839,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
             return `Property viewing experience in ${location}: 
               Real estate agent showing ${archStyle} ${propertyType} to international buyers, 
               clients examining property features, viewing interior spaces, 
-              professional consultation in progress, ${timeOfDay}, 
+              professional consultation in progress, ${timeOfDay}, ${perspective}, 
               NOT staged perfection, show REAL viewing experience, 
               ${baseQuality}`;
           }
@@ -764,7 +850,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               Two different property styles in Costa del Sol, 
               ${archStyle} architecture contrast, 
               interior layout comparison, different price points, 
-              ${timeOfDay}, clean comparative photography, 
+              ${timeOfDay}, ${perspective}, clean comparative photography, 
               NOT identical properties, show CLEAR differences, 
               ${baseQuality}`;
           }
@@ -774,7 +860,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
             return `Investment property showcase in ${location}: 
               High-yield rental ${propertyType} with modern appeal, 
               ${archStyle} design, professional staging, 
-              rental-ready condition, ${timeOfDay}, 
+              rental-ready condition, ${timeOfDay}, ${perspective}, 
               NOT infinity pools, focus on RENTAL potential features, 
               ${baseQuality}`;
           }
@@ -784,7 +870,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
             return `${archStyle} ${propertyType} detailed tour in ${location}: 
               Multiple rooms and spaces, architectural details, 
               living areas and bedrooms, kitchen and bathrooms, 
-              ${timeOfDay} through windows, 
+              ${timeOfDay} through windows, ${perspective}, 
               NOT only exterior pools, show INTERIOR spaces, 
               ${baseQuality}`;
           }
@@ -793,7 +879,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
           return `${archStyle} ${propertyType} interior in ${location}, Costa del Sol: 
             Spacious living room with ${timeOfDay} natural light, 
             contemporary furnishings, high-end finishes, 
-            terrace access visible, Spanish design elements, 
+            terrace access visible, Spanish design elements, ${perspective}, 
             NOT pool-centric, focus on LIVING spaces, 
             ${baseQuality}`;
         }
@@ -807,7 +893,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               Spanish property lawyer meeting with international clients, 
               legal documents for Costa del Sol real estate on desk, 
               professional office setting, contracts and paperwork, 
-              ${timeOfDay} office lighting, trust and expertise conveyed, 
+              ${timeOfDay} office lighting, ${perspective}, trust and expertise conveyed, 
               NOT properties, show LEGAL process, 
               ${baseQuality}`;
           }
@@ -818,7 +904,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               Professional property manager inspecting ${propertyType}, 
               maintenance checklist, tenant interaction, 
               property care and management activities, 
-              ${timeOfDay}, NOT luxury glamour shots, show SERVICE aspect, 
+              ${timeOfDay}, ${perspective}, NOT luxury glamour shots, show SERVICE aspect, 
               ${baseQuality}`;
           }
           
@@ -827,7 +913,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
             return `Final decision consultation for ${location} property: 
               Serious buyers making final choice, real estate professional presenting options, 
               detailed property information and contracts on table, 
-              modern office or property location, ${timeOfDay}, 
+              modern office or property location, ${timeOfDay}, ${perspective}, 
               NOT staged properties, focus on DECISION making, 
               ${baseQuality}`;
           }
@@ -838,7 +924,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
               Property investment deal finalization, 
               financial documents and keys on desk, 
               professional handshake between investor and agent, 
-              modern office setting, ${timeOfDay}, 
+              modern office setting, ${timeOfDay}, ${perspective}, 
               NOT property exteriors, show TRANSACTION moment, 
               ${baseQuality}`;
           }
@@ -847,7 +933,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
           return `Move-in ready ${archStyle} ${propertyType} in ${location}: 
             Pristine condition interior, fully furnished and staged, 
             keys prominently displayed on entrance table, 
-            welcoming entrance hall, ${timeOfDay} through doorway, 
+            welcoming entrance hall, ${timeOfDay} through doorway, ${perspective}, 
             NOT pools or exteriors, show READY for ownership, 
             ${baseQuality}`;
         }
@@ -855,7 +941,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         // ========== Fallback ==========
         return `Professional ${location} Costa del Sol imagery: 
           ${archStyle} architecture, Mediterranean environment, 
-          ${timeOfDay}, diverse perspective, 
+          ${timeOfDay}, ${perspective}, diverse perspective, 
           NOT generic villa with pool, 
           ${baseQuality}`;
       };
@@ -880,7 +966,8 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         plan.funnelStage,
         articleTopic,
         propertyType,
-        location
+        location,
+        i  // Pass article index for uniqueness tracking
       );
 
       try {
@@ -1296,6 +1383,18 @@ Return ONLY valid JSON:
       const wordCount = article.detailed_content.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).length;
       article.read_time = Math.ceil(wordCount / 200);
 
+      // ✅ QUALITY VALIDATION - Ensure content meets quality standards
+      console.log(`[Job ${jobId}] 🔍 Validating content quality for article ${i+1}...`);
+      const qualityCheck = validateContentQuality(article, plan);
+      console.log(`[Job ${jobId}] Quality Score: ${qualityCheck.score}/100`);
+      
+      if (!qualityCheck.isValid) {
+        console.warn(`[Job ${jobId}] ⚠️ Quality issues detected for "${article.headline}":`);
+        qualityCheck.issues.forEach(issue => console.warn(`  - ${issue}`));
+      } else {
+        console.log(`[Job ${jobId}] ✅ Content quality validated successfully`);
+      }
+
       // Initialize empty arrays for internal links and related articles
       article.internal_links = [];
       article.related_article_ids = [];
@@ -1303,7 +1402,7 @@ Return ONLY valid JSON:
       article.translations = {};
 
       articles.push(article);
-      console.log(`Article ${i + 1} complete:`, article.headline, `(${wordCount} words)`);
+      console.log(`Article ${i + 1} complete:`, article.headline, `(${wordCount} words, quality: ${qualityCheck.score}/100)`);
     }
 
     await updateProgress(supabase, jobId, 8, 'Finding internal links...');
