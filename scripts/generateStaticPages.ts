@@ -33,32 +33,94 @@ interface ArticleData {
   reviewer?: any;
 }
 
+function generateOrganizationSchema() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "RealEstateAgent",
+    "@id": "https://delsolprimehomes.com/#organization",
+    "name": "Del Sol Prime Homes",
+    "legalName": "Del Sol Prime Homes",
+    "url": "https://delsolprimehomes.com/",
+    "description": "Premium real estate agency specializing in Costa del Sol new-build and off-plan properties",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://delsolprimehomes.com/assets/logo-new.png",
+      "width": 256,
+      "height": 256
+    },
+    "areaServed": [
+      {"@type": "City", "name": "Marbella"},
+      {"@type": "City", "name": "Estepona"},
+      {"@type": "City", "name": "Fuengirola"},
+      {"@type": "City", "name": "Benalmádena"},
+      {"@type": "City", "name": "Mijas"}
+    ],
+    "sameAs": [
+      "https://www.facebook.com/delsolprimehomes",
+      "https://www.instagram.com/delsolprimehomes",
+      "https://www.linkedin.com/company/delsolprimehomes"
+    ]
+  };
+}
+
+function generateAuthorSchema(author: any) {
+  if (!author) return null;
+  
+  return {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": `https://delsolprimehomes.com/team/${author.name.toLowerCase().replace(/\s+/g, '-')}#person`,
+    "name": author.name,
+    "jobTitle": author.job_title,
+    "image": author.photo_url,
+    "url": author.linkedin_url,
+    "knowsAbout": author.credentials || [],
+    "hasCredential": (author.credentials || []).map((cred: string) => ({
+      "@type": "EducationalOccupationalCredential",
+      "name": cred
+    }))
+  };
+}
+
 function generateArticleSchema(article: ArticleData) {
+  const wordCount = article.detailed_content.replace(/<[^>]*>/g, '').split(/\s+/).length;
+  
   return {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
+    "@id": `https://delsolprimehomes.com/blog/${article.slug}#article`,
     "headline": article.headline,
     "description": article.meta_description,
-    "image": article.featured_image_url,
+    "image": {
+      "@type": "ImageObject",
+      "url": article.featured_image_url,
+      "caption": article.featured_image_caption || article.featured_image_alt
+    },
     "datePublished": article.date_published,
     "dateModified": article.date_modified || article.date_published,
+    "wordCount": wordCount,
     "author": article.author ? {
-      "@type": "Person",
-      "name": article.author.name,
-      "jobTitle": article.author.job_title,
-      "image": article.author.photo_url,
+      "@id": `https://delsolprimehomes.com/team/${article.author.name.toLowerCase().replace(/\s+/g, '-')}#person`
     } : undefined,
     "publisher": {
-      "@type": "Organization",
-      "name": "Del Sol Prime Homes",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://delsolprimehomes.com/logo.png"
-      }
+      "@id": "https://delsolprimehomes.com/#organization"
     },
     "mainEntityOfPage": {
       "@type": "WebPage",
       "@id": `https://delsolprimehomes.com/blog/${article.slug}`
+    },
+    "inLanguage": article.language
+  };
+}
+
+function generateSpeakableSchema(article: ArticleData) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SpeakableSpecification",
+    "cssSelector": [".speakable-answer", ".article-intro"],
+    "associatedMedia": {
+      "@type": "ImageObject",
+      "url": article.featured_image_url
     }
   };
 }
@@ -67,24 +129,25 @@ function generateBreadcrumbSchema(article: ArticleData) {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+    "@id": `https://delsolprimehomes.com/blog/${article.slug}#breadcrumb`,
     "itemListElement": [
       {
         "@type": "ListItem",
         "position": 1,
         "name": "Home",
-        "item": "https://delsolprimehomes.com"
+        "item": "https://delsolprimehomes.com/"
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Blog",
-        "item": "https://delsolprimehomes.com/blog"
+        "item": "https://delsolprimehomes.com/blog/"
       },
       {
         "@type": "ListItem",
         "position": 3,
         "name": article.headline,
-        "item": `https://delsolprimehomes.com/blog/${article.slug}`
+        "item": `https://delsolprimehomes.com/blog/${article.slug}/`
       }
     ]
   };
@@ -98,6 +161,8 @@ function generateFAQSchema(article: ArticleData) {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
+    "@id": `https://delsolprimehomes.com/blog/${article.slug}#faq`,
+    "inLanguage": article.language,
     "mainEntity": article.faq_entities.map((faq: any) => ({
       "@type": "Question",
       "name": faq.question,
@@ -119,12 +184,18 @@ function sanitizeForHTML(text: string): string {
 }
 
 function generateStaticHTML(article: ArticleData): string {
+  const organizationSchema = generateOrganizationSchema();
+  const authorSchema = generateAuthorSchema(article.author);
   const articleSchema = generateArticleSchema(article);
+  const speakableSchema = generateSpeakableSchema(article);
   const breadcrumbSchema = generateBreadcrumbSchema(article);
   const faqSchema = generateFAQSchema(article);
   
   const schemas = [
+    organizationSchema,
+    authorSchema,
     articleSchema,
+    speakableSchema,
     breadcrumbSchema,
     faqSchema
   ].filter(Boolean);
