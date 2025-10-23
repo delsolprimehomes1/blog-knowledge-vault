@@ -35,6 +35,7 @@ import { SchemaPreviewSection } from "@/components/article-editor/SchemaPreviewS
 import { SEOPreviewSection } from "@/components/article-editor/SEOPreviewSection";
 import { CitationReplacer } from "@/components/article-editor/CitationReplacer";
 import { CitationValidation } from "@/components/article-editor/CitationValidation";
+import { CitationHealthStatus } from "@/components/article-editor/CitationHealthStatus";
 import { LinkValidationPanel } from "@/components/admin/LinkValidationPanel";
 import { SchemaValidationAlert } from "@/components/admin/SchemaValidationAlert";
 
@@ -764,6 +765,14 @@ const ArticleEditor = () => {
           headline={headline}
           language={language}
         />
+
+        {/* Section 6.5: Citation Health Status */}
+        {isEditing && (
+          <CitationHealthStatus
+            articleId={id!}
+            externalCitations={externalCitations}
+          />
+        )}
 
         {/* Section 7: Internal Links */}
         <InternalLinksSection

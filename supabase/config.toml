@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.trigger-rebuild]
 verify_jwt = false
+
+[functions.check-citation-health]
+verify_jwt = false
