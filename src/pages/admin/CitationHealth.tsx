@@ -263,14 +263,61 @@ const CitationHealth = () => {
   const handleFindReplacement = async (url: string) => {
     try {
       toast.info("Searching for replacement...", { duration: 2000 });
-      const { error } = await supabase.functions.invoke('find-better-citations', {
-        body: { urls: [url] }
+      
+      // Find which article(s) use this citation
+      const { data: articles } = await supabase
+        .from('blog_articles')
+        .select('id, headline, detailed_content, language, external_citations')
+        .contains('external_citations', [{ url }]);
+      
+      if (!articles || articles.length === 0) {
+        toast.error("Citation not found in any article");
+        return;
+      }
+      
+      const article = articles[0];
+      
+      // Call discover-better-links with proper parameters
+      const { data, error } = await supabase.functions.invoke('discover-better-links', {
+        body: { 
+          originalUrl: url,
+          articleHeadline: article.headline,
+          articleContent: article.detailed_content,
+          articleLanguage: article.language,
+          context: 'Citation replacement for broken link'
+        }
       });
+      
       if (error) throw error;
-      toast.success("Replacement suggestion added to pending list");
-      queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
+      
+      // Save suggestions to dead_link_replacements table
+      if (data?.suggestions && data.suggestions.length > 0) {
+        const replacementsToInsert = data.suggestions.slice(0, 3).map((s: any) => ({
+          original_url: url,
+          original_source: 'Auto-detected broken link',
+          replacement_url: s.suggestedUrl,
+          replacement_source: s.sourceName,
+          replacement_reason: s.reason,
+          confidence_score: (s.relevanceScore + s.authorityScore * 10) / 2,
+          status: s.verified ? 'suggested' : 'pending',
+          suggested_by: 'ai'
+        }));
+        
+        const { error: insertError } = await supabase
+          .from('dead_link_replacements')
+          .insert(replacementsToInsert);
+        
+        if (insertError) throw insertError;
+        
+        toast.success(`Found ${data.suggestions.length} replacement suggestions!`);
+        queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
+      } else {
+        toast.warning("No suitable replacements found");
+      }
+      
     } catch (error) {
-      toast.error("Failed to find replacement");
+      console.error('Replacement search error:', error);
+      toast.error("Failed to find replacement: " + ((error as Error).message || 'Unknown error'));
     }
   };
 
