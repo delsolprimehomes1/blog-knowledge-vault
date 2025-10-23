@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { LazyRichTextEditor } from "@/components/LazyRichTextEditor";
 import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { DiagramGenerator } from "@/components/DiagramGenerator";
@@ -317,7 +319,12 @@ const ArticleEditor = () => {
       }, 1500);
     },
     onError: (error: any) => {
-      if (error.message !== "Validation failed") {
+      if (error.message === "Validation failed") {
+        const firstError = Object.values(errors)[0] as string;
+        toast.error(firstError || "Please check all required fields", { duration: 5000 });
+      } else if (error.message === "Featured image required for publishing") {
+        // Already shown via toast in the mutation function
+      } else {
         toast.error("Failed to save article");
         console.error(error);
       }
@@ -797,52 +804,94 @@ const ArticleEditor = () => {
           reviewer={authors?.find(a => a.id === reviewerId) || null}
         />
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={() => saveMutation.mutate('draft')}
-            disabled={saveMutation.isPending || isImageGenerating}
-          >
-            {saveMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save as Draft
-              </>
-            )}
-          </Button>
+        {/* Validation Summary Alert */}
+        {Object.keys(errors).length > 0 && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Cannot Save Article</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">Please fix the following issues:</p>
+              <ul className="list-disc list-inside space-y-1">
+                {Object.entries(errors).map(([field, message]) => (
+                  <li key={field} className="text-sm">{message}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => toast.info("Preview feature coming soon")}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Preview
-            </Button>
-            <Button
-              onClick={() => saveMutation.mutate('published')}
-              disabled={saveMutation.isPending || isImageGenerating}
-            >
-              {saveMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Publishing...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Publish Article
-                </>
+        {/* Action Buttons */}
+        <TooltipProvider>
+          <div className="flex items-center justify-between">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    variant="outline"
+                    onClick={() => saveMutation.mutate('draft')}
+                    disabled={saveMutation.isPending || isImageGenerating}
+                  >
+                    {saveMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save as Draft
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {(saveMutation.isPending || isImageGenerating) && (
+                <TooltipContent>
+                  {isImageGenerating && "Waiting for image generation to complete..."}
+                  {saveMutation.isPending && "Saving in progress..."}
+                </TooltipContent>
               )}
-            </Button>
+            </Tooltip>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => toast.info("Preview feature coming soon")}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Preview
+              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={() => saveMutation.mutate('published')}
+                      disabled={saveMutation.isPending || isImageGenerating}
+                    >
+                      {saveMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Publishing...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Publish Article
+                        </>
+                      )}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {(saveMutation.isPending || isImageGenerating) && (
+                  <TooltipContent>
+                    {isImageGenerating && "Waiting for image generation to complete..."}
+                    {saveMutation.isPending && "Publishing in progress..."}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
           </div>
-        </div>
+        </TooltipProvider>
       </div>
     </AdminLayout>
   );
