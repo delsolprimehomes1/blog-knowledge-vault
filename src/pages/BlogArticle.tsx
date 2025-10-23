@@ -21,6 +21,10 @@ import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 const BlogArticle = () => {
   const { slug } = useParams<{ slug: string }>();
 
+  // Check if article is already pre-rendered in static HTML
+  const staticContent = document.querySelector('.static-content');
+  const isStaticPrerendered = staticContent?.getAttribute('data-article-id');
+
   const { data: article, isLoading, error } = useQuery({
     queryKey: ["article", slug],
     queryFn: async () => {
@@ -33,6 +37,12 @@ const BlogArticle = () => {
 
       if (error) throw error;
       if (!data) throw new Error("Article not found");
+
+      // Remove static content once React takes over
+      if (staticContent && data.id === isStaticPrerendered) {
+        staticContent.classList.add('opacity-0');
+        setTimeout(() => staticContent.remove(), 300);
+      }
 
       return data as unknown as BlogArticleType;
     },
