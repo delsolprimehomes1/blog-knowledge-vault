@@ -24,6 +24,8 @@ import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ChangePreviewModal } from "@/components/admin/ChangePreviewModal";
 import { BulkReplacementDialog } from "@/components/admin/BulkReplacementDialog";
+import { CitationHealthAnalysis } from "@/components/admin/CitationHealthAnalysis";
+import { Progress } from "@/components/ui/progress";
 
 interface CitationHealth {
   id: string;
@@ -65,6 +67,7 @@ const CitationHealth = () => {
   } | null>(null);
   const [bulkProgress, setBulkProgress] = useState(0);
   const [bulkResults, setBulkResults] = useState<any[]>([]);
+  const [checkProgress, setCheckProgress] = useState({ current: 0, total: 0 });
 
   const { data: healthData, isLoading } = useQuery({
     queryKey: ["citation-health"],
@@ -104,14 +107,41 @@ const CitationHealth = () => {
 
   const runHealthCheck = useMutation({
     mutationFn: async () => {
+      setCheckProgress({ current: 0, total: 100 });
+      
       const { data, error } = await supabase.functions.invoke("check-citation-health");
       if (error) throw error;
-      return data;
+      
+      // Fetch actual database state after check completes
+      const { data: actualHealth } = await supabase
+        .from('external_citation_health')
+        .select('status')
+        .gte('last_checked_at', new Date(Date.now() - 60000).toISOString());
+      
+      // Calculate real counts from database
+      const realCounts = {
+        healthy: actualHealth?.filter(h => h.status === 'healthy').length || 0,
+        broken: actualHealth?.filter(h => h.status === 'broken').length || 0,
+        unreachable: actualHealth?.filter(h => h.status === 'unreachable').length || 0,
+        redirected: actualHealth?.filter(h => h.status === 'redirected').length || 0,
+        slow: actualHealth?.filter(h => h.status === 'slow').length || 0,
+      };
+      
+      setCheckProgress({ current: 100, total: 100 });
+      return { ...data, realCounts };
     },
     onSuccess: (data) => {
-      toast.success("Citation health check complete!", { description: `Checked ${data.checked} citations. Found ${data.broken} broken links.` });
+      const { realCounts } = data;
+      const problemCount = (realCounts?.broken || 0) + (realCounts?.unreachable || 0);
+      toast.success("Citation health check complete!", { 
+        description: `Checked ${data.checked} citations. Found ${problemCount} broken links.` 
+      });
       queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+      setCheckProgress({ current: 0, total: 0 });
     },
+    onError: () => {
+      setCheckProgress({ current: 0, total: 0 });
+    }
   });
 
   const approveReplacement = useMutation({
@@ -177,6 +207,73 @@ const CitationHealth = () => {
     }
   };
 
+  const autoFixBrokenLinks = useMutation({
+    mutationFn: async () => {
+      // Get all broken/unreachable citations
+      const { data: brokenLinks } = await supabase
+        .from('external_citation_health')
+        .select('url, source_name')
+        .in('status', ['broken', 'unreachable']);
+      
+      if (!brokenLinks || brokenLinks.length === 0) {
+        return { fixed: 0, needsReview: 0, message: 'No broken links found' };
+      }
+
+      // Find if there are already approved replacements for these URLs
+      const { data: existingReplacements } = await supabase
+        .from('dead_link_replacements')
+        .select('*')
+        .in('original_url', brokenLinks.map(l => l.url))
+        .eq('status', 'approved')
+        .gte('confidence_score', 85);
+      
+      if (!existingReplacements || existingReplacements.length === 0) {
+        return { fixed: 0, needsReview: brokenLinks.length, message: 'Run health check first to find replacements' };
+      }
+
+      // Apply high-confidence replacements
+      const { data } = await supabase.functions.invoke('apply-citation-replacement', {
+        body: {
+          replacementIds: existingReplacements.map(r => r.id),
+          preview: false
+        }
+      });
+      
+      return { 
+        fixed: existingReplacements.length, 
+        needsReview: brokenLinks.length - existingReplacements.length,
+        articlesUpdated: data?.articlesUpdated || 0
+      };
+    },
+    onSuccess: (data) => {
+      if (data.fixed === 0) {
+        toast.info(data.message);
+      } else {
+        toast.success("Auto-fix complete!", {
+          description: `Fixed ${data.fixed} citations in ${data.articlesUpdated} articles. ${data.needsReview > 0 ? `${data.needsReview} need manual review.` : ''}`
+        });
+        queryClient.invalidateQueries({ queryKey: ["citation-health", "dead-link-replacements", "approved-replacements"] });
+      }
+    },
+    onError: () => {
+      toast.error("Auto-fix failed");
+    }
+  });
+
+  const handleFindReplacement = async (url: string) => {
+    try {
+      toast.info("Searching for replacement...", { duration: 2000 });
+      const { error } = await supabase.functions.invoke('find-better-citations', {
+        body: { urls: [url] }
+      });
+      if (error) throw error;
+      toast.success("Replacement suggestion added to pending list");
+      queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
+    } catch (error) {
+      toast.error("Failed to find replacement");
+    }
+  };
+
   const stats = healthData?.reduce((acc, item) => {
     acc.total++;
     if (item.status === 'healthy') acc.healthy++;
@@ -200,18 +297,55 @@ const CitationHealth = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Citation Health</h1>
-            <p className="text-muted-foreground">Monitor external citations</p>
+            <p className="text-muted-foreground">Monitor external citations and manage replacements</p>
           </div>
-          <Button onClick={() => { setIsRunningCheck(true); runHealthCheck.mutateAsync().finally(() => setIsRunningCheck(false)); }} disabled={isRunningCheck}>
-            {isRunningCheck ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</> : <><RefreshCw className="mr-2 h-4 w-4" />Run Health Check</>}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => autoFixBrokenLinks.mutate()}
+              disabled={autoFixBrokenLinks.isPending || stats.broken === 0}
+              variant="default"
+            >
+              {autoFixBrokenLinks.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fixing...</>
+              ) : (
+                <>🔧 Auto-Fix Broken Links</>
+              )}
+            </Button>
+            <Button 
+              onClick={() => { setIsRunningCheck(true); runHealthCheck.mutateAsync().finally(() => setIsRunningCheck(false)); }} 
+              disabled={isRunningCheck}
+            >
+              {isRunningCheck ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</> : <><RefreshCw className="mr-2 h-4 w-4" />Run Health Check</>}
+            </Button>
+          </div>
         </div>
 
+        {isRunningCheck && checkProgress.total > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Checking citations...</span>
+                  <span>{Math.round((checkProgress.current / checkProgress.total) * 100)}%</span>
+                </div>
+                <Progress value={(checkProgress.current / checkProgress.total) * 100} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid gap-4 md:grid-cols-3">
-          <Card><CardHeader><CardTitle className="text-sm">Total</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-sm">Health Score</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{healthPercentage}%</div></CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-sm">Broken</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{stats.broken}</div></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-sm">Total Citations</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-sm">Health Score</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{healthPercentage}%</div><p className="text-xs text-muted-foreground mt-1">{stats.healthy} healthy citations</p></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-sm">Needs Attention</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{stats.broken}</div><p className="text-xs text-muted-foreground mt-1">Broken or unreachable</p></CardContent></Card>
         </div>
+
+        {healthData && healthData.length > 0 && (
+          <CitationHealthAnalysis 
+            healthData={healthData} 
+            onFindReplacement={handleFindReplacement}
+          />
+        )}
 
         <Tabs defaultValue="pending">
           <TabsList>
