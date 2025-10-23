@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_revisions: {
+        Row: {
+          article_id: string
+          can_rollback: boolean | null
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string | null
+          id: string
+          previous_citations: Json | null
+          previous_content: string
+          replacement_id: string | null
+          revision_type: string
+          rollback_expires_at: string | null
+        }
+        Insert: {
+          article_id: string
+          can_rollback?: boolean | null
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          previous_citations?: Json | null
+          previous_content: string
+          replacement_id?: string | null
+          revision_type: string
+          rollback_expires_at?: string | null
+        }
+        Update: {
+          article_id?: string
+          can_rollback?: boolean | null
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          previous_citations?: Json | null
+          previous_content?: string
+          replacement_id?: string | null
+          revision_type?: string
+          rollback_expires_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_revisions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_revisions_replacement_id_fkey"
+            columns: ["replacement_id"]
+            isOneToOne: false
+            referencedRelation: "dead_link_replacements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       authors: {
         Row: {
           bio: string
@@ -412,12 +469,15 @@ export type Database = {
       }
       dead_link_replacements: {
         Row: {
+          applied_at: string | null
+          applied_by: string | null
           applied_to_articles: string[] | null
           confidence_score: number | null
           created_at: string | null
           id: string
           original_source: string | null
           original_url: string
+          replacement_count: number | null
           replacement_reason: string | null
           replacement_source: string | null
           replacement_url: string
@@ -426,12 +486,15 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
           applied_to_articles?: string[] | null
           confidence_score?: number | null
           created_at?: string | null
           id?: string
           original_source?: string | null
           original_url: string
+          replacement_count?: number | null
           replacement_reason?: string | null
           replacement_source?: string | null
           replacement_url: string
@@ -440,12 +503,15 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          applied_at?: string | null
+          applied_by?: string | null
           applied_to_articles?: string[] | null
           confidence_score?: number | null
           created_at?: string | null
           id?: string
           original_source?: string | null
           original_url?: string
+          replacement_count?: number | null
           replacement_reason?: string | null
           replacement_source?: string | null
           replacement_url?: string

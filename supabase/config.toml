@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.check-citation-health]
 verify_jwt = false
+
+[functions.apply-citation-replacement]
+verify_jwt = false
+
+[functions.rollback-citation-replacement]
+verify_jwt = false
