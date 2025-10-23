@@ -13,7 +13,7 @@ import { LazyRichTextEditor } from "@/components/LazyRichTextEditor";
 import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { DiagramGenerator } from "@/components/DiagramGenerator";
 import { toast } from "sonner";
-import { AlertCircle, Upload, Save, Eye } from "lucide-react";
+import { AlertCircle, Upload, Save, Eye, Loader2 } from "lucide-react";
 import { 
   generateSlug, 
   countWords, 
@@ -303,8 +303,15 @@ const ArticleEditor = () => {
     },
     onSuccess: (_, publishStatus) => {
       queryClient.invalidateQueries({ queryKey: ["articles"] });
-      toast.success(publishStatus === 'published' ? "Article published!" : "Article saved as draft");
-      navigate("/admin/articles");
+      const message = publishStatus === 'published' 
+        ? "✅ Article published successfully! All changes including images have been saved." 
+        : "✅ Article saved as draft. All changes including images have been saved.";
+      toast.success(message, { duration: 3000 });
+      
+      // Delay navigation to let user see the success message
+      setTimeout(() => {
+        navigate("/admin/articles");
+      }, 1500);
     },
     onError: (error: any) => {
       if (error.message !== "Validation failed") {
@@ -747,8 +754,17 @@ const ArticleEditor = () => {
             onClick={() => saveMutation.mutate('draft')}
             disabled={saveMutation.isPending || isImageGenerating}
           >
-            <Save className="h-4 w-4 mr-2" />
-            Save as Draft
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save as Draft
+              </>
+            )}
           </Button>
 
           <div className="flex gap-2">
@@ -763,8 +779,17 @@ const ArticleEditor = () => {
               onClick={() => saveMutation.mutate('published')}
               disabled={saveMutation.isPending || isImageGenerating}
             >
-              <Save className="h-4 w-4 mr-2" />
-              Publish Article
+              {saveMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Publishing...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Publish Article
+                </>
+              )}
             </Button>
           </div>
         </div>
