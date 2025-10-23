@@ -1,8 +1,9 @@
 import { BlogArticle, Author } from "@/types/blog";
 
-interface SchemaValidationError {
+export interface SchemaValidationError {
   field: string;
   message: string;
+  severity: 'error' | 'warning';
 }
 
 export interface GeneratedSchemas {
@@ -80,10 +81,10 @@ export function generateArticleSchema(
 ): any {
   const errors: SchemaValidationError[] = [];
   
-  if (!article.headline) errors.push({ field: "headline", message: "Headline is required for schema" });
-  if (!article.meta_description) errors.push({ field: "meta_description", message: "Meta description is required for schema" });
-  if (!article.featured_image_url) errors.push({ field: "featured_image_url", message: "Featured image is required for schema" });
-  if (!author) errors.push({ field: "author_id", message: "Author is required for schema" });
+  if (!article.headline) errors.push({ field: "headline", message: "Headline is required for schema", severity: "error" });
+  if (!article.meta_description) errors.push({ field: "meta_description", message: "Meta description is required for schema", severity: "error" });
+  if (!article.featured_image_url) errors.push({ field: "featured_image_url", message: "Featured image is required for schema", severity: "error" });
+  if (!author) errors.push({ field: "author_id", message: "Author is required for schema", severity: "error" });
   
   const articleUrl = `${baseUrl}/${article.slug}`;
   const wordCount = countWordsInHtml(article.detailed_content);
@@ -214,23 +215,34 @@ export function generateFAQSchema(
 export function validateSchemaRequirements(article: BlogArticle): SchemaValidationError[] {
   const errors: SchemaValidationError[] = [];
   
-  // Article schema validation
-  if (!article.headline) errors.push({ field: "headline", message: "Required for Article schema" });
-  if (!article.meta_description) errors.push({ field: "meta_description", message: "Required for Article schema" });
-  if (!article.featured_image_url) errors.push({ field: "featured_image_url", message: "Required for Article schema" });
-  if (!article.author_id) errors.push({ field: "author_id", message: "Required for Article schema" });
+  // Critical errors - prevent proper schema generation
+  if (!article.headline) errors.push({ field: "headline", message: "Required for Article schema", severity: "error" });
+  if (!article.meta_description) errors.push({ field: "meta_description", message: "Required for Article schema", severity: "error" });
+  if (!article.featured_image_url) errors.push({ field: "featured_image_url", message: "Required for Article schema", severity: "error" });
+  if (!article.author_id) errors.push({ field: "author_id", message: "Author required for E-E-A-T signals", severity: "error" });
   if (!article.date_published && article.status === 'published') {
-    errors.push({ field: "date_published", message: "Required for published Article schema" });
+    errors.push({ field: "date_published", message: "Required for published Article schema", severity: "error" });
+  }
+  
+  // Warnings - recommended improvements
+  if (!article.reviewer_id) {
+    errors.push({ field: "reviewer_id", message: "Add reviewer for enhanced E-E-A-T credibility", severity: "warning" });
+  }
+  if (!article.external_citations || article.external_citations.length < 2) {
+    errors.push({ field: "external_citations", message: "Add 2+ citations for better trust signals", severity: "warning" });
+  }
+  if (!article.featured_image_alt) {
+    errors.push({ field: "featured_image_alt", message: "Alt text improves accessibility and SEO", severity: "warning" });
   }
   
   // FAQ schema validation (if FAQ is enabled)
   if (article.faq_entities && article.faq_entities.length > 0) {
     article.faq_entities.forEach((faq, index) => {
       if (!faq.question) {
-        errors.push({ field: `faq_entities[${index}].question`, message: "Question is required for FAQ schema" });
+        errors.push({ field: `faq_entities[${index}].question`, message: "Question is required for FAQ schema", severity: "error" });
       }
       if (!faq.answer) {
-        errors.push({ field: `faq_entities[${index}].answer`, message: "Answer is required for FAQ schema" });
+        errors.push({ field: `faq_entities[${index}].answer`, message: "Answer is required for FAQ schema", severity: "error" });
       }
     });
   }

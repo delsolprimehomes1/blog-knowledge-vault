@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle } from "@/types/blog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Globe, Plus, AlertCircle } from "lucide-react";
+import { FileText, TrendingUp, Globe, Plus, AlertCircle, CheckCircle2, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
+import { validateSchemaRequirements } from "@/lib/schemaGenerator";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -97,6 +98,19 @@ const Dashboard = () => {
     fr: 'French', pl: 'Polish', sv: 'Swedish', da: 'Danish', hu: 'Hungarian'
   };
 
+  // Calculate schema health
+  const schemaHealth = articles?.reduce((acc, article) => {
+    const validationErrors = validateSchemaRequirements(article);
+    const hasErrors = validationErrors.some(e => e.severity === 'error');
+    if (!hasErrors) acc.valid++;
+    else acc.needsAttention++;
+    return acc;
+  }, { valid: 0, needsAttention: 0 });
+
+  const schemaHealthScore = articles && articles.length > 0
+    ? Math.round((schemaHealth!.valid / articles.length) * 100)
+    : 0;
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -115,7 +129,7 @@ const Dashboard = () => {
         </div>
 
         {/* Status Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Draft Articles</CardTitle>
@@ -146,6 +160,34 @@ const Dashboard = () => {
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{stats.archived}</div>
               <p className="text-xs text-muted-foreground">Old content</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/10">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Schema Health</CardTitle>
+              <Shield className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-baseline gap-2">
+                <div className={`text-2xl font-bold ${
+                  schemaHealthScore >= 90 ? 'text-green-600' : 
+                  schemaHealthScore >= 70 ? 'text-amber-600' : 
+                  'text-red-600'
+                }`}>
+                  {schemaHealthScore}%
+                </div>
+                {schemaHealthScore === 100 && (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {schemaHealth?.needsAttention ? (
+                  <>{schemaHealth.needsAttention} article{schemaHealth.needsAttention !== 1 ? 's' : ''} need{schemaHealth.needsAttention === 1 ? 's' : ''} attention</>
+                ) : (
+                  'All schemas valid'
+                )}
+              </p>
             </CardContent>
           </Card>
         </div>

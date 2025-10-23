@@ -36,6 +36,7 @@ import { SEOPreviewSection } from "@/components/article-editor/SEOPreviewSection
 import { CitationReplacer } from "@/components/article-editor/CitationReplacer";
 import { CitationValidation } from "@/components/article-editor/CitationValidation";
 import { LinkValidationPanel } from "@/components/admin/LinkValidationPanel";
+import { SchemaValidationAlert } from "@/components/admin/SchemaValidationAlert";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -393,6 +394,31 @@ const ArticleEditor = () => {
             </p>
           </div>
         </div>
+
+        {/* Schema Validation Status */}
+        <SchemaValidationAlert 
+          article={{
+            headline,
+            slug,
+            language,
+            category,
+            funnel_stage: funnelStage,
+            meta_title: metaTitle,
+            meta_description: metaDescription,
+            speakable_answer: speakableAnswer,
+            detailed_content: detailedContent,
+            featured_image_url: featuredImageUrl,
+            featured_image_alt: featuredImageAlt,
+            author_id: authorId,
+            reviewer_id: reviewerId,
+            external_citations: externalCitations,
+            faq_entities: faqEntities,
+            date_published: article?.date_published,
+            date_modified: article?.date_modified,
+          } as any}
+          author={authors?.find(a => a.id === authorId)}
+          reviewer={authors?.find(a => a.id === reviewerId)}
+        />
 
         {/* Section 1: Basic Info */}
         <Card>
