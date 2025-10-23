@@ -595,33 +595,53 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       const detectArticleTopic = (headline: string): string => {
         const text = headline.toLowerCase();
         
+        // Market analysis / trends / forecasts
+        if (text.match(/\b(market|trends|forecast|outlook|analysis|statistics|data|report|2025|2026|predictions)\b/)) {
+          return 'market-analysis';
+        }
+        
+        // Digital nomads / remote work
+        if (text.match(/\b(digital nomad|remote work|coworking|work from home|expat tech|freelance)\b/)) {
+          return 'digital-nomad';
+        }
+        
+        // Buying guides / how-to
+        if (text.match(/\b(guide to|how to|step by step|buying guide|beginner|starter)\b/)) {
+          return 'buying-guide';
+        }
+        
         // Legal/Process articles
         if (text.match(/\b(buy|buying|purchase|process|legal|documents?|nie|tax|fees?|cost|steps?)\b/)) {
           return 'process-legal';
         }
         
         // Comparison articles
-        if (text.match(/\b(vs|versus|compare|comparison|best|choose|which|difference)\b/)) {
+        if (text.match(/\b(vs|versus|compare|comparison|best|choose|which|difference|beyond)\b/)) {
           return 'comparison';
         }
         
         // Investment articles
-        if (text.match(/\b(invest|investment|roi|rental|yield|return|profit|market)\b/)) {
+        if (text.match(/\b(invest|investment|roi|rental|yield|return|profit|market|portfolio|strategy)\b/)) {
           return 'investment';
         }
         
         // Lifestyle articles
-        if (text.match(/\b(live|living|lifestyle|expat|retire|retirement|community|culture)\b/)) {
+        if (text.match(/\b(live|living|lifestyle|expat|retire|retirement|community|culture|quality of life)\b/)) {
           return 'lifestyle';
         }
         
         // Area/location guides
-        if (text.match(/\b(guide|area|neighborhood|district|zone|where|location)\b/)) {
+        if (text.match(/\b(guide|area|neighborhood|district|zone|where|location|hidden gem|discover)\b/)) {
           return 'location-guide';
         }
         
+        // Property management / rental
+        if (text.match(/\b(property management|tenant|vacation rental|maintenance|landlord)\b/)) {
+          return 'property-management';
+        }
+        
         // Property type specific
-        if (text.match(/\b(villa|apartment|penthouse|townhouse)\b/)) {
+        if (text.match(/\b(villa|apartment|penthouse|townhouse|second home)\b/)) {
           return 'property-showcase';
         }
         
@@ -640,107 +660,203 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         
         const baseQuality = 'ultra-realistic, 8k resolution, professional photography, no text, no watermarks';
         
+        // Time variety (rotate to avoid repetition)
+        const timeOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening'][Math.floor(Math.random() * 4)];
+        
+        // Architectural style variety
+        const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Spanish colonial'];
+        const archStyle = archStyles[Math.floor(Math.random() * archStyles.length)];
+        
         // ========== TOFU (Top of Funnel) - Inspirational & Lifestyle ==========
         if (funnelStage === 'TOFU') {
           
+          // Market analysis articles
+          if (topic === 'market-analysis') {
+            return `Professional business scene in modern ${location} office: 
+              Real estate market analysts reviewing data and trends, 
+              large display screens showing graphs and statistics, 
+              Costa del Sol skyline visible through office windows, 
+              business professionals in meeting, contemporary workspace, 
+              laptops and digital presentations, ${timeOfDay}, 
+              focus on DATA and BUSINESS not properties, 
+              ${baseQuality}`;
+          }
+          
+          // Digital nomad articles
+          if (topic === 'digital-nomad') {
+            return `Modern coworking lifestyle in ${location}, Costa del Sol: 
+              Young remote workers in bright coworking space, 
+              laptops and coffee, minimalist design, 
+              Mediterranean views from windows, natural plants, 
+              professional yet relaxed atmosphere, diverse professionals, 
+              ${timeOfDay}, NOT luxury villas, focus on WORK lifestyle, 
+              ${baseQuality}`;
+          }
+          
+          // Lifestyle articles
           if (topic === 'lifestyle') {
-            return `Lifestyle photography of ${location}, Costa del Sol: 
-              Happy expats enjoying Mediterranean lifestyle, 
-              outdoor café terrace, palm trees, bright sunshine, 
-              relaxed atmosphere, diverse international community, 
-              authentic Spanish culture, ${baseQuality}`;
+            return `Authentic lifestyle photography in ${location}, Costa del Sol: 
+              International expats enjoying local Spanish life, 
+              outdoor market or plaza scene, palm trees, 
+              café culture, community interaction, 
+              NO properties visible, focus on PEOPLE and CULTURE, 
+              ${timeOfDay}, documentary style, 
+              ${baseQuality}`;
           }
           
+          // Location guide articles
           if (topic === 'location-guide') {
-            return `Aerial drone shot of ${location}, Costa del Sol: 
-              Panoramic view of the area, 
-              Mediterranean coastline, mountains in background, 
-              beaches, urban development, golf courses visible, 
-              golden hour lighting, ${baseQuality}`;
+            return `Aerial drone photography of ${location}, Costa del Sol: 
+              Panoramic town view showing character and layout, 
+              Mediterranean coastline and beaches, 
+              mountains in background, urban planning visible, 
+              ${timeOfDay}, NOT focusing on specific properties, 
+              wide establishing shot of the area, 
+              ${baseQuality}`;
           }
           
-          // Default TOFU: Aspirational property imagery
-          return `Stunning ${propertyType} in ${location}, Costa del Sol: 
-            Luxury Mediterranean property, 
-            sea view from terrace, infinity pool, 
-            palm trees, blue skies, sunset lighting, 
-            lifestyle imagery showing dream home, 
-            ${baseQuality}`;
+          // Comparison articles
+          if (topic === 'comparison') {
+            return `Conceptual split-screen comparison imagery for ${location}: 
+              Two distinct Costa del Sol locations side by side, 
+              contrasting environments and atmospheres, 
+              beach town vs mountain town, or urban vs rural, 
+              clean graphic composition, ${timeOfDay}, 
+              NOT property interiors, focus on LOCATION character, 
+              ${baseQuality}`;
+          }
+          
+          // Default TOFU: Aspirational but varied
+          const tofuVariations = [
+            `Coastal lifestyle in ${location}, Costa del Sol: Beach promenade with palm trees, people walking, Mediterranean sea, ${timeOfDay}, NOT infinity pools, ${baseQuality}`,
+            `Mountain view from ${location}, Costa del Sol: Sierra Blanca mountains, hiking trails, nature and outdoor lifestyle, ${timeOfDay}, NOT luxury properties, ${baseQuality}`,
+            `${location} town center: Charming Spanish plaza, traditional architecture, outdoor dining, local atmosphere, ${timeOfDay}, NO villas, ${baseQuality}`
+          ];
+          return tofuVariations[Math.floor(Math.random() * tofuVariations.length)];
         }
         
         // ========== MOFU (Middle of Funnel) - Detailed & Comparative ==========
         if (funnelStage === 'MOFU') {
           
+          // Market analysis for MOFU
+          if (topic === 'market-analysis') {
+            return `Investment analysis scene in ${location} real estate office: 
+              Financial charts and property market data on screens, 
+              professional investment consultant reviewing portfolios, 
+              ROI graphs and statistics visible, modern office interior, 
+              ${timeOfDay}, NOT showing properties, focus on ANALYSIS, 
+              ${baseQuality}`;
+          }
+          
+          // Buying guide articles
+          if (topic === 'buying-guide') {
+            return `Property viewing experience in ${location}: 
+              Real estate agent showing ${archStyle} ${propertyType} to international buyers, 
+              clients examining property features, viewing interior spaces, 
+              professional consultation in progress, ${timeOfDay}, 
+              NOT staged perfection, show REAL viewing experience, 
+              ${baseQuality}`;
+          }
+          
+          // Comparison articles
           if (topic === 'comparison') {
-            return `Split-screen comparison concept for ${location}: 
-              Side-by-side visual comparison of two Costa del Sol areas, 
-              contrasting property styles and environments, 
-              modern vs traditional architecture, 
-              urban vs beachfront, clean composition, 
+            return `Side-by-side property comparison visualization for ${location}: 
+              Two different property styles in Costa del Sol, 
+              ${archStyle} architecture contrast, 
+              interior layout comparison, different price points, 
+              ${timeOfDay}, clean comparative photography, 
+              NOT identical properties, show CLEAR differences, 
               ${baseQuality}`;
           }
           
+          // Investment articles
           if (topic === 'investment') {
-            return `Investment property photography in ${location}: 
-              Modern ${propertyType} with rental appeal, 
-              high-end finishes, professional staging, 
-              bright interiors, sleek design, 
-              shows property value and ROI potential, 
+            return `Investment property showcase in ${location}: 
+              High-yield rental ${propertyType} with modern appeal, 
+              ${archStyle} design, professional staging, 
+              rental-ready condition, ${timeOfDay}, 
+              NOT infinity pools, focus on RENTAL potential features, 
               ${baseQuality}`;
           }
           
+          // Property showcase
           if (topic === 'property-showcase') {
-            return `Interior and exterior showcase of ${propertyType} in ${location}: 
-              Multiple angles showing key features, 
-              open-plan living areas, modern kitchen, 
-              terrace with sea view, pool area, 
-              high-quality architectural photography, 
+            return `${archStyle} ${propertyType} detailed tour in ${location}: 
+              Multiple rooms and spaces, architectural details, 
+              living areas and bedrooms, kitchen and bathrooms, 
+              ${timeOfDay} through windows, 
+              NOT only exterior pools, show INTERIOR spaces, 
               ${baseQuality}`;
           }
           
           // Default MOFU: Detailed property features
-          return `Detailed ${propertyType} photography in ${location}, Costa del Sol: 
-            Interior and exterior views, 
-            high-end finishes, spacious rooms, 
-            natural lighting, architectural details, 
-            Mediterranean design elements, 
+          return `${archStyle} ${propertyType} interior in ${location}, Costa del Sol: 
+            Spacious living room with ${timeOfDay} natural light, 
+            contemporary furnishings, high-end finishes, 
+            terrace access visible, Spanish design elements, 
+            NOT pool-centric, focus on LIVING spaces, 
             ${baseQuality}`;
         }
         
         // ========== BOFU (Bottom of Funnel) - Professional & Process-Oriented ==========
         if (funnelStage === 'BOFU') {
           
+          // Legal/process articles
           if (topic === 'process-legal') {
-            return `Professional real estate consultation scene in ${location}: 
-              Property lawyer or agent meeting with international clients, 
-              modern office setting, documents on table, 
-              professional atmosphere, trust and expertise conveyed, 
-              Spanish property transaction context, 
+            return `Professional legal consultation in ${location} law office: 
+              Spanish property lawyer meeting with international clients, 
+              legal documents for Costa del Sol real estate on desk, 
+              professional office setting, contracts and paperwork, 
+              ${timeOfDay} office lighting, trust and expertise conveyed, 
+              NOT properties, show LEGAL process, 
               ${baseQuality}`;
           }
           
+          // Property management
+          if (topic === 'property-management') {
+            return `Property management service in ${location}: 
+              Professional property manager inspecting ${propertyType}, 
+              maintenance checklist, tenant interaction, 
+              property care and management activities, 
+              ${timeOfDay}, NOT luxury glamour shots, show SERVICE aspect, 
+              ${baseQuality}`;
+          }
+          
+          // Comparison/decision articles
           if (topic === 'comparison') {
-            return `Decision-making concept for property purchase in ${location}: 
-              Property viewing scene, clients examining ${propertyType}, 
-              professional real estate agent showing features, 
-              serious buyers evaluating options, 
-              high-quality consultation imagery, 
+            return `Final decision consultation for ${location} property: 
+              Serious buyers making final choice, real estate professional presenting options, 
+              detailed property information and contracts on table, 
+              modern office or property location, ${timeOfDay}, 
+              NOT staged properties, focus on DECISION making, 
               ${baseQuality}`;
           }
           
-          // Default BOFU: Action-ready property
-          return `Move-in ready ${propertyType} in ${location}, Costa del Sol: 
-            Perfect condition property ready for immediate purchase, 
-            pristine interiors, staged furniture, 
-            keys on table symbolizing ownership, 
-            professional marketing photography, 
+          // Investment for BOFU
+          if (topic === 'investment') {
+            return `Investment closing scene in ${location}: 
+              Property investment deal finalization, 
+              financial documents and keys on desk, 
+              professional handshake between investor and agent, 
+              modern office setting, ${timeOfDay}, 
+              NOT property exteriors, show TRANSACTION moment, 
+              ${baseQuality}`;
+          }
+          
+          // Default BOFU: Move-in ready
+          return `Move-in ready ${archStyle} ${propertyType} in ${location}: 
+            Pristine condition interior, fully furnished and staged, 
+            keys prominently displayed on entrance table, 
+            welcoming entrance hall, ${timeOfDay} through doorway, 
+            NOT pools or exteriors, show READY for ownership, 
             ${baseQuality}`;
         }
         
-        // ========== Fallback (should never reach here) ==========
-        return `Professional real estate photography: ${headline}. 
-          Luxury ${propertyType} in ${location}, Costa del Sol, 
-          Mediterranean architecture, bright natural lighting, 
+        // ========== Fallback ==========
+        return `Professional ${location} Costa del Sol imagery: 
+          ${archStyle} architecture, Mediterranean environment, 
+          ${timeOfDay}, diverse perspective, 
+          NOT generic villa with pool, 
           ${baseQuality}`;
       };
 
