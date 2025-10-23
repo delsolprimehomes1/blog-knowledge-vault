@@ -35,6 +35,7 @@ import { SchemaPreviewSection } from "@/components/article-editor/SchemaPreviewS
 import { SEOPreviewSection } from "@/components/article-editor/SEOPreviewSection";
 import { CitationReplacer } from "@/components/article-editor/CitationReplacer";
 import { CitationValidation } from "@/components/article-editor/CitationValidation";
+import { LinkValidationPanel } from "@/components/admin/LinkValidationPanel";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -747,6 +748,14 @@ const ArticleEditor = () => {
           currentArticleId={id}
           language={language}
         />
+
+        {/* Section 7.5: Link Validation & Discovery (AI-Powered) */}
+        {isEditing && (
+          <LinkValidationPanel
+            articleId={id!}
+            articleSlug={slug}
+          />
+        )}
 
         {/* Section 8: Related Articles */}
         <RelatedArticlesSection

@@ -64,6 +64,10 @@ export type Database = {
           author_id: string | null
           canonical_url: string | null
           category: string
+          citation_health_score: number | null
+          cluster_id: string | null
+          cluster_number: number | null
+          cluster_theme: string | null
           created_at: string
           cta_article_ids: string[] | null
           date_modified: string | null
@@ -77,10 +81,12 @@ export type Database = {
           featured_image_caption: string | null
           featured_image_url: string
           funnel_stage: string
+          has_dead_citations: boolean | null
           headline: string
           id: string
           internal_links: Json | null
           language: string
+          last_citation_check_at: string | null
           last_edited_by: string | null
           meta_description: string
           meta_title: string
@@ -98,6 +104,10 @@ export type Database = {
           author_id?: string | null
           canonical_url?: string | null
           category: string
+          citation_health_score?: number | null
+          cluster_id?: string | null
+          cluster_number?: number | null
+          cluster_theme?: string | null
           created_at?: string
           cta_article_ids?: string[] | null
           date_modified?: string | null
@@ -111,10 +121,12 @@ export type Database = {
           featured_image_caption?: string | null
           featured_image_url: string
           funnel_stage: string
+          has_dead_citations?: boolean | null
           headline: string
           id?: string
           internal_links?: Json | null
           language: string
+          last_citation_check_at?: string | null
           last_edited_by?: string | null
           meta_description: string
           meta_title: string
@@ -132,6 +144,10 @@ export type Database = {
           author_id?: string | null
           canonical_url?: string | null
           category?: string
+          citation_health_score?: number | null
+          cluster_id?: string | null
+          cluster_number?: number | null
+          cluster_theme?: string | null
           created_at?: string
           cta_article_ids?: string[] | null
           date_modified?: string | null
@@ -145,10 +161,12 @@ export type Database = {
           featured_image_caption?: string | null
           featured_image_url?: string
           funnel_stage?: string
+          has_dead_citations?: boolean | null
           headline?: string
           id?: string
           internal_links?: Json | null
           language?: string
+          last_citation_check_at?: string | null
           last_edited_by?: string | null
           meta_description?: string
           meta_title?: string
@@ -168,6 +186,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_articles_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "cluster_generations"
             referencedColumns: ["id"]
           },
           {
@@ -242,9 +267,62 @@ export type Database = {
         }
         Relationships: []
       }
+      citation_usage_tracking: {
+        Row: {
+          anchor_text: string | null
+          article_id: string | null
+          citation_source: string | null
+          citation_url: string
+          created_at: string | null
+          first_added_at: string | null
+          id: string
+          is_active: boolean | null
+          last_verified_at: string | null
+          position_in_article: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          anchor_text?: string | null
+          article_id?: string | null
+          citation_source?: string | null
+          citation_url: string
+          created_at?: string | null
+          first_added_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_verified_at?: string | null
+          position_in_article?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          anchor_text?: string | null
+          article_id?: string | null
+          citation_source?: string | null
+          citation_url?: string
+          created_at?: string | null
+          first_added_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_verified_at?: string | null
+          position_in_article?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citation_usage_tracking_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cluster_generations: {
         Row: {
           articles: Json | null
+          articles_per_cluster: number | null
+          cluster_count: number | null
+          cluster_focus_areas: Json | null
           created_at: string | null
           error: string | null
           id: string
@@ -256,11 +334,15 @@ export type Database = {
           target_audience: string
           timeout_at: string | null
           topic: string
+          total_articles: number | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           articles?: Json | null
+          articles_per_cluster?: number | null
+          cluster_count?: number | null
+          cluster_focus_areas?: Json | null
           created_at?: string | null
           error?: string | null
           id?: string
@@ -272,11 +354,15 @@ export type Database = {
           target_audience: string
           timeout_at?: string | null
           topic: string
+          total_articles?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           articles?: Json | null
+          articles_per_cluster?: number | null
+          cluster_count?: number | null
+          cluster_focus_areas?: Json | null
           created_at?: string | null
           error?: string | null
           id?: string
@@ -288,6 +374,7 @@ export type Database = {
           target_audience?: string
           timeout_at?: string | null
           topic?: string
+          total_articles?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -323,22 +410,222 @@ export type Database = {
         }
         Relationships: []
       }
+      dead_link_replacements: {
+        Row: {
+          applied_to_articles: string[] | null
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          original_source: string | null
+          original_url: string
+          replacement_reason: string | null
+          replacement_source: string | null
+          replacement_url: string
+          status: string | null
+          suggested_by: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          applied_to_articles?: string[] | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          original_source?: string | null
+          original_url: string
+          replacement_reason?: string | null
+          replacement_source?: string | null
+          replacement_url: string
+          status?: string | null
+          suggested_by?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          applied_to_articles?: string[] | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          original_source?: string | null
+          original_url?: string
+          replacement_reason?: string | null
+          replacement_source?: string | null
+          replacement_url?: string
+          status?: string | null
+          suggested_by?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      external_citation_health: {
+        Row: {
+          content_hash: string | null
+          created_at: string | null
+          first_seen_at: string | null
+          http_status_code: number | null
+          id: string
+          is_government_source: boolean | null
+          language: string | null
+          last_checked_at: string | null
+          page_title: string | null
+          redirect_url: string | null
+          response_time_ms: number | null
+          source_name: string | null
+          status: string | null
+          times_failed: number | null
+          times_verified: number | null
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          content_hash?: string | null
+          created_at?: string | null
+          first_seen_at?: string | null
+          http_status_code?: number | null
+          id?: string
+          is_government_source?: boolean | null
+          language?: string | null
+          last_checked_at?: string | null
+          page_title?: string | null
+          redirect_url?: string | null
+          response_time_ms?: number | null
+          source_name?: string | null
+          status?: string | null
+          times_failed?: number | null
+          times_verified?: number | null
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          content_hash?: string | null
+          created_at?: string | null
+          first_seen_at?: string | null
+          http_status_code?: number | null
+          id?: string
+          is_government_source?: boolean | null
+          language?: string | null
+          last_checked_at?: string | null
+          page_title?: string | null
+          redirect_url?: string | null
+          response_time_ms?: number | null
+          source_name?: string | null
+          status?: string | null
+          times_failed?: number | null
+          times_verified?: number | null
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
+      link_validations: {
+        Row: {
+          article_id: string
+          article_language: string
+          article_slug: string
+          article_topic: string | null
+          broken_links_count: number | null
+          created_at: string
+          external_links: Json | null
+          id: string
+          internal_links: Json | null
+          irrelevant_links_count: number | null
+          language_mismatch_count: number | null
+          validation_date: string
+          validation_status: string | null
+        }
+        Insert: {
+          article_id: string
+          article_language: string
+          article_slug: string
+          article_topic?: string | null
+          broken_links_count?: number | null
+          created_at?: string
+          external_links?: Json | null
+          id?: string
+          internal_links?: Json | null
+          irrelevant_links_count?: number | null
+          language_mismatch_count?: number | null
+          validation_date?: string
+          validation_status?: string | null
+        }
+        Update: {
+          article_id?: string
+          article_language?: string
+          article_slug?: string
+          article_topic?: string | null
+          broken_links_count?: number | null
+          created_at?: string
+          external_links?: Json | null
+          id?: string
+          internal_links?: Json | null
+          irrelevant_links_count?: number | null
+          language_mismatch_count?: number | null
+          validation_date?: string
+          validation_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_validations_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_role_changes: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          performed_by: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          target_user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          target_user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
+          granted_at: string | null
+          granted_by: string | null
           id: string
+          notes: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
           id?: string
+          notes?: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
           id?: string
+          notes?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -353,12 +640,9 @@ export type Database = {
         Args: { extension_name: string }
         Returns: boolean
       }
-      check_stuck_cluster_jobs: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      check_stuck_cluster_jobs: { Args: never; Returns: undefined }
       get_database_triggers: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           action_statement: string
           event_object_table: string
@@ -379,10 +663,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "editor" | "viewer"

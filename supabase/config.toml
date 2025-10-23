@@ -23,3 +23,12 @@ verify_jwt = false
 
 [functions.replace-citation-markers]
 verify_jwt = false
+
+[functions.validate-article-links]
+verify_jwt = false
+
+[functions.discover-better-links]
+verify_jwt = false
+
+[functions.replace-article-links]
+verify_jwt = false
