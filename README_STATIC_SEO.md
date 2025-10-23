@@ -211,10 +211,87 @@ SELECT slug, status FROM blog_articles WHERE status = 'published';
 - After changing templates or schemas
 - After Supabase schema updates
 
+## Manual Rebuild Process
+
+### When to Rebuild
+
+Trigger a site rebuild whenever:
+- ✅ New articles are published
+- ✅ Existing articles are updated
+- ✅ Author information changes
+- ✅ Schemas or templates are modified
+- ✅ Translation content is added/updated
+
+### How to Trigger a Rebuild
+
+#### Method 1: Admin Dashboard (Recommended)
+1. Navigate to **Admin Dashboard** (`/admin`)
+2. Find the **"Static Site Generation"** card (top section)
+3. Click **"Rebuild Static Pages"** button
+4. Wait for confirmation toast (rebuild triggered)
+5. Site will be rebuilt and deployed in **5-10 minutes**
+
+#### Method 2: Manual Deployment
+1. Commit any pending changes to Git
+2. Push to main branch (auto-syncs to Lovable)
+3. In Lovable dashboard, click **"Publish"** button (top right)
+4. Wait for build to complete
+5. Static pages regenerate automatically during build
+
+#### Method 3: Automated (Future)
+- Set up database trigger to auto-rebuild on article publish
+- Use webhook to trigger CI/CD pipeline
+- See "Future Enhancements" section above
+
+### Verification After Rebuild
+
+After triggering a rebuild, verify success:
+
+1. **Check Build Logs** (5-10 minutes after trigger)
+   - Look for: "📄 Generating static pages..."
+   - Look for: "✨ Static generation complete! ✅ Generated: X pages"
+
+2. **Run Verification Script**
+   ```bash
+   npm run verify-ssg
+   ```
+   Expected: "✅ All X articles have valid static pages"
+
+3. **Test Live Site**
+   - Visit a recently published article
+   - Right-click → "View Page Source"
+   - Confirm content and schemas are in HTML
+
+4. **Google Rich Results Test**
+   - Go to: https://search.google.com/test/rich-results
+   - Test updated article URL
+   - Verify all schemas validate
+
+### Troubleshooting Rebuilds
+
+**Issue: Rebuild button doesn't respond**
+- Check browser console for errors
+- Verify user has admin permissions
+- Check network tab for failed requests
+
+**Issue: Rebuild triggered but no changes visible**
+- Wait full 10 minutes for deployment
+- Clear browser cache (Ctrl+Shift+R)
+- Check if LOVABLE_API_KEY is configured
+- Review edge function logs
+
+**Issue: Static pages not regenerating**
+- Verify articles have `status = 'published'`
+- Check Supabase connection during build
+- Review `scripts/generateStaticPages.ts` logs
+- Ensure `NODE_ENV=production` during build
+
 ## Support
 
 For issues or questions:
 1. Check build logs in Lovable console
 2. Review Supabase logs for data fetching errors
 3. Test locally with `npm run build && npm run preview`
-4. Verify article data in Supabase dashboard
+4. Run `npm run verify-ssg` to identify issues
+5. Review `DEPLOYMENT_SSG_CHECKLIST.md` for detailed verification
+6. Use "Rebuild Static Pages" button in Admin Dashboard

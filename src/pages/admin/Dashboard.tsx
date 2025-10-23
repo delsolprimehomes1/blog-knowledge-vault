@@ -3,13 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle } from "@/types/blog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Globe, Plus, AlertCircle, CheckCircle2, Shield } from "lucide-react";
+import { FileText, TrendingUp, Globe, Plus, AlertCircle, CheckCircle2, Shield, RefreshCw, Rocket } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { validateSchemaRequirements } from "@/lib/schemaGenerator";
+import { toast } from "sonner";
+import { useState } from "react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [isRebuilding, setIsRebuilding] = useState(false);
 
   const { data: articles, isLoading, error } = useQuery({
     queryKey: ["articles-stats"],
@@ -111,6 +114,28 @@ const Dashboard = () => {
     ? Math.round((schemaHealth!.valid / articles.length) * 100)
     : 0;
 
+  const handleRebuildSite = async () => {
+    setIsRebuilding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('trigger-rebuild');
+      
+      if (error) throw error;
+      
+      toast.success('Site rebuild triggered!', {
+        description: 'Static pages will regenerate in 5-10 minutes',
+      });
+      
+      console.log('Rebuild response:', data);
+    } catch (error) {
+      console.error('Rebuild error:', error);
+      toast.error('Failed to trigger rebuild', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+      });
+    } finally {
+      setIsRebuilding(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -127,6 +152,43 @@ const Dashboard = () => {
             Create New Article
           </Button>
         </div>
+
+        {/* SSG Status Card */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/10">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Static Site Generation</CardTitle>
+            <Rocket className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-baseline gap-2">
+              <div className="text-2xl font-bold text-primary">
+                {stats.published}
+              </div>
+              <span className="text-xs text-muted-foreground">static pages</span>
+            </div>
+            <Button 
+              onClick={handleRebuildSite} 
+              disabled={isRebuilding}
+              size="sm"
+              className="w-full"
+            >
+              {isRebuilding ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Rebuilding...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Rebuild Static Pages
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Regenerate static HTML for all published articles
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Status Stats */}
         <div className="grid gap-4 md:grid-cols-4">
