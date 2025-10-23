@@ -74,6 +74,7 @@ ultra-realistic, 8k resolution, architectural digest style`;
       });
     } finally {
       setIsGenerating(false);
+      onGeneratingChange?.(false);
     }
   };
 

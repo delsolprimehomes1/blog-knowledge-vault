@@ -603,9 +603,15 @@ const ArticleEditor = () => {
               onImageChange={(url, alt) => {
                 setFeaturedImageUrl(url);
                 setFeaturedImageAlt(alt);
-                setTimeout(() => setIsImageGenerating(false), 500);
               }}
-              onGeneratingChange={setIsImageGenerating}
+              onGeneratingChange={(generating) => {
+                if (generating) {
+                  setIsImageGenerating(true);
+                } else {
+                  // Add 500ms delay after generation completes to ensure state sync
+                  setTimeout(() => setIsImageGenerating(false), 500);
+                }
+              }}
               onImageUpload={(file) => handleImageUpload(file, setFeaturedImageUrl)}
               imageUploading={imageUploading}
             />
