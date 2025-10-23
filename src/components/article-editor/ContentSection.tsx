@@ -2,8 +2,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LazyRichTextEditor } from "@/components/LazyRichTextEditor";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import { countWords, getWordCountStatus } from "@/lib/articleUtils";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface ContentSectionProps {
   speakableAnswer: string;
@@ -26,6 +27,8 @@ export const ContentSection = ({
   const contentText = detailedContent.replace(/<[^>]*>/g, ' ').trim();
   const contentWords = countWords(contentText);
   const contentStatus = getWordCountStatus(contentWords, 1500, 2500);
+  
+  const citationMarkerCount = (detailedContent.match(/\[CITATION_NEEDED\]/g) || []).length;
 
   return (
     <Card>
@@ -33,6 +36,16 @@ export const ContentSection = ({
         <CardTitle>Content</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {citationMarkerCount > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Citation Markers Present</AlertTitle>
+            <AlertDescription>
+              Your content contains {citationMarkerCount} [CITATION_NEEDED] marker{citationMarkerCount !== 1 ? 's' : ''}. 
+              Use the Citation Replacement tool below or manually remove them before saving.
+            </AlertDescription>
+          </Alert>
+        )}
         <div>
           <Label htmlFor="speakableAnswer">Speakable Answer (40-60 words optimal) *</Label>
           <Textarea

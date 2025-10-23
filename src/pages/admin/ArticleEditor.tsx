@@ -241,6 +241,12 @@ const ArticleEditor = () => {
       newErrors.externalCitations = "Maximum 5 citations allowed";
     }
     // Government domains (.gov, .gob.es) are recommended but not required
+
+    // Check for unreplaced citation markers
+    const markerCount = (detailedContent.match(/\[CITATION_NEEDED\]/g) || []).length;
+    if (markerCount > 0) {
+      newErrors.detailedContent = `Cannot save: ${markerCount} [CITATION_NEEDED] marker${markerCount !== 1 ? 's' : ''} must be replaced or removed before saving`;
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

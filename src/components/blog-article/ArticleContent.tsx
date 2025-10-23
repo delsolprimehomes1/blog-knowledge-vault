@@ -50,6 +50,11 @@ export const ArticleContent = ({
   // Process content: sanitize -> bold markers -> external links -> citation markers
   const processContent = (htmlContent: string) => {
     let processed = sanitizeContent(htmlContent);
+    
+    // SAFETY: Remove any [CITATION_NEEDED] markers that shouldn't be visible
+    processed = processed.replace(/\[CITATION_NEEDED:[^\]]*\]/g, '');
+    processed = processed.replace(/\[CITATION_NEEDED\]/g, '');
+    
     processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     processed = injectExternalLinks(processed, externalCitations);
     processed = addCitationMarkers(processed, externalCitations);
