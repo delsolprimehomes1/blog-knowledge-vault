@@ -46,7 +46,7 @@ export const ExternalCitationsSection = ({
       <CardHeader>
         <CardTitle>External Citations (Authority Links)</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Add 2-5 citations. At least one must be from a .gov or .gob.es domain.
+          Add 2-5 citations. At least one should ideally be from a .gov or .gob.es domain.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -131,9 +131,9 @@ export const ExternalCitationsSection = ({
         )}
 
         {citations.length >= 2 && !hasGovDomain && (
-          <p className="text-sm text-amber-600 flex items-center gap-1">
+          <p className="text-sm text-muted-foreground flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
-            At least one citation must be from a .gov or .gob.es domain
+            Recommended: Add at least one citation from a .gov or .gob.es domain for better E-E-A-T
           </p>
         )}
 

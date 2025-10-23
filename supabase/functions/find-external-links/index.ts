@@ -31,12 +31,18 @@ function isGovernmentDomain(url: string): boolean {
     'cqc.org.uk',             // Care Quality Commission
     'ons.gov.uk',             // Office for National Statistics
     
-    // Spanish government
+    // Spanish government (expanded patterns)
     '.gob.es',                 // Spanish government
     '.gob.',                   // Generic Spanish-speaking countries
     'ine.es',                  // Instituto Nacional de Estadística
     'bde.es',                  // Banco de España
     'boe.es',                  // Boletín Oficial del Estado
+    'agenciatributaria.es',    // Spanish Tax Agency
+    'registradores.org',       // Spanish Land Registry
+    'mitma.gob.es',            // Ministry of Transport
+    'inclusion.gob.es',        // Ministry of Inclusion
+    'mjusticia.gob.es',        // Ministry of Justice
+    'exteriores.gob.es',       // Ministry of Foreign Affairs
     
     // European Union
     'europa.eu',               // EU institutions
@@ -171,7 +177,7 @@ Article Language: ${config.languageName}
 Content Preview: ${content.substring(0, 2000)}
 
 CRITICAL REQUIREMENTS:
-- Return MINIMUM 3 citations, ideally 3-5 citations
+- Return MINIMUM 2 citations, ideally 3-5 citations
 - Prioritize official government sources (${config.domains.join(', ')})
 - Include these types of sources: ${config.sources.join(', ')}
 - ALL sources MUST be in ${config.languageName} language (no translations, no foreign sites)
@@ -261,9 +267,10 @@ Return only the JSON array, nothing else.`;
     const validCitations = verifiedCitations.filter(c => c.verified);
     console.log(`${validCitations.length} citations verified successfully`);
 
-    // Ensure minimum 3 citations
-    if (validCitations.length < 3) {
-      console.warn(`Only found ${validCitations.length} valid citations (minimum 3 required)`);
+    // Ensure minimum 2 citations (relaxed due to SSL verification issues)
+    if (validCitations.length < 2) {
+      console.warn(`Only found ${validCitations.length} valid citations (minimum 2 required)`);
+      throw new Error(`Only found ${validCitations.length} verified citations. Need at least 2.`);
     }
 
     // Check if government source requirement is met

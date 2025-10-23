@@ -273,15 +273,22 @@ export const ClusterReviewInterface = ({
                 content: article.detailed_content,
                 headline: article.headline,
                 language: article.language || language,
-                requireGovernmentSource: false
+                requireGovernmentSource: false // Don't require government sources for auto-fix
               }
             });
 
             if (error) {
               console.error(`Failed to find external links for article ${i}:`, error);
             } else if (data.citations && data.citations.length > 0) {
-              updateArticle(i, { external_citations: data.citations });
-              console.log(`✅ Added ${data.citations.length} external citations to article ${i + 1}`);
+              // Merge with existing citations instead of replacing
+              const existingCitations = article.external_citations || [];
+              const newCitations = data.citations.filter((newCit: any) => 
+                !existingCitations.some((existing: any) => existing.url === newCit.url)
+              );
+              const mergedCitations = [...existingCitations, ...newCitations];
+              
+              updateArticle(i, { external_citations: mergedCitations });
+              console.log(`✅ Added ${newCitations.length} new external citations to article ${i + 1} (total: ${mergedCitations.length})`);
             }
           } catch (error) {
             console.error(`Error fixing external citations for article ${i}:`, error);
