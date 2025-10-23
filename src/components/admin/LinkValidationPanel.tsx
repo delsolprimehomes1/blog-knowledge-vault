@@ -199,7 +199,7 @@ export const LinkValidationPanel = ({ articleId, articleSlug }: LinkValidationPa
             <div className="space-y-4">
               <h4 className="font-semibold">External Links</h4>
               {validation.externalLinks.map((link, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-2">
+                <div key={index} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <a 
@@ -221,30 +221,91 @@ export const LinkValidationPanel = ({ articleId, articleSlug }: LinkValidationPa
                       ) : (
                         <XCircle className="h-5 w-5 text-destructive" />
                       )}
-                      {link.relevanceScore !== null && (
-                        <Badge variant={link.relevanceScore >= 70 ? "default" : "secondary"}>
-                          {link.relevanceScore}% relevant
-                        </Badge>
-                      )}
                     </div>
                   </div>
 
-                  {(!link.isWorking || (link.isRelevant === false)) && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDiscoverBetterLink(link.url, "")}
-                        disabled={isDiscovering}
+                  {/* Quality Indicators */}
+                  <div className="flex flex-wrap gap-2">
+                    {link.relevanceScore !== null && (
+                      <Badge variant={link.relevanceScore >= 70 ? "default" : "secondary"}>
+                        {link.relevanceScore}% relevant
+                      </Badge>
+                    )}
+                    {link.authorityLevel && (
+                      <Badge 
+                        variant={link.authorityLevel === 'high' ? "default" : link.authorityLevel === 'medium' ? "secondary" : "outline"}
                       >
-                        Find Better Alternative
-                      </Button>
+                        {link.authorityLevel} authority
+                      </Badge>
+                    )}
+                    {link.contentQuality && (
+                      <Badge variant={link.contentQuality === 'excellent' || link.contentQuality === 'good' ? "default" : "outline"}>
+                        {link.contentQuality} quality
+                      </Badge>
+                    )}
+                    {link.language && (
+                      <Badge variant="outline">{link.language}</Badge>
+                    )}
+                  </div>
+
+                  {/* Recommendations */}
+                  {link.recommendations && link.recommendations.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded p-2 space-y-1">
+                      <p className="text-xs font-medium text-amber-900">💡 Recommendations:</p>
+                      <ul className="text-xs text-amber-800 space-y-0.5">
+                        {link.recommendations.map((rec, idx) => (
+                          <li key={idx}>• {rec}</li>
+                        ))}
+                      </ul>
                     </div>
                   )}
 
+                  {/* Alternative Sources from AI */}
+                  {link.alternativeSources && link.alternativeSources.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded p-2 space-y-1">
+                      <p className="text-xs font-medium text-blue-900">🔗 AI-Suggested Alternatives:</p>
+                      <div className="space-y-1">
+                        {link.alternativeSources.slice(0, 3).map((altUrl, idx) => (
+                          <div key={idx} className="flex items-center justify-between gap-2">
+                            <a 
+                              href={altUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-700 hover:underline flex items-center gap-1 truncate"
+                            >
+                              {altUrl}
+                              <ExternalLink className="h-2.5 w-2.5 flex-shrink-0" />
+                            </a>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => handleReplaceLink(link.url, altUrl)}
+                            >
+                              Use This
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Discover Better Links Button */}
+                  {(!link.isWorking || (link.isRelevant === false) || (link.contentQuality === 'poor')) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDiscoverBetterLink(link.url, link.contentSummary || "")}
+                      disabled={isDiscovering}
+                    >
+                      Find More Alternatives
+                    </Button>
+                  )}
+
+                  {/* Manual Suggestions (from discover button) */}
                   {suggestions.has(link.url) && (
                     <div className="mt-2 space-y-2">
-                      <p className="text-sm font-medium">Suggested Alternatives:</p>
+                      <p className="text-sm font-medium">🔍 Additional Alternatives:</p>
                       {suggestions.get(link.url)?.map((suggestion, idx) => (
                         <div key={idx} className="bg-muted p-3 rounded space-y-1">
                           <div className="flex items-center justify-between">

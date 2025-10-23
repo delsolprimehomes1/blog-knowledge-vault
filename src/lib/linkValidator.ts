@@ -8,6 +8,10 @@ export interface LinkValidationResult {
   contentSummary: string | null;
   isRelevant: boolean | null;
   relevanceScore: number | null;
+  recommendations: string[];
+  alternativeSources: string[];
+  authorityLevel: string | null;
+  contentQuality: string | null;
   error: string | null;
 }
 

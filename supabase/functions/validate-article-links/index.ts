@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { analyzeLinksWithPerplexity } from "../shared/perplexityLinkAnalyzer.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +15,10 @@ interface LinkValidationResult {
   contentSummary: string | null;
   isRelevant: boolean | null;
   relevanceScore: number | null;
+  recommendations: string[];
+  alternativeSources: string[];
+  authorityLevel: string | null;
+  contentQuality: string | null;
   error: string | null;
 }
 
@@ -54,10 +59,51 @@ serve(async (req) => {
 
     console.log(`Found ${externalLinks.length} external and ${internalLinks.length} internal links`);
 
-    // Validate external links
-    const externalValidations = await Promise.all(
-      externalLinks.map(url => validateExternalLink(url, article, perplexityApiKey))
+    // First, check if external links are accessible
+    const externalAccessibilityChecks = await Promise.all(
+      externalLinks.map(url => checkLinkAccessibility(url))
     );
+
+    // Filter working links for Perplexity analysis
+    const workingExternalLinks = externalLinks.filter((_, index) => 
+      externalAccessibilityChecks[index].isWorking
+    );
+
+    // Batch analyze all working external links with Perplexity
+    let perplexityAnalysis = null;
+    if (perplexityApiKey && workingExternalLinks.length > 0) {
+      try {
+        console.log(`Analyzing ${workingExternalLinks.length} working links with Perplexity...`);
+        perplexityAnalysis = await analyzeLinksWithPerplexity(
+          article.detailed_content,
+          article.headline,
+          article.language,
+          workingExternalLinks,
+          perplexityApiKey
+        );
+        console.log('Perplexity analysis complete');
+      } catch (error) {
+        console.error('Perplexity analysis failed:', error);
+        // Continue without Perplexity analysis
+      }
+    }
+
+    // Combine accessibility checks with Perplexity intelligence
+    const externalValidations = externalAccessibilityChecks.map((check, index) => {
+      const url = externalLinks[index];
+      const analysis = perplexityAnalysis?.analyses[url];
+
+      return {
+        ...check,
+        contentSummary: analysis?.contentSummary || null,
+        isRelevant: analysis?.isRelevant ?? null,
+        relevanceScore: analysis?.relevanceScore ?? null,
+        recommendations: analysis?.recommendations || [],
+        alternativeSources: analysis?.alternativeSources || [],
+        authorityLevel: analysis?.authorityLevel || null,
+        contentQuality: analysis?.contentQuality || null,
+      };
+    });
 
     // Validate internal links
     const internalValidations = await Promise.all(
@@ -156,13 +202,8 @@ function extractInternalLinks(content: string): string[] {
   return [...new Set(links)];
 }
 
-async function validateExternalLink(
-  url: string, 
-  article: any, 
-  perplexityApiKey: string | undefined
-): Promise<LinkValidationResult> {
+async function checkLinkAccessibility(url: string): Promise<LinkValidationResult> {
   try {
-    // Check if URL is accessible
     const response = await fetch(url, {
       method: 'HEAD',
       redirect: 'follow',
@@ -175,35 +216,18 @@ async function validateExternalLink(
     const isWorking = response.ok || response.status === 403;
     const language = detectLanguageFromUrl(url);
 
-    // Use Perplexity to assess relevance if available
-    let contentSummary = null;
-    let isRelevant = null;
-    let relevanceScore = null;
-
-    if (perplexityApiKey && isWorking) {
-      try {
-        const relevanceResult = await assessRelevanceWithPerplexity(
-          url,
-          article.headline,
-          article.detailed_content.substring(0, 500),
-          perplexityApiKey
-        );
-        contentSummary = relevanceResult.summary;
-        isRelevant = relevanceResult.isRelevant;
-        relevanceScore = relevanceResult.score;
-      } catch (perplexityError) {
-        console.warn('Perplexity assessment failed:', perplexityError);
-      }
-    }
-
     return {
       url,
       isWorking,
       statusCode: response.status,
       language,
-      contentSummary,
-      isRelevant,
-      relevanceScore,
+      contentSummary: null,
+      isRelevant: null,
+      relevanceScore: null,
+      recommendations: [],
+      alternativeSources: [],
+      authorityLevel: null,
+      contentQuality: null,
       error: null,
     };
   } catch (error) {
@@ -215,6 +239,10 @@ async function validateExternalLink(
       contentSummary: null,
       isRelevant: null,
       relevanceScore: null,
+      recommendations: [],
+      alternativeSources: [],
+      authorityLevel: null,
+      contentQuality: null,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -241,6 +269,10 @@ async function validateInternalLink(url: string, supabase: any): Promise<LinkVal
       contentSummary: null,
       isRelevant: true, // Internal links are assumed relevant
       relevanceScore: isWorking ? 100 : 0,
+      recommendations: isWorking ? [] : ['Update or remove this broken internal link'],
+      alternativeSources: [],
+      authorityLevel: 'high',
+      contentQuality: isWorking ? 'excellent' : 'poor',
       error: error?.message || (!data ? 'Article not found' : null),
     };
   } catch (error) {
@@ -252,6 +284,10 @@ async function validateInternalLink(url: string, supabase: any): Promise<LinkVal
       contentSummary: null,
       isRelevant: null,
       relevanceScore: null,
+      recommendations: [],
+      alternativeSources: [],
+      authorityLevel: null,
+      contentQuality: null,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -266,60 +302,4 @@ function detectLanguageFromUrl(url: string): string | null {
   if (lowerUrl.includes('.nl')) return 'nl';
   
   return null;
-}
-
-async function assessRelevanceWithPerplexity(
-  url: string,
-  articleHeadline: string,
-  articlePreview: string,
-  apiKey: string
-): Promise<{ summary: string; isRelevant: boolean; score: number }> {
-  const prompt = `Analyze the relevance of this external link to the article.
-
-Article: "${articleHeadline}"
-Preview: ${articlePreview}
-External Link: ${url}
-
-Provide:
-1. A brief summary of what the linked page is about (1-2 sentences)
-2. Whether it's relevant to the article (yes/no)
-3. A relevance score (0-100)
-
-Return ONLY valid JSON in this format:
-{
-  "summary": "Brief description of the linked page",
-  "isRelevant": true,
-  "score": 85
-}`;
-
-  const response = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'sonar',
-      messages: [
-        { role: 'system', content: 'You are a content relevance analyzer. Return only valid JSON.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.2,
-      max_tokens: 300,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Perplexity API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const content = data.choices[0].message.content;
-  
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return JSON.parse(jsonMatch[0]);
-  }
-
-  throw new Error('Invalid JSON response from Perplexity');
 }
