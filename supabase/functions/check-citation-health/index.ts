@@ -230,6 +230,20 @@ serve(async (req) => {
     for (const url of uniqueUrls) {
       const healthResult = await checkCitationHealth(url);
       
+      // Fetch existing record to get current counter values
+      const { data: existingHealth } = await supabase
+        .from('external_citation_health')
+        .select('times_verified, times_failed')
+        .eq('url', healthResult.url)
+        .maybeSingle();
+
+      // Calculate new counter values
+      const isSuccessful = healthResult.status === 'healthy' || healthResult.status === 'redirected';
+      const isFailed = healthResult.status === 'broken' || healthResult.status === 'unreachable';
+      
+      const newTimesVerified = (existingHealth?.times_verified || 0) + (isSuccessful ? 1 : 0);
+      const newTimesFailed = (existingHealth?.times_failed || 0) + (isFailed ? 1 : 0);
+      
       // Update external_citation_health table
       const { error: upsertError } = await supabase
         .from('external_citation_health')
@@ -242,10 +256,8 @@ serve(async (req) => {
           response_time_ms: healthResult.responseTimeMs,
           redirect_url: healthResult.redirectUrl,
           page_title: healthResult.pageTitle,
-          times_verified: healthResult.status === 'healthy' || healthResult.status === 'redirected' ? 
-            supabase.rpc('increment', { field: 'times_verified' }) : undefined,
-          times_failed: healthResult.status === 'broken' || healthResult.status === 'unreachable' ? 
-            supabase.rpc('increment', { field: 'times_failed' }) : undefined,
+          times_verified: newTimesVerified,
+          times_failed: newTimesFailed,
         }, {
           onConflict: 'url'
         });
