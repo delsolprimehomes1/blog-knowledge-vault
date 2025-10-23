@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Image, BarChart3, Link2, Link, Loader2, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { BatchLinkValidator } from "@/components/admin/BatchLinkValidator";
 
 export default function AITools() {
   const [testingImage, setTestingImage] = useState(false);
@@ -428,6 +429,9 @@ export default function AITools() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Batch Link Validation */}
+        <BatchLinkValidator />
 
       </div>
     </AdminLayout>
