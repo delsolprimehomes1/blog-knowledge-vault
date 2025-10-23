@@ -71,6 +71,7 @@ const ArticleEditor = () => {
   const [translations, setTranslations] = useState<Record<string, string>>({});
 
   const [imageUploading, setImageUploading] = useState(false);
+  const [isImageGenerating, setIsImageGenerating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Fetch categories
@@ -602,7 +603,9 @@ const ArticleEditor = () => {
               onImageChange={(url, alt) => {
                 setFeaturedImageUrl(url);
                 setFeaturedImageAlt(alt);
+                setTimeout(() => setIsImageGenerating(false), 500);
               }}
+              onGeneratingChange={setIsImageGenerating}
               onImageUpload={(file) => handleImageUpload(file, setFeaturedImageUrl)}
               imageUploading={imageUploading}
             />
@@ -736,7 +739,7 @@ const ArticleEditor = () => {
           <Button
             variant="outline"
             onClick={() => saveMutation.mutate('draft')}
-            disabled={saveMutation.isPending}
+            disabled={saveMutation.isPending || isImageGenerating}
           >
             <Save className="h-4 w-4 mr-2" />
             Save as Draft
@@ -752,7 +755,7 @@ const ArticleEditor = () => {
             </Button>
             <Button
               onClick={() => saveMutation.mutate('published')}
-              disabled={saveMutation.isPending}
+              disabled={saveMutation.isPending || isImageGenerating}
             >
               <Save className="h-4 w-4 mr-2" />
               Publish Article

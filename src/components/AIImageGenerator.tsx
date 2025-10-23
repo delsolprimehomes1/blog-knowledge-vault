@@ -12,12 +12,14 @@ interface AIImageGeneratorProps {
   imageUrl: string;
   imageAlt: string;
   onImageChange: (url: string, alt: string) => void;
+  onGeneratingChange?: (generating: boolean) => void;
   onImageUpload: (file: File) => Promise<void>;
   imageUploading: boolean;
 }
 
 export const AIImageGenerator = ({
   headline,
+  onGeneratingChange,
   imageUrl,
   imageAlt,
   onImageChange,
@@ -40,6 +42,7 @@ ultra-realistic, 8k resolution, architectural digest style`;
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    onGeneratingChange?.(true);
     setGeneratedImages([]);
 
     try {
