@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Edit, Eye, Trash2, Plus } from "lucide-react";
+import { Search, Edit, Eye, Trash2, Plus, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Articles = () => {
@@ -21,7 +21,7 @@ const Articles = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  const { data: articles, isLoading } = useQuery({
+  const { data: articles, isLoading, error } = useQuery({
     queryKey: ["articles"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -48,6 +48,31 @@ const Articles = () => {
       return data;
     },
   });
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="container mx-auto p-6">
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center space-y-4">
+                <AlertCircle className="h-16 w-16 mx-auto text-destructive" />
+                <h2 className="text-2xl font-bold">Unable to Load Articles</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  {error instanceof Error 
+                    ? error.message 
+                    : "There was a problem loading your articles. Please try again."}
+                </p>
+                <Button onClick={() => window.location.reload()}>
+                  Reload Page
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   // Filter articles
   const filteredArticles = articles?.filter(article => {

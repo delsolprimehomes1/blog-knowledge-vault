@@ -128,7 +128,7 @@ const ArticleEditor = () => {
   });
 
   // Fetch article if editing
-  const { data: article } = useQuery({
+  const { data: article, isLoading: articleLoading, error: articleError } = useQuery({
     queryKey: ["article", id],
     enabled: isEditing,
     queryFn: async () => {
@@ -136,8 +136,11 @@ const ArticleEditor = () => {
         .from("blog_articles")
         .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
+      
       if (error) throw error;
+      if (!data) throw new Error("Article not found");
+      
       return data;
     },
   });
@@ -320,6 +323,53 @@ const ArticleEditor = () => {
       }
     },
   });
+
+  if (isEditing && articleLoading) {
+    return (
+      <AdminLayout>
+        <div className="container mx-auto p-6">
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center space-y-2">
+                <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
+                <p className="text-muted-foreground">Loading article...</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (isEditing && articleError) {
+    return (
+      <AdminLayout>
+        <div className="container mx-auto p-6">
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center space-y-4">
+                <AlertCircle className="h-16 w-16 mx-auto text-destructive" />
+                <h2 className="text-2xl font-bold">Unable to Load Article</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  {articleError instanceof Error 
+                    ? articleError.message 
+                    : "There was a problem loading this article. Please try again."}
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={() => window.location.reload()}>
+                    Reload Page
+                  </Button>
+                  <Button onClick={() => navigate('/admin/articles')} variant="outline">
+                    Back to Articles
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>

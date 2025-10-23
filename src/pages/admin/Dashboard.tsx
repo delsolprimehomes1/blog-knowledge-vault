@@ -3,14 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle } from "@/types/blog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Globe, Plus } from "lucide-react";
+import { FileText, TrendingUp, Globe, Plus, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const { data: articles } = useQuery({
+  const { data: articles, isLoading, error } = useQuery({
     queryKey: ["articles-stats"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -23,6 +23,58 @@ const Dashboard = () => {
       return data as unknown as BlogArticle[];
     },
   });
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="container mx-auto p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+              <p className="text-muted-foreground">Loading statistics...</p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[1, 2, 3].map(i => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="animate-pulse space-y-2">
+                    <div className="h-4 bg-muted rounded w-1/2"></div>
+                    <div className="h-8 bg-muted rounded w-1/3"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="container mx-auto p-6">
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center space-y-4">
+                <AlertCircle className="h-16 w-16 mx-auto text-destructive" />
+                <h2 className="text-2xl font-bold">Unable to Load Dashboard</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  {error instanceof Error 
+                    ? error.message 
+                    : "There was a problem loading dashboard statistics. Please try again."}
+                </p>
+                <Button onClick={() => window.location.reload()}>
+                  Reload Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   // Calculate statistics
   const stats = {

@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle } from "@/types/blog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText } from "lucide-react";
+import { FileText, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const ArticlesTable = () => {
-  const { data: articles, isLoading } = useQuery({
+  const { data: articles, isLoading, error } = useQuery({
     queryKey: ["articles"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -28,6 +29,31 @@ export const ArticlesTable = () => {
           <CardTitle>Blog Articles</CardTitle>
           <CardDescription>Loading articles...</CardDescription>
         </CardHeader>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Blog Articles</CardTitle>
+          <CardDescription>Error loading articles</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+            <AlertCircle className="h-12 w-12 text-destructive" />
+            <h3 className="text-lg font-semibold">Unable to Load Articles</h3>
+            <p className="text-sm text-muted-foreground max-w-md">
+              {error instanceof Error 
+                ? error.message 
+                : "There was a problem loading articles from the database."}
+            </p>
+            <Button size="sm" onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
       </Card>
     );
   }

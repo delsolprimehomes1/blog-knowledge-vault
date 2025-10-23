@@ -2,6 +2,8 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet";
+import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ArticleHeader } from "@/components/blog-article/ArticleHeader";
 import { SpeakableBox } from "@/components/blog-article/SpeakableBox";
 import { TableOfContents } from "@/components/blog-article/TableOfContents";
@@ -19,7 +21,7 @@ import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 const BlogArticle = () => {
   const { slug } = useParams<{ slug: string }>();
 
-  const { data: article, isLoading } = useQuery({
+  const { data: article, isLoading, error } = useQuery({
     queryKey: ["article", slug],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -105,6 +107,28 @@ const BlogArticle = () => {
             <div className="h-8 bg-muted rounded w-3/4"></div>
             <div className="h-4 bg-muted rounded w-1/2"></div>
             <div className="h-64 bg-muted rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto text-center space-y-4">
+          <AlertCircle className="h-16 w-16 mx-auto text-destructive" />
+          <h1 className="text-3xl font-bold mb-4">Error Loading Article</h1>
+          <p className="text-muted-foreground">
+            {error instanceof Error ? error.message : "Unable to load this article. Please try again."}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => window.location.reload()} variant="default">
+              Reload Page
+            </Button>
+            <Button onClick={() => window.history.back()} variant="outline">
+              Go Back
+            </Button>
           </div>
         </div>
       </div>
