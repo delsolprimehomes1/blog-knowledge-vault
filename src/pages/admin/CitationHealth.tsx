@@ -108,6 +108,7 @@ const CitationHealth = () => {
   const runHealthCheck = useMutation({
     mutationFn: async () => {
       setCheckProgress({ current: 0, total: 100 });
+      setIsRunningCheck(true);
       
       const { data, error } = await supabase.functions.invoke("check-citation-health");
       if (error) throw error;
@@ -138,9 +139,11 @@ const CitationHealth = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["citation-health"] });
       setCheckProgress({ current: 0, total: 0 });
+      setIsRunningCheck(false);
     },
     onError: () => {
       setCheckProgress({ current: 0, total: 0 });
+      setIsRunningCheck(false);
     }
   });
 
@@ -499,9 +502,13 @@ const CitationHealth = () => {
               onClick={() => populateCitationTracking.mutate()}
               disabled={populateCitationTracking.isPending}
               variant="outline"
+              title="Sync citation tracking data for all articles"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              {populateCitationTracking.isPending ? "Populating..." : "Populate Tracking"}
+              {populateCitationTracking.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Syncing...</>
+              ) : (
+                <><RefreshCw className="mr-2 h-4 w-4" /> Sync Citation Tracking</>
+              )}
             </Button>
             <Button 
               onClick={() => { setIsRunningCheck(true); runHealthCheck.mutateAsync().finally(() => setIsRunningCheck(false)); }} 

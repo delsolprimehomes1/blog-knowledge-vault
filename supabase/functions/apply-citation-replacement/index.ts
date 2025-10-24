@@ -69,6 +69,7 @@ serve(async (req) => {
       }
 
       // Find articles using this citation
+      // First try citation_usage_tracking (fast path)
       const { data: usageRecords, error: usageError } = await supabase
         .from('citation_usage_tracking')
         .select('article_id')
@@ -77,7 +78,29 @@ serve(async (req) => {
 
       if (usageError) throw usageError;
 
-      const articleIds = [...new Set(usageRecords?.map(r => r.article_id) || [])];
+      let articleIds = [...new Set(usageRecords?.map(r => r.article_id) || [])];
+
+      // FALLBACK: If tracking table is empty, query articles directly
+      if (articleIds.length === 0) {
+        console.log('⚠️ No tracking records found, querying articles directly...');
+        
+        const { data: allArticles, error: articleError } = await supabase
+          .from('blog_articles')
+          .select('id, external_citations')
+          .not('external_citations', 'is', null);
+        
+        if (articleError) throw articleError;
+        
+        // Filter articles that contain this URL in their citations
+        const matchingArticles = (allArticles || []).filter(article => {
+          const citations = article.external_citations as any[];
+          return citations && citations.some((c: any) => c.url === replacement.original_url);
+        });
+        
+        articleIds = matchingArticles.map(a => a.id);
+        console.log(`🔍 Direct query found ${articleIds.length} articles with this URL`);
+      }
+
       console.log(`📚 Found ${articleIds.length} articles to update`);
 
       let replacementCount = 0;
@@ -178,17 +201,66 @@ serve(async (req) => {
         }
       }
 
-      if (!preview && articleIds.length > 0) {
-        // Mark replacement as applied
-        await supabase
-          .from('dead_link_replacements')
-          .update({
-            status: 'applied',
-            applied_at: new Date().toISOString(),
-            applied_to_articles: articleIds,
-            replacement_count: replacementCount
-          })
-          .eq('id', replacement.id);
+      // Only mark as 'applied' if we actually updated articles
+      if (!preview) {
+        if (articleIds.length > 0 && replacementCount > 0) {
+          // SUCCESS: We found and updated articles
+          await supabase
+            .from('dead_link_replacements')
+            .update({
+              status: 'applied',
+              applied_at: new Date().toISOString(),
+              applied_to_articles: articleIds,
+              replacement_count: replacementCount
+            })
+            .eq('id', replacement.id);
+          
+          // Mark old URL as replaced in health table
+          await supabase
+            .from('external_citation_health')
+            .update({ 
+              status: 'replaced',
+              updated_at: new Date().toISOString()
+            })
+            .eq('url', replacement.original_url);
+
+          // Add new URL to health tracking if not already present
+          const { data: existingHealth } = await supabase
+            .from('external_citation_health')
+            .select('id')
+            .eq('url', replacement.replacement_url)
+            .maybeSingle();
+
+          if (!existingHealth) {
+            await supabase
+              .from('external_citation_health')
+              .insert({
+                url: replacement.replacement_url,
+                source_name: replacement.replacement_source,
+                status: 'pending',
+                first_seen_at: new Date().toISOString(),
+                created_at: new Date().toISOString()
+              });
+            
+            console.log(`➕ Added replacement URL to health tracking: ${replacement.replacement_url}`);
+          }
+          
+          console.log(`✅ Replacement marked as applied: ${replacementCount} citations in ${articleIds.length} articles`);
+        } else if (articleIds.length === 0) {
+          // NO ARTICLES FOUND: Mark as failed, not applied
+          await supabase
+            .from('dead_link_replacements')
+            .update({
+              status: 'failed',
+              replacement_reason: `Original URL not found in any articles. May have been replaced already or tracking data is stale.`
+            })
+            .eq('id', replacement.id);
+          
+          console.log(`❌ Replacement marked as failed: Original URL not found in any articles`);
+        } else {
+          // FOUND ARTICLES BUT NO CITATIONS: This is weird, log it
+          console.log(`⚠️ Found ${articleIds.length} articles but updated 0 citations - possible data inconsistency`);
+        }
       }
 
       results.push({
