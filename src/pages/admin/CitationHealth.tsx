@@ -81,7 +81,7 @@ const CitationHealth = () => {
   const { data: replacements } = useQuery({
     queryKey: ["dead-link-replacements"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("dead_link_replacements").select("*").eq("status", "pending").order("confidence_score", { ascending: false });
+      const { data, error } = await supabase.from("dead_link_replacements").select("*").in("status", ["pending", "suggested"]).order("confidence_score", { ascending: false });
       if (error) throw error;
       return data as DeadLinkReplacement[];
     },
@@ -302,18 +302,26 @@ const CitationHealth = () => {
       
       if (error) throw error;
       
-      // Save suggestions to dead_link_replacements table
+      // Save suggestions to dead_link_replacements table with auto-selection
       if (data?.suggestions && data.suggestions.length > 0) {
-        const replacementsToInsert = data.suggestions.slice(0, 3).map((s: any) => ({
+        // Calculate confidence scores and sort by highest first
+        const scoredSuggestions = data.suggestions.map((s: any) => ({
+          ...s,
+          calculatedScore: Math.min(9.99, 
+            parseFloat(((s.relevanceScore / 10) * 0.4 + s.authorityScore * 0.6).toFixed(2))
+          )
+        })).sort((a, b) => b.calculatedScore - a.calculatedScore);
+
+        // Prepare replacements with auto-approval for best one if score >= 8.0
+        const replacementsToInsert = scoredSuggestions.slice(0, 3).map((s: any, index: number) => ({
           original_url: url,
           original_source: 'Auto-detected broken link',
           replacement_url: s.suggestedUrl,
           replacement_source: s.sourceName,
           replacement_reason: s.reason,
-          confidence_score: Math.min(9.99, 
-            parseFloat(((s.relevanceScore / 10) * 0.4 + s.authorityScore * 0.6).toFixed(2))
-          ),
-          status: s.verified ? 'suggested' : 'pending',
+          confidence_score: s.calculatedScore,
+          // Auto-approve ONLY the best one IF score >= 8.0
+          status: (index === 0 && s.calculatedScore >= 8.0) ? 'approved' : 'pending',
           suggested_by: 'ai'
         }));
         
@@ -323,8 +331,26 @@ const CitationHealth = () => {
         
         if (insertError) throw insertError;
         
-        toast.success(`Found ${data.suggestions.length} replacement suggestions!`);
+        // Enhanced feedback
+        const bestScore = replacementsToInsert[0].confidence_score;
+        const wasAutoApproved = replacementsToInsert[0].status === 'approved';
+
+        if (wasAutoApproved) {
+          toast.success(
+            `✅ Auto-approved best replacement (score: ${bestScore}/10)\n` +
+            `${data.suggestions.length > 1 ? `${data.suggestions.length - 1} alternatives saved for review` : 'No alternatives found'}`,
+            { duration: 4000 }
+          );
+        } else {
+          toast.success(
+            `Found ${data.suggestions.length} suggestions - Best score: ${bestScore}/10\n` +
+            `⚠️ Manual review required (threshold: 8.0/10)`,
+            { duration: 4000 }
+          );
+        }
+        
         queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
+        queryClient.invalidateQueries({ queryKey: ["approved-replacements"] });
       } else {
         toast.warning("No suitable replacements found");
       }
@@ -419,9 +445,17 @@ const CitationHealth = () => {
             {replacements && replacements.length > 0 ? (
               <Card><CardContent className="pt-6 space-y-4">
                 {replacements.map(r => (
-                  <Card key={r.id}><CardContent className="pt-4 flex justify-between">
-                    <div><p className="text-sm text-red-600 truncate">{r.original_url}</p><p className="text-sm text-green-600">→ {r.replacement_url}</p></div>
-                    <div className="flex gap-2"><Button size="sm" onClick={() => approveReplacement.mutate(r.id)}><ThumbsUp className="h-4 w-4" /></Button><Button size="sm" variant="outline" onClick={() => rejectReplacement.mutate(r.id)}><ThumbsDown className="h-4 w-4" /></Button></div>
+                  <Card key={r.id}><CardContent className="pt-4 flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="font-mono">{r.confidence_score}/10</Badge>
+                        <span className="text-xs text-muted-foreground">{r.replacement_source}</span>
+                      </div>
+                      <p className="text-sm text-red-600 truncate">{r.original_url}</p>
+                      <p className="text-sm text-green-600 font-medium">→ {r.replacement_url}</p>
+                      {r.replacement_reason && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.replacement_reason}</p>}
+                    </div>
+                    <div className="flex gap-2 ml-4"><Button size="sm" onClick={() => approveReplacement.mutate(r.id)}><ThumbsUp className="h-4 w-4" /></Button><Button size="sm" variant="outline" onClick={() => rejectReplacement.mutate(r.id)}><ThumbsDown className="h-4 w-4" /></Button></div>
                   </CardContent></Card>
                 ))}
               </CardContent></Card>
@@ -434,9 +468,18 @@ const CitationHealth = () => {
                 <CardHeader><div className="flex justify-between"><CardTitle>Ready to Apply</CardTitle>{selectedReplacements.length > 0 && <Button onClick={handleBulkApply}><Play className="h-4 w-4 mr-2" />Apply ({selectedReplacements.length})</Button>}</div></CardHeader>
                 <CardContent className="space-y-4">
                   {approvedReplacements.map(r => (
-                    <Card key={r.id}><CardContent className="pt-4 flex gap-3">
+                    <Card key={r.id}><CardContent className="pt-4 flex gap-3 items-start">
                       <Checkbox checked={selectedReplacements.includes(r.id)} onCheckedChange={(c) => setSelectedReplacements(p => c ? [...p, r.id] : p.filter(i => i !== r.id))} />
-                      <div className="flex-1"><p className="text-sm truncate">{r.original_url}</p><p className="text-sm text-green-600">→ {r.replacement_url}</p></div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="font-mono">{r.confidence_score}/10</Badge>
+                          {r.confidence_score >= 8.0 && <Badge className="bg-purple-600 hover:bg-purple-700">🤖 Auto-Approved</Badge>}
+                          <span className="text-xs text-muted-foreground">{r.replacement_source}</span>
+                        </div>
+                        <p className="text-sm truncate">{r.original_url}</p>
+                        <p className="text-sm text-green-600 font-medium">→ {r.replacement_url}</p>
+                        {r.replacement_reason && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.replacement_reason}</p>}
+                      </div>
                       <Button size="sm" onClick={() => getPreview(r)}><Play className="h-4 w-4 mr-1" />Apply</Button>
                     </CardContent></Card>
                   ))}
