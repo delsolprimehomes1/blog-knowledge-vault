@@ -265,12 +265,24 @@ const CitationHealth = () => {
       toast.info("Searching for replacement...", { duration: 2000 });
       
       // Find which article(s) use this citation
-      const { data: articles } = await supabase
+      // Fetch all articles and filter in JavaScript since JSONB array queries are complex
+      const { data: allArticles } = await supabase
         .from('blog_articles')
         .select('id, headline, detailed_content, language, external_citations')
-        .contains('external_citations', [{ url }]);
+        .not('external_citations', 'is', null);
       
-      if (!articles || articles.length === 0) {
+      if (!allArticles) {
+        toast.error("Failed to fetch articles");
+        return;
+      }
+
+      // Filter articles that contain this URL in their external_citations
+      const articles = allArticles.filter(article => {
+        const citations = article.external_citations as any[];
+        return citations && citations.some((citation: any) => citation.url === url);
+      });
+      
+      if (articles.length === 0) {
         toast.error("Citation not found in any article");
         return;
       }
