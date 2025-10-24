@@ -38,7 +38,7 @@ async function verifyStaticPages(distDir: string): Promise<void> {
   // Fetch published articles
   const { data: articles, error } = await supabase
     .from('blog_articles')
-    .select('slug, title, status')
+    .select('slug, headline, status')
     .eq('status', 'published');
 
   if (error) {
