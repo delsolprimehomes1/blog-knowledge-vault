@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getAllApprovedDomains, generateSiteQuery, isApprovedDomain, getDomainCategory } from '../shared/approvedDomains.ts';
+import { TOP_20_PRIORITY_DOMAINS } from '../shared/priorityDomains.ts';
+import { isApprovedDomain, getDomainCategory } from '../shared/approvedDomains.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -137,50 +138,39 @@ serve(async (req) => {
     // Language-specific configurations
     const languageConfig: Record<string, {
       instruction: string;
-      domains: string[];
       sources: string[];
       languageName: string;
       exampleDomain: string;
-      siteQuery: string;
     }> = {
       es: {
-        instruction: 'Find 3-5 authoritative sources from APPROVED domains only',
-        domains: getAllApprovedDomains(),
+        instruction: 'Find 3-5 authoritative sources from TOP PRIORITY domains only',
         sources: [
           'Government (.gob.es): boe.es, agenciatributaria.es, juntadeandalucia.es',
-          'News: surinenglish.com, euroweeklynews.com, theolivepress.es',
-          'Legal: legalservicesinspain.com, costaluzlawyers.es',
-          'Travel: malagaturismo.com, andalucia.com, visitcostadelsol.com'
+          'News: surinenglish.com, euroweeklynews.com',
+          'Tourism: visitcostadelsol.com, malagaturismo.com, andalucia.org'
         ],
         languageName: 'Spanish',
-        exampleDomain: 'https://surinenglish.com/...',
-        siteQuery: generateSiteQuery()
+        exampleDomain: 'https://surinenglish.com/...'
       },
       en: {
-        instruction: 'Find 3-5 authoritative sources from APPROVED domains only',
-        domains: getAllApprovedDomains(),
+        instruction: 'Find 3-5 authoritative sources from TOP PRIORITY domains only',
         sources: [
-          'Government housing agencies',
-          'Property registries',
-          'Financial authorities (SEC, Federal Reserve)',
-          'Legal and regulatory sources'
+          'Government: gov.uk, boe.es',
+          'Financial authorities: bde.es, ine.es, ecb.europa.eu',
+          'Legal: e-justice.europa.eu'
         ],
         languageName: 'English',
-        exampleDomain: 'https://www.hud.gov/...',
-        siteQuery: generateSiteQuery()
+        exampleDomain: 'https://www.gov.uk/...'
       },
       nl: {
-        instruction: 'Find 3-5 authoritative sources from APPROVED domains only',
-        domains: getAllApprovedDomains(),
+        instruction: 'Find 3-5 authoritative sources from TOP PRIORITY domains only',
         sources: [
-          'Dutch government sources (Nederlandse overheid)',
-          'Land registry (Kadaster)',
-          'Financial authorities (De Nederlandsche Bank)',
-          'Legal and regulatory sources'
+          'Government sources: exteriores.gob.es, gov.uk',
+          'Financial authorities: bde.es, ine.es',
+          'Legal: e-justice.europa.eu'
         ],
         languageName: 'Dutch',
-        exampleDomain: 'https://www.kadaster.nl/...',
-        siteQuery: generateSiteQuery()
+        exampleDomain: 'https://www.gov.uk/...'
       }
     };
 
@@ -190,19 +180,22 @@ serve(async (req) => {
       ? `\n\nMANDATORY: At least ONE source MUST be from an official government domain. This is non-negotiable and CRITICAL for article validation.`
       : '';
 
-    console.log(`🔍 Citation search - Using ${config.domains.length} approved domains`);
+    console.log(`🔍 Citation search - Using TOP 20 PRIORITY domains (strategically selected for E-E-A-T authority)`);
+
+    // ✅ Generate site query from TOP 20 priority domains
+    const prioritySiteQuery = TOP_20_PRIORITY_DOMAINS.map(d => `site:${d}`).join(' OR ');
 
     const prompt = `${config.instruction}:
 
-**CRITICAL: ONLY use sources from approved domains**
-Search format: ${config.siteQuery} AND [your search terms]
+**CRITICAL: ONLY use sources from TOP 20 PRIORITY domains**
+Priority Domains: ${TOP_20_PRIORITY_DOMAINS.join(', ')}
 
 Article Topic: "${headline}"
 Article Language: ${config.languageName}
 Content Preview: ${content.substring(0, 2000)}
 
 **CRITICAL REQUIREMENTS:**
-1. ALL sources MUST be from the approved domain list (use site: filtering)
+1. ALL sources MUST be from the TOP 20 PRIORITY domains ONLY (no exceptions)
 2. Return MINIMUM 2 citations, ideally 3-5 citations
 3. Include these types of sources: ${config.sources.join(', ')}
 4. ALL sources MUST be in ${config.languageName} language (no translations, no foreign sites)
@@ -211,12 +204,8 @@ Content Preview: ${content.substring(0, 2000)}
 7. Authoritative sources only (government, news, legal, official)
 8. For each source, identify WHERE in the article it should be cited${governmentRequirement}
 
-**Approved Domain Categories:**
-- News & Media (surinenglish.com, euroweeklynews.com, theolivepress.es, etc.)
-- Government (.gob.es, gov.uk, ine.es, boe.es, juntadeandalucia.es, etc.)
-- Legal (legalservicesinspain.com, costaluzlawyers.es, abogadoespanol.com, etc.)
-- Travel & Tourism (malagaturismo.com, andalucia.com, visitcostadelsol.com, etc.)
-- Finance (bde.es, ecb.europa.eu, numbeo.com, etc.)
+**TOP 20 PRIORITY DOMAINS (use ONLY these):**
+${TOP_20_PRIORITY_DOMAINS.join(', ')}
 
 Return ONLY valid JSON in this exact format:
 [
@@ -245,7 +234,7 @@ Return only the JSON array, nothing else.`;
         messages: [
           {
             role: 'system',
-            content: `You are a research expert finding authoritative ${config.languageName}-language sources. CRITICAL: Only use approved domains. Return only valid JSON arrays. ALL sources must be in ${config.languageName}.`
+            content: `You are a research expert finding authoritative ${config.languageName}-language sources. CRITICAL: Only use TOP 20 PRIORITY domains. Return only valid JSON arrays. ALL sources must be in ${config.languageName}.`
           },
           {
             role: 'user',
@@ -254,7 +243,9 @@ Return only the JSON array, nothing else.`;
         ],
         temperature: 0.2,
         max_tokens: 2000,
-        search_domain_filter: getAllApprovedDomains(), // ✅ API-level enforcement
+        // ✅ Using TOP_20_PRIORITY_DOMAINS to stay within Perplexity's 20-domain limit
+        // This strategically selects the most authoritative sources while avoiding competitor links
+        search_domain_filter: [...TOP_20_PRIORITY_DOMAINS], // ✅ 20 domains max - API compliant
       }),
     });
 
