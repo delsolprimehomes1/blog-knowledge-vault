@@ -331,17 +331,80 @@ const CitationHealth = () => {
         
         if (insertError) throw insertError;
         
-        // Enhanced feedback
+        // Get the ID of the inserted best replacement
+        const { data: insertedReplacements, error: fetchError } = await supabase
+          .from('dead_link_replacements')
+          .select('id')
+          .eq('original_url', url)
+          .eq('replacement_url', replacementsToInsert[0].replacement_url)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (fetchError) throw fetchError;
+
         const bestScore = replacementsToInsert[0].confidence_score;
         const wasAutoApproved = replacementsToInsert[0].status === 'approved';
 
-        if (wasAutoApproved) {
+        // AUTO-APPLY if auto-approved
+        if (wasAutoApproved && insertedReplacements && insertedReplacements.length > 0) {
+          const replacementId = insertedReplacements[0].id;
+          
+          console.log(`🚀 Auto-applying replacement ${replacementId} with confidence ${bestScore}/10`);
+          
+          try {
+            // Call apply-citation-replacement edge function
+            const { data: applyResult, error: applyError } = await supabase.functions.invoke(
+              'apply-citation-replacement',
+              {
+                body: {
+                  replacementIds: [replacementId],
+                  preview: false
+                }
+              }
+            );
+
+            if (applyError) throw applyError;
+
+            if (applyResult?.success) {
+              toast.success(
+                `✅ Auto-applied replacement (score: ${bestScore}/10)\n` +
+                `📚 Updated ${applyResult.articlesUpdated} article(s)\n` +
+                `🔗 Replaced ${applyResult.urlsReplaced} link(s)\n` +
+                `${data.suggestions.length > 1 ? `${data.suggestions.length - 1} alternatives saved for review` : ''}`,
+                { duration: 6000 }
+              );
+
+              // Invalidate all relevant queries
+              queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+              queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
+              queryClient.invalidateQueries({ queryKey: ["approved-replacements"] });
+              queryClient.invalidateQueries({ queryKey: ["applied-replacements"] });
+            } else {
+              // Application failed, but replacement is still approved for manual retry
+              toast.warning(
+                `⚠️ Auto-approved (score: ${bestScore}/10) but application failed\n` +
+                `Check Approved tab to retry manually`,
+                { duration: 5000 }
+              );
+            }
+          } catch (applyError) {
+            console.error('Auto-application error:', applyError);
+            toast.warning(
+              `⚠️ Auto-approved (score: ${bestScore}/10) but application failed\n` +
+              `Error: ${(applyError as Error).message}\n` +
+              `Check Approved tab to retry manually`,
+              { duration: 5000 }
+            );
+          }
+        } else if (wasAutoApproved) {
+          // Auto-approved but couldn't fetch ID (edge case)
           toast.success(
             `✅ Auto-approved best replacement (score: ${bestScore}/10)\n` +
-            `${data.suggestions.length > 1 ? `${data.suggestions.length - 1} alternatives saved for review` : 'No alternatives found'}`,
+            `Check Approved tab to apply`,
             { duration: 4000 }
           );
         } else {
+          // Not auto-approved, requires manual review
           toast.success(
             `Found ${data.suggestions.length} suggestions - Best score: ${bestScore}/10\n` +
             `⚠️ Manual review required (threshold: 8.0/10)`,
