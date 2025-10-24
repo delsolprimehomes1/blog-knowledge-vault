@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import {
   Activity, AlertCircle, CheckCircle2, ExternalLink, Loader2, RefreshCw,
-  TrendingDown, TrendingUp, XCircle, Clock, ArrowRight, ThumbsUp, ThumbsDown, Play, Undo2
+  TrendingDown, TrendingUp, XCircle, Clock, ArrowRight, ThumbsUp, ThumbsDown, Play, Undo2, Zap
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -141,6 +141,51 @@ const CitationHealth = () => {
     },
     onError: () => {
       setCheckProgress({ current: 0, total: 0 });
+    }
+  });
+
+  const populateCitationTracking = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('populate-citation-tracking');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(
+        `✅ Citation tracking populated\n📚 ${data.articlesProcessed} articles\n🔗 ${data.citationsTracked} citations tracked`,
+        { duration: 6000 }
+      );
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to populate tracking: ${error.message}`);
+    }
+  });
+
+  const batchFixBrokenCitations = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('batch-fix-broken-citations');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      const results = data.results;
+      toast.success(
+        `🎉 Batch fix complete!\n` +
+        `✅ Auto-applied: ${results.autoApplied}\n` +
+        `📚 Articles updated: ${results.articlesUpdated}\n` +
+        `🔗 Links replaced: ${results.linksReplaced}\n` +
+        `📋 Manual review: ${results.manualReview}\n` +
+        `❌ Failed: ${results.failed}`,
+        { duration: 10000 }
+      );
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+      queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
+      queryClient.invalidateQueries({ queryKey: ["approved-replacements"] });
+      queryClient.invalidateQueries({ queryKey: ["applied-replacements"] });
+    },
+    onError: (error) => {
+      toast.error(`Batch fix failed: ${error.message}`);
     }
   });
 
@@ -451,21 +496,26 @@ const CitationHealth = () => {
           </div>
           <div className="flex gap-2">
             <Button 
-              onClick={() => autoFixBrokenLinks.mutate()}
-              disabled={autoFixBrokenLinks.isPending || stats.broken === 0}
-              variant="default"
+              onClick={() => populateCitationTracking.mutate()}
+              disabled={populateCitationTracking.isPending}
+              variant="outline"
             >
-              {autoFixBrokenLinks.isPending ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fixing...</>
-              ) : (
-                <>🔧 Auto-Fix Broken Links</>
-              )}
+              <RefreshCw className="w-4 h-4 mr-2" />
+              {populateCitationTracking.isPending ? "Populating..." : "Populate Tracking"}
             </Button>
             <Button 
               onClick={() => { setIsRunningCheck(true); runHealthCheck.mutateAsync().finally(() => setIsRunningCheck(false)); }} 
               disabled={isRunningCheck}
+              variant="outline"
             >
               {isRunningCheck ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</> : <><RefreshCw className="mr-2 h-4 w-4" />Run Health Check</>}
+            </Button>
+            <Button 
+              onClick={() => batchFixBrokenCitations.mutate()}
+              disabled={batchFixBrokenCitations.isPending}
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              {batchFixBrokenCitations.isPending ? "Fixing..." : "Auto-Fix All Broken Links"}
             </Button>
           </div>
         </div>
