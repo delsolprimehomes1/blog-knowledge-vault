@@ -213,6 +213,28 @@ const ArticleEditor = () => {
     }
   };
 
+  // Auto-fix schema issues
+  const handleAutoFixSchema = () => {
+    let fixed = false;
+    
+    // Fix missing featured_image_alt
+    if (featuredImageUrl && !featuredImageAlt && headline) {
+      const generatedAlt = `${headline} - Costa del Sol property guide`;
+      setFeaturedImageAlt(generatedAlt);
+      fixed = true;
+    }
+    
+    if (fixed) {
+      toast.success("✓ Alt text auto-generated! Remember to save your changes.", {
+        duration: 4000
+      });
+    } else {
+      toast.info("No auto-fixable issues found", {
+        duration: 3000
+      });
+    }
+  };
+
   // Validation
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -419,6 +441,7 @@ const ArticleEditor = () => {
           } as any}
           author={authors?.find(a => a.id === authorId)}
           reviewer={authors?.find(a => a.id === reviewerId)}
+          onAutoFix={handleAutoFixSchema}
         />
 
         {/* Section 1: Basic Info */}

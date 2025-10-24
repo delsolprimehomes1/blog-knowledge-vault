@@ -1,17 +1,20 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Info } from "lucide-react";
-import { validateSchemaRequirements, SchemaValidationError } from "@/lib/schemaGenerator";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, CheckCircle2, Info, Wand2 } from "lucide-react";
+import { validateSchemaRequirements, SchemaValidationError, isAutoFixable } from "@/lib/schemaGenerator";
 import { BlogArticle } from "@/types/blog";
 
 interface SchemaValidationAlertProps {
   article: Partial<BlogArticle>;
   author: any;
   reviewer: any;
+  onAutoFix?: () => void;
 }
 
-export const SchemaValidationAlert = ({ article, author, reviewer }: SchemaValidationAlertProps) => {
+export const SchemaValidationAlert = ({ article, author, reviewer, onAutoFix }: SchemaValidationAlertProps) => {
   const validationErrors = validateSchemaRequirements(article as BlogArticle);
+  const hasFixableIssues = validationErrors.some(isAutoFixable);
   
   if (validationErrors.length === 0) {
     return (
@@ -71,8 +74,19 @@ export const SchemaValidationAlert = ({ article, author, reviewer }: SchemaValid
       {warnings.length > 0 && (
         <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
           <Info className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-900 dark:text-amber-100">
-            Schema Recommendations ({warnings.length})
+          <AlertTitle className="text-amber-900 dark:text-amber-100 flex items-center justify-between">
+            <span>Schema Recommendations ({warnings.length})</span>
+            {hasFixableIssues && onAutoFix && (
+              <Button
+                onClick={onAutoFix}
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+              >
+                <Wand2 className="h-3 w-3 mr-1" />
+                Auto-Fix Issues
+              </Button>
+            )}
           </AlertTitle>
           <AlertDescription className="text-amber-800 dark:text-amber-200">
             <p className="mb-2 font-medium">
@@ -82,7 +96,12 @@ export const SchemaValidationAlert = ({ article, author, reviewer }: SchemaValid
               {warnings.map((warning, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-amber-600 mt-0.5">•</span>
-                  <span>{warning.message}</span>
+                  <span>
+                    {warning.message}
+                    {isAutoFixable(warning) && (
+                      <Badge variant="outline" className="ml-2 text-xs">Auto-fixable</Badge>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

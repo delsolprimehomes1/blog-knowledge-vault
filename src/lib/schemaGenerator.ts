@@ -250,6 +250,11 @@ export function validateSchemaRequirements(article: BlogArticle): SchemaValidati
   return errors;
 }
 
+export function isAutoFixable(error: SchemaValidationError): boolean {
+  // Only featured_image_alt can be auto-fixed
+  return error.field === 'featured_image_alt' && error.severity === 'warning';
+}
+
 export function generateAllSchemas(
   article: BlogArticle,
   author: Author | null,
