@@ -47,14 +47,55 @@ serve(async (req) => {
         console.log(`\n🔧 Processing: ${citation.url}`);
         results.processed++;
 
-        // Call discover-better-links to find replacements
+        // Find an article that uses this citation
+        const { data: trackingData, error: trackingError } = await supabaseClient
+          .from('citation_usage_tracking')
+          .select('article_id')
+          .eq('citation_url', citation.url)
+          .eq('is_active', true)
+          .limit(1)
+          .single();
+
+        if (trackingError || !trackingData) {
+          console.log(`⚠️  No active articles use this citation, skipping`);
+          results.failed++;
+          results.details.push({
+            url: citation.url,
+            status: 'failed',
+            reason: 'No active articles use this citation'
+          });
+          continue;
+        }
+
+        // Fetch article data
+        const { data: articleData, error: articleError } = await supabaseClient
+          .from('blog_articles')
+          .select('headline, detailed_content, language')
+          .eq('id', trackingData.article_id)
+          .single();
+
+        if (articleError || !articleData) {
+          console.log(`❌ Failed to fetch article data: ${articleError?.message}`);
+          results.failed++;
+          results.details.push({
+            url: citation.url,
+            status: 'failed',
+            reason: 'Failed to fetch article data'
+          });
+          continue;
+        }
+
+        console.log(`📄 Using context from article: "${articleData.headline}"`);
+        
+        // Call discover-better-links to find replacements with proper article context
         const { data: discoveryData, error: discoveryError } = await supabaseClient.functions.invoke(
           'discover-better-links',
           {
             body: {
               originalUrl: citation.url,
-              articleTopic: 'Costa del Sol real estate',
-              articleLanguage: 'en',
+              articleHeadline: articleData.headline,
+              articleContent: articleData.detailed_content || '',
+              articleLanguage: articleData.language || 'en',
               context: citation.source_name || 'Citation from article'
             }
           }
