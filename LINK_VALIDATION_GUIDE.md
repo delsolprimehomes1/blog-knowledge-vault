@@ -465,6 +465,468 @@ const { data } = await supabase.functions.invoke('replace-article-links', {
 
 ---
 
+## Phase 4: Citation Health Dashboard ✅ IMPLEMENTED
+
+### Overview
+
+The Citation Health Dashboard provides centralized monitoring and automated fixing of broken external citations across all published articles. It tracks citation health, discovers better alternatives, and can automatically apply high-confidence replacements.
+
+**Location**: `/admin/citation-health`
+
+### Core Features
+
+1. **Citation Health Monitoring**
+   - Real-time health status for all external citations
+   - HTTP status code tracking (200, 404, 403, 500+)
+   - Response time measurement
+   - Language detection
+   - Government source identification
+   - Last checked timestamp
+
+2. **Dead Link Management**
+   - Automatic discovery of broken/unreachable citations
+   - AI-powered replacement suggestions
+   - Confidence scoring (0-10)
+   - Manual approval workflow
+   - Auto-approval for high-confidence replacements (≥8.0)
+
+3. **Batch Operations**
+   - Auto-fix all broken links in one click
+   - Populate citation tracking across all articles
+   - Bulk apply approved replacements
+
+### Database Tables
+
+#### `external_citation_health`
+Tracks the health status of each unique citation URL:
+- `url` - The citation URL
+- `status` - 'healthy', 'broken', 'unreachable', 'slow'
+- `http_status_code` - Last HTTP response code
+- `response_time_ms` - Response time in milliseconds
+- `language` - Detected language
+- `is_government_source` - Boolean flag
+- `times_verified` / `times_failed` - Success/failure counters
+- `last_checked_at` - Timestamp of last check
+
+#### `citation_usage_tracking`
+Maps which articles use which citations:
+- `article_id` - Reference to blog_articles
+- `citation_url` - The external URL
+- `citation_source` - Source name (e.g., "Ministry of Justice")
+- `anchor_text` - Link text in article
+- `position_in_article` - Order in citations array
+- `is_active` - Boolean flag
+
+#### `dead_link_replacements`
+Stores suggested and applied replacements:
+- `original_url` - Broken URL
+- `replacement_url` - Suggested better URL
+- `confidence_score` - AI confidence (0-10)
+- `status` - 'suggested', 'approved', 'applied', 'rejected'
+- `replacement_reason` - Why this is better
+- `applied_to_articles` - Array of affected article IDs
+- `replacement_count` - How many times applied
+
+### Workflow: Citation Health Check
+
+**Step 1: Run Health Check**
+```
+Click "Run Health Check" button
+```
+
+**What happens:**
+1. Edge function `check-citation-health` is invoked
+2. System fetches all unique citation URLs from published articles
+3. For each URL:
+   - Makes HEAD request to check accessibility
+   - Measures response time
+   - Detects language from headers
+   - Identifies government sources (.gov, .gob.es)
+   - Records HTTP status code
+4. Updates `external_citation_health` table
+5. Returns summary statistics
+
+**Expected Result:**
+```
+✅ Citation health check complete
+📊 Checked: 41 citations
+✅ Healthy: 38
+❌ Broken: 2
+⏱️ Slow: 1
+```
+
+### Workflow: Citation Tracking Population
+
+**CRITICAL**: This must be run BEFORE attempting any link replacements!
+
+**Step 1: Populate Tracking**
+```
+Click "Populate Tracking" button
+```
+
+**What happens:**
+1. Edge function `populate-citation-tracking` is invoked
+2. Fetches all published articles with `external_citations` metadata
+3. For each article:
+   - Deletes old tracking records for that article
+   - Creates new tracking records for each citation
+   - Maps citation URLs to article content positions
+4. Updates `citation_usage_tracking` table
+
+**Expected Result:**
+```
+✅ Citation tracking populated
+📚 30 articles
+🔗 41 citations tracked
+```
+
+**Why This Matters:**
+- The tracking table maps citations to actual article content
+- Without this, replacements can't find URLs in article HTML
+- Must be run after any article content changes
+- Should be re-run periodically to stay in sync
+
+### Workflow: Auto-Fix Broken Links
+
+**Prerequisites:**
+1. ✅ Health check has been run (identifies broken links)
+2. ✅ Citation tracking has been populated (maps URLs to articles)
+
+**Step 1: Auto-Fix**
+```
+Click "Auto-Fix All Broken Links" button
+```
+
+**What happens:**
+1. Edge function `batch-fix-broken-citations` is invoked
+2. Fetches all citations with status 'broken' or 'unreachable'
+3. For each broken URL:
+   - Calls `discover-better-links` to find alternatives
+   - Gets 1-3 high-authority replacement suggestions
+   - Calculates confidence scores:
+     - Authority score (0-10)
+     - Relevance score (0-100)
+     - Combined confidence: `(authority * 10 + relevance) / 20`
+   - Inserts suggestions into `dead_link_replacements` table
+   - If confidence ≥ 8.0: **Automatically applies** replacement
+   - If confidence < 8.0: Flags for manual review
+
+4. For auto-applied replacements:
+   - Calls `apply-citation-replacement` edge function
+   - Creates revision in `article_revisions` (for rollback)
+   - Updates article `detailed_content` HTML
+   - Updates `external_citations` metadata array
+   - Marks replacement as 'applied' in database
+
+**Expected Result:**
+```
+✅ Batch fix complete
+🔍 Processed: 3 citations
+✅ Auto-applied: 1 replacement
+⏸️ Pending review: 2 replacements
+📚 Articles updated: 1
+🔗 Links replaced: 1
+```
+
+### Workflow: Manual Replacement Review
+
+For replacements with confidence < 8.0 that require manual approval:
+
+**Step 1: Review Pending Replacements**
+Navigate to "Pending Replacements" tab:
+- See original URL, replacement URL, confidence score
+- View replacement reason (AI explanation)
+- Check how many articles would be affected
+
+**Step 2: Approve or Reject**
+```
+Click "Approve" → Moves to "Approved" tab
+Click "Reject" → Removes from system
+```
+
+**Step 3: Apply Approved Replacements**
+```
+Select replacement(s) → Click "Apply Selected"
+```
+
+**What happens:**
+- Same as auto-apply process above
+- Creates article revisions
+- Updates content and metadata
+- Tracks application in database
+
+### URL Validation: Handling 403 Responses
+
+**Problem**: Government websites often return 403 (Forbidden) for automated HEAD requests due to bot protection, even though the URL works fine in browsers.
+
+**Solution**: The system treats 403 as "allowed but protected":
+```typescript
+if (!checkResponse.ok && checkResponse.status !== 403) {
+  // Only reject on real errors (404, 500+)
+  markAsInvalid();
+}
+```
+
+**Logged Output:**
+```
+⚠️ 403 on https://www.exteriores.gob.es/... - allowing (likely bot protection)
+```
+
+This prevents valid government sources from being incorrectly flagged as broken.
+
+### Edge Functions
+
+#### `check-citation-health`
+**Purpose**: Health check for all external citations
+
+**Input**: None (checks all published articles)
+
+**Output**:
+```json
+{
+  "success": true,
+  "totalChecked": 41,
+  "healthy": 38,
+  "broken": 2,
+  "unreachable": 1
+}
+```
+
+#### `populate-citation-tracking`
+**Purpose**: Sync tracking table with article content
+
+**Input**: None (processes all published articles)
+
+**Output**:
+```json
+{
+  "success": true,
+  "articlesProcessed": 30,
+  "citationsTracked": 41
+}
+```
+
+#### `batch-fix-broken-citations`
+**Purpose**: Auto-discover and apply replacements
+
+**Input**: None (processes all broken citations)
+
+**Output**:
+```json
+{
+  "success": true,
+  "processed": 3,
+  "autoApplied": 1,
+  "pendingReview": 2,
+  "results": [...]
+}
+```
+
+#### `apply-citation-replacement`
+**Purpose**: Apply approved replacements to articles
+
+**Input**:
+```json
+{
+  "replacementIds": ["uuid1", "uuid2"],
+  "preview": false
+}
+```
+
+**Output**:
+```json
+{
+  "success": true,
+  "affectedArticles": 1,
+  "totalReplacements": 1,
+  "replacements": [
+    {
+      "original": "https://broken.com",
+      "replacement": "https://better.gob.es",
+      "affectedArticles": ["article-slug"]
+    }
+  ]
+}
+```
+
+### Complete Workflow: From Detection to Fix
+
+**Initial Setup (One-time):**
+1. Navigate to `/admin/citation-health`
+2. Click **"Populate Tracking"** → Syncs all articles (30 articles, ~41 citations)
+3. Wait for success confirmation
+
+**Regular Health Checks:**
+1. Click **"Run Health Check"** → Validates all citation URLs
+2. Review statistics:
+   - Healthy citations (green)
+   - Broken citations (red)
+   - Unreachable citations (yellow)
+   - Slow citations (orange)
+
+**Automated Fixing:**
+1. Click **"Auto-Fix All Broken Links"**
+2. System automatically:
+   - Discovers replacements via Perplexity AI
+   - Auto-applies high-confidence fixes (≥8.0)
+   - Flags low-confidence for manual review
+3. Review results toast notification
+
+**Manual Review (if needed):**
+1. Navigate to **"Pending Replacements"** tab
+2. Review AI suggestions (confidence score, reason)
+3. Approve or reject each suggestion
+4. Navigate to **"Approved"** tab
+5. Select approved replacements
+6. Click **"Apply Selected"**
+
+**Verification:**
+1. Navigate to **"Applied"** tab
+2. See history of all applied replacements
+3. View which articles were updated
+4. Check replacement counts
+
+### Confidence Scoring
+
+**Formula:**
+```typescript
+confidenceScore = (authorityScore * 10 + relevanceScore) / 20
+```
+
+**Authority Score (0-10):**
+- 10: Government (.gov, .gob.es)
+- 9: Educational (.edu)
+- 8: Major institutions (World Bank, UN)
+- 7: Industry associations
+- 6: Established media
+- 5-1: Other sources
+
+**Relevance Score (0-100):**
+- AI-determined based on content match
+- Language compatibility
+- Topic alignment
+- Context appropriateness
+
+**Auto-Apply Threshold:**
+- ≥8.0: Automatic application
+- <8.0: Manual review required
+
+**Example:**
+```
+Authority: 10 (Government source)
+Relevance: 95 (Highly relevant)
+Confidence: (10*10 + 95) / 20 = 9.75 → Auto-apply ✅
+```
+
+### Article Revisions System
+
+**Purpose**: Enable rollback of citation replacements
+
+**How It Works:**
+1. Before applying replacement, system creates revision:
+```json
+{
+  "article_id": "uuid",
+  "revision_type": "citation_replacement",
+  "previous_content": "original HTML",
+  "previous_citations": [...],
+  "change_reason": "Replaced broken URL",
+  "replacement_id": "uuid",
+  "can_rollback": true,
+  "rollback_expires_at": "2025-10-25 11:15:00" // 24 hours
+}
+```
+
+2. Replacement is applied to article
+3. If issues occur, admin can rollback within 24 hours
+4. After 24 hours, `can_rollback` automatically becomes false
+
+### Troubleshooting
+
+#### "1 article updated, 0 URLs replaced"
+
+**Cause**: Citation tracking table is empty or out of sync
+
+**Solution**:
+1. Click **"Populate Tracking"** first
+2. Wait for confirmation (e.g., "30 articles, 41 citations")
+3. Then run **"Auto-Fix All Broken Links"** again
+4. Should now see "1 article updated, 1 URL replaced"
+
+#### "403 Forbidden" on government sites
+
+**Status**: This is normal and handled automatically
+
+**Explanation**: Government sites block automated requests but are actually accessible. The system allows 403 responses for this reason.
+
+#### "No replacements found"
+
+**Possible Causes:**
+1. Perplexity couldn't find better alternatives
+2. Original URL is too niche or specific
+3. Language mismatch (article in Spanish, only English sources found)
+
+**Solution:**
+- Manually find replacement
+- Use "Find Better Citations" in article editor
+- Adjust article language if incorrect
+
+#### "Replacement confidence too low"
+
+**Cause**: AI is uncertain about suggested replacement
+
+**Solution:**
+1. Review suggestion in "Pending Replacements" tab
+2. Check confidence score and reason
+3. Visit both URLs to manually verify
+4. Approve if appropriate, reject otherwise
+
+### Best Practices
+
+1. **Run Populate Tracking First**
+   - Always run this before attempting replacements
+   - Re-run after bulk article edits
+   - Schedule weekly re-population
+
+2. **Regular Health Checks**
+   - Run weekly to catch new broken links
+   - Review slow citations (may break soon)
+   - Monitor government source accessibility
+
+3. **Review Auto-Applied Replacements**
+   - Check "Applied" tab after auto-fix
+   - Verify article quality wasn't affected
+   - Roll back if replacement seems wrong
+
+4. **Manual Review for Low Confidence**
+   - Don't auto-approve everything
+   - Low confidence suggestions need human verification
+   - Consider article context, not just scores
+
+5. **Track Replacement Patterns**
+   - Notice which sources often break
+   - Build list of reliable alternatives
+   - Update content strategy accordingly
+
+### Performance Considerations
+
+**Citation Tracking Population:**
+- Processes ~30 articles in 2-5 seconds
+- Safe to run frequently
+- Non-blocking operation
+
+**Health Check:**
+- Checks ~41 URLs in 10-15 seconds
+- Uses HEAD requests (lightweight)
+- Rate-limited to avoid overwhelming sources
+
+**Auto-Fix:**
+- Processes 1-3 broken URLs in 5-10 seconds per URL
+- Perplexity API calls are sequential
+- Auto-apply happens immediately for high confidence
+
+---
+
 ## Future Enhancements (Not Yet Implemented)
 
 ### Phase 5: Scheduled Automation
