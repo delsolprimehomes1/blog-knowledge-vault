@@ -48,13 +48,20 @@ serve(async (req) => {
           method: 'HEAD',
           signal: AbortSignal.timeout(5000)
         });
-        if (!checkResponse.ok) {
-          console.error(`❌ Replacement URL is not accessible: ${checkResponse.status}`);
+        
+        // Allow 403 (Forbidden) for government sites with bot protection
+        // Only reject on actual errors (404, 500+)
+        if (!checkResponse.ok && checkResponse.status !== 403) {
+          console.error(`❌ Replacement URL returned ${checkResponse.status}`);
           await supabase
             .from('dead_link_replacements')
             .update({ status: 'invalid' })
             .eq('id', replacement.id);
           continue;
+        }
+        
+        if (checkResponse.status === 403) {
+          console.log(`⚠️ 403 on ${replacement.replacement_url} - allowing (likely bot protection)`);
         }
       } catch (error) {
         console.error(`❌ Failed to validate replacement URL:`, error);
