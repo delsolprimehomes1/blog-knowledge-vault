@@ -1,4 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { 
+  isApprovedDomain, 
+  getDomainCategory, 
+  generateSiteQuery 
+} from "../shared/approvedDomains.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,6 +50,9 @@ serve(async (req) => {
 
     const config = languageConfig[articleLanguage] || languageConfig.es;
 
+    // Generate approved domain filter for Perplexity search
+    const siteQuery = generateSiteQuery();
+
     const prompt = `Find 3-5 HIGH-QUALITY alternative sources to replace this broken or irrelevant link.
 
 Original (Broken) Link: ${originalUrl}
@@ -55,13 +63,19 @@ Language Required: ${config.name}
 Article Preview:
 ${articleContent.substring(0, 1000)}
 
+DOMAIN RESTRICTIONS - ONLY use these pre-approved, authoritative domains:
+${siteQuery}
+
 REQUIREMENTS:
 - ALL sources MUST be in ${config.name} language
+- MUST be from the approved domains list above (NO other domains allowed)
 - Prioritize official government domains (${config.domains.join(', ')})
 - Sources must be authoritative (.gov, .edu, .org, official institutions)
 - Sources must be currently accessible (HTTPS, active)
 - Sources must be HIGHLY RELEVANT to the article topic
 - Prefer recent sources (published within last 3 years)
+
+DO NOT suggest sources from domains outside the approved list.
 
 Return ONLY valid JSON array:
 [
@@ -128,9 +142,29 @@ Return only the JSON array, nothing else.`;
       throw new Error('No alternative sources found');
     }
 
+    // Filter to only approved domains
+    console.log(`\n🔍 Filtering ${suggestions.length} suggestions to approved domains...`);
+    const approvedSuggestions = suggestions.filter(suggestion => {
+      const isApproved = isApprovedDomain(suggestion.suggestedUrl);
+      if (isApproved) {
+        const category = getDomainCategory(suggestion.suggestedUrl);
+        console.log(`✅ Approved: ${suggestion.suggestedUrl} (category: ${category})`);
+      } else {
+        console.log(`❌ Rejected: ${suggestion.suggestedUrl} (not in approved list)`);
+      }
+      return isApproved;
+    });
+
+    if (approvedSuggestions.length === 0) {
+      console.warn('⚠️ No approved domain suggestions found after filtering');
+      throw new Error('No sources found from approved domains');
+    }
+
+    console.log(`✅ ${approvedSuggestions.length} approved suggestions remaining\n`);
+
     // Verify suggested URLs are accessible
     const verifiedSuggestions = await Promise.all(
-      suggestions.map(async (suggestion) => {
+      approvedSuggestions.map(async (suggestion) => {
         try {
           const verifyResponse = await fetch(suggestion.suggestedUrl, {
             method: 'HEAD',
