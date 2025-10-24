@@ -81,7 +81,7 @@ const CitationHealth = () => {
   const { data: replacements } = useQuery({
     queryKey: ["dead-link-replacements"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("dead_link_replacements").select("*").in("status", ["pending", "suggested"]).order("confidence_score", { ascending: false });
+      const { data, error } = await supabase.from("dead_link_replacements").select("*").in("status", ["suggested"]).order("confidence_score", { ascending: false });
       if (error) throw error;
       return data as DeadLinkReplacement[];
     },
@@ -321,7 +321,7 @@ const CitationHealth = () => {
           replacement_reason: s.reason,
           confidence_score: s.calculatedScore,
           // Auto-approve ONLY the best one IF score >= 8.0
-          status: (index === 0 && s.calculatedScore >= 8.0) ? 'approved' : 'pending',
+          status: (index === 0 && s.calculatedScore >= 8.0) ? 'approved' : 'suggested',
           suggested_by: 'ai'
         }));
         
