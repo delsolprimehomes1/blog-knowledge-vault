@@ -310,7 +310,7 @@ const CitationHealth = () => {
           replacement_url: s.suggestedUrl,
           replacement_source: s.sourceName,
           replacement_reason: s.reason,
-          confidence_score: (s.relevanceScore + s.authorityScore * 10) / 2,
+          confidence_score: Math.min(95, Math.round((s.relevanceScore * 0.4 + s.authorityScore * 6))),
           status: s.verified ? 'suggested' : 'pending',
           suggested_by: 'ai'
         }));
