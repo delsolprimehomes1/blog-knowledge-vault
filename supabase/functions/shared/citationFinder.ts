@@ -1,4 +1,5 @@
 // Advanced Citation Discovery with Perplexity AI
+import { getAllApprovedDomains, generateSiteQuery, isApprovedDomain, getDomainCategory } from './approvedDomains.ts';
 
 export interface BetterCitation {
   url: string;
@@ -80,7 +81,15 @@ export async function findBetterCitations(
     ? `\n**Current Citations to AVOID duplicating:**\n${currentCitations.slice(0, 10).join('\n')}`
     : '';
 
+  const siteQuery = generateSiteQuery();
+  const approvedDomains = getAllApprovedDomains();
+
+  console.log(`🔍 Citation search - Using ${approvedDomains.length} approved domains`);
+
   const prompt = `You are an expert research assistant finding authoritative external sources for a ${config.name} language article.
+
+**CRITICAL: ONLY use sources from approved domains**
+Search format: ${siteQuery} AND [your search terms]
 
 **Article Topic:** "${articleTopic}"
 **Language Required:** ${config.name}
@@ -90,16 +99,20 @@ ${focusContext}
 ${currentCitationsText}
 
 **CRITICAL REQUIREMENTS:**
-1. ALL sources MUST be in ${config.name} language
-2. Prioritize these domains: ${config.domains}
-3. Sources must be HIGH AUTHORITY (government, educational, official organizations)
+1. ALL sources MUST be from the approved domain list (use site: filtering)
+2. ALL sources MUST be in ${config.name} language
+3. Sources must be HIGH AUTHORITY (government, news, legal, official)
 4. Content must DIRECTLY relate to the article topic
 5. Sources must be currently accessible (HTTPS, active)
 6. Avoid duplicating current citations listed above
 7. Find 5-8 diverse, authoritative sources
 
-**Examples of Quality Sources:**
-${config.examples}
+**Approved Domain Categories:**
+- News & Media (surinenglish.com, euroweeklynews.com, theolivepress.es, etc.)
+- Government (.gob.es, gov.uk, ine.es, boe.es, etc.)
+- Legal (legalservicesinspain.com, costaluzlawyers.es, etc.)
+- Travel & Tourism (malagaturismo.com, andalucia.com, etc.)
+- Finance (bde.es, ecb.europa.eu, numbeo.com, etc.)
 
 **Return ONLY valid JSON array in this EXACT format:**
 [
@@ -129,7 +142,7 @@ Return only the JSON array, nothing else.`;
       messages: [
         {
           role: 'system',
-          content: `You are an expert research assistant finding authoritative ${config.name}-language sources. Return ONLY valid JSON arrays. Never duplicate provided citations.`
+          content: `You are an expert research assistant finding authoritative ${config.name}-language sources. Return ONLY valid JSON arrays. Never duplicate provided citations. CRITICAL: Only use approved domains.`
         },
         {
           role: 'user',
@@ -138,6 +151,7 @@ Return only the JSON array, nothing else.`;
       ],
       temperature: 0.3,
       max_tokens: 3000,
+      search_domain_filter: approvedDomains, // ✅ API-level enforcement
     }),
   });
 
@@ -161,15 +175,39 @@ Return only the JSON array, nothing else.`;
 
     const citations = JSON.parse(jsonMatch[0]) as BetterCitation[];
 
-    // Validate and filter citations
+    console.log(`📥 Received ${citations.length} citations from Perplexity`);
+
+    // Validate and filter citations - ENFORCE APPROVED DOMAINS
     const validCitations = citations.filter(citation => {
-      return citation.url && 
-             citation.sourceName && 
-             citation.url.startsWith('http') &&
-             !currentCitations.includes(citation.url);
+      // Basic validation
+      if (!citation.url || !citation.sourceName || !citation.url.startsWith('http')) {
+        return false;
+      }
+      
+      // Check against current citations
+      if (currentCitations.includes(citation.url)) {
+        return false;
+      }
+      
+      // CRITICAL: Check if domain is approved
+      const isApproved = isApprovedDomain(citation.url);
+      if (!isApproved) {
+        console.warn(`❌ REJECTED non-approved domain: ${citation.url}`);
+        return false;
+      }
+      
+      const category = getDomainCategory(citation.url);
+      console.log(`✅ APPROVED: ${citation.url} (category: ${category})`);
+      
+      return true;
     });
 
-    console.log(`Found ${validCitations.length} valid citations`);
+    const rejectedCount = citations.length - validCitations.length;
+    console.log(`📊 Citation Stats:
+  - Total found: ${citations.length}
+  - Approved: ${validCitations.length}
+  - Rejected: ${rejectedCount}
+`);
 
     return validCitations;
   } catch (parseError) {

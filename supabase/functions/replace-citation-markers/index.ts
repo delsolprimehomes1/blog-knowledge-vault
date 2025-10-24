@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getAllApprovedDomains, generateSiteQuery, isApprovedDomain, getDomainCategory } from '../shared/approvedDomains.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -256,18 +257,24 @@ async function findCitationForClaim(
     ? `\n- PRIORITIZE these source types (in order): ${preferredSourceTypes.join(', ')}`
     : '';
 
-  const prompt = `Find ONE authoritative source to cite this claim about "${context.articleTopic}":
+  const siteQuery = generateSiteQuery();
+  console.log('🔍 Finding citation from approved domains only');
+
+  const prompt = `Find ONE authoritative source from APPROVED DOMAINS ONLY:
+
+**CRITICAL: Use this site filter:** ${siteQuery} AND [your search terms]
 
 CLAIM: "${context.claim}"
 
 CONTEXT: ${context.surroundingText}
 
 REQUIREMENTS:
-- ${languageInstructions[language] || 'Find English sources'}
-- Prioritize official/government sources (.gov, .gob.es, etc.)${sourcePreferenceText}
-- Must be a real, accessible URL (verify it exists)
-- Must be directly relevant to the specific claim
-- Must be in ${language.toUpperCase()} language
+1. MUST be from approved domains (surinenglish.com, euroweeklynews.com, boe.es, agenciatributaria.es, etc.)
+2. ${languageInstructions[language] || 'Find English sources'}
+3. Prioritize official/government sources (.gov, .gob.es, etc.)${sourcePreferenceText}
+4. Must be a real, accessible URL (verify it exists)
+5. Must be directly relevant to the specific claim
+6. Must be in ${language.toUpperCase()} language
 
 Return ONLY this JSON (no markdown, no explanation):
 {
@@ -296,7 +303,7 @@ Return ONLY this JSON (no markdown, no explanation):
           messages: [
             {
               role: 'system',
-              content: `You are a research expert finding authoritative citations. CRITICAL: Only return sources in ${language.toUpperCase()} language. Verify URLs are real and accessible. Return ONLY valid JSON.`
+              content: `You are a research expert finding authoritative citations. CRITICAL: Only use approved domains. Only return sources in ${language.toUpperCase()} language. Verify URLs are real and accessible. Return ONLY valid JSON.`
             },
             {
               role: 'user',
@@ -304,7 +311,8 @@ Return ONLY this JSON (no markdown, no explanation):
             }
           ],
           temperature: 0.2,
-          max_tokens: 300
+          max_tokens: 300,
+          search_domain_filter: getAllApprovedDomains() // ✅ API-level enforcement
         })
       }
     );
@@ -336,6 +344,16 @@ Return ONLY this JSON (no markdown, no explanation):
       console.error('Invalid citation structure:', citation);
       return null;
     }
+
+    // CRITICAL: Check if domain is approved
+    const isApproved = isApprovedDomain(citation.url);
+    if (!isApproved) {
+      console.warn(`❌ REJECTED non-approved domain: ${citation.url}`);
+      return null;
+    }
+
+    const category = getDomainCategory(citation.url);
+    console.log(`✅ APPROVED: ${citation.url} (category: ${category})`);
 
     // Verify language matches
     if (citation.language !== language) {

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getAllApprovedDomains, generateSiteQuery, isApprovedDomain, getDomainCategory } from '../shared/approvedDomains.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,51 +141,82 @@ serve(async (req) => {
       sources: string[];
       languageName: string;
       exampleDomain: string;
+      siteQuery: string;
     }> = {
       es: {
-        instruction: 'Find 3-5 authoritative sources for this Spanish real estate article',
-        domains: ['.gob.es', '.es official domains'],
-        sources: ['Spanish government ministries (Ministerios)', 'Property registry (Registradores de España)', 'Financial sources (Banco de España)', 'Legal and regulatory sources'],
+        instruction: 'Find 3-5 authoritative sources from APPROVED domains only',
+        domains: getAllApprovedDomains(),
+        sources: [
+          'Government (.gob.es): boe.es, agenciatributaria.es, juntadeandalucia.es',
+          'News: surinenglish.com, euroweeklynews.com, theolivepress.es',
+          'Legal: legalservicesinspain.com, costaluzlawyers.es',
+          'Travel: malagaturismo.com, andalucia.com, visitcostadelsol.com'
+        ],
         languageName: 'Spanish',
-        exampleDomain: 'https://www.inclusion.gob.es/...'
+        exampleDomain: 'https://surinenglish.com/...',
+        siteQuery: generateSiteQuery()
       },
       en: {
-        instruction: 'Find 3-5 authoritative sources for this English real estate article',
-        domains: ['.gov', '.gov.uk', '.org official domains'],
-        sources: ['Government housing agencies', 'Property registries', 'Financial authorities (SEC, Federal Reserve)', 'Legal and regulatory sources'],
+        instruction: 'Find 3-5 authoritative sources from APPROVED domains only',
+        domains: getAllApprovedDomains(),
+        sources: [
+          'Government housing agencies',
+          'Property registries',
+          'Financial authorities (SEC, Federal Reserve)',
+          'Legal and regulatory sources'
+        ],
         languageName: 'English',
-        exampleDomain: 'https://www.hud.gov/...'
+        exampleDomain: 'https://www.hud.gov/...',
+        siteQuery: generateSiteQuery()
       },
       nl: {
-        instruction: 'Find 3-5 authoritative sources for this Dutch real estate article',
-        domains: ['.nl', '.overheid.nl', '.gov.nl official domains'],
-        sources: ['Dutch government sources (Nederlandse overheid)', 'Land registry (Kadaster)', 'Financial authorities (De Nederlandsche Bank)', 'Legal and regulatory sources'],
+        instruction: 'Find 3-5 authoritative sources from APPROVED domains only',
+        domains: getAllApprovedDomains(),
+        sources: [
+          'Dutch government sources (Nederlandse overheid)',
+          'Land registry (Kadaster)',
+          'Financial authorities (De Nederlandsche Bank)',
+          'Legal and regulatory sources'
+        ],
         languageName: 'Dutch',
-        exampleDomain: 'https://www.kadaster.nl/...'
+        exampleDomain: 'https://www.kadaster.nl/...',
+        siteQuery: generateSiteQuery()
       }
     };
 
     const config = languageConfig[language] || languageConfig.es;
 
     const governmentRequirement = requireGovernmentSource 
-      ? `\n\nMANDATORY: At least ONE source MUST be from an official government domain (${config.domains.join(' or ')}). This is non-negotiable and CRITICAL for article validation.`
+      ? `\n\nMANDATORY: At least ONE source MUST be from an official government domain. This is non-negotiable and CRITICAL for article validation.`
       : '';
 
+    console.log(`🔍 Citation search - Using ${config.domains.length} approved domains`);
+
     const prompt = `${config.instruction}:
+
+**CRITICAL: ONLY use sources from approved domains**
+Search format: ${config.siteQuery} AND [your search terms]
 
 Article Topic: "${headline}"
 Article Language: ${config.languageName}
 Content Preview: ${content.substring(0, 2000)}
 
-CRITICAL REQUIREMENTS:
-- Return MINIMUM 2 citations, ideally 3-5 citations
-- Prioritize official government sources (${config.domains.join(', ')})
-- Include these types of sources: ${config.sources.join(', ')}
-- ALL sources MUST be in ${config.languageName} language (no translations, no foreign sites)
-- ALL sources must be HTTPS and currently active
-- Sources must be DIRECTLY RELEVANT to the article topic: "${headline}"
-- Authoritative sources only (government, educational, major institutions)
-- For each source, identify WHERE in the article it should be cited${governmentRequirement}
+**CRITICAL REQUIREMENTS:**
+1. ALL sources MUST be from the approved domain list (use site: filtering)
+2. Return MINIMUM 2 citations, ideally 3-5 citations
+3. Include these types of sources: ${config.sources.join(', ')}
+4. ALL sources MUST be in ${config.languageName} language (no translations, no foreign sites)
+5. ALL sources must be HTTPS and currently active
+6. Sources must be DIRECTLY RELEVANT to the article topic: "${headline}"
+7. Authoritative sources only (government, news, legal, official)
+8. For each source, identify WHERE in the article it should be cited${governmentRequirement}
+
+**Approved Domain Categories:**
+- News & Media (surinenglish.com, euroweeklynews.com, theolivepress.es, etc.)
+- Government (.gob.es, gov.uk, ine.es, boe.es, juntadeandalucia.es, etc.)
+- Legal (legalservicesinspain.com, costaluzlawyers.es, abogadoespanol.com, etc.)
+- Travel & Tourism (malagaturismo.com, andalucia.com, visitcostadelsol.com, etc.)
+- Finance (bde.es, ecb.europa.eu, numbeo.com, etc.)
 
 Return ONLY valid JSON in this exact format:
 [
@@ -208,12 +240,12 @@ Return only the JSON array, nothing else.`;
         'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+        body: JSON.stringify({
         model: 'sonar-pro',
         messages: [
           {
             role: 'system',
-            content: `You are a research expert finding authoritative ${config.languageName}-language sources for real estate articles. Always prioritize official government sources. Return only valid JSON arrays. ALL sources must be in ${config.languageName}.`
+            content: `You are a research expert finding authoritative ${config.languageName}-language sources. CRITICAL: Only use approved domains. Return only valid JSON arrays. ALL sources must be in ${config.languageName}.`
           },
           {
             role: 'user',
@@ -222,6 +254,7 @@ Return only the JSON array, nothing else.`;
         ],
         temperature: 0.2,
         max_tokens: 2000,
+        search_domain_filter: getAllApprovedDomains(), // ✅ API-level enforcement
       }),
     });
 
@@ -254,18 +287,38 @@ Return only the JSON array, nothing else.`;
       throw new Error('No citations found');
     }
 
-    console.log(`Found ${citations.length} citations, verifying URLs...`);
+    console.log(`📥 Received ${citations.length} citations from Perplexity`);
 
-    // Verify each URL with retry logic
+    // PHASE 1: Filter by approved domains FIRST
+    const domainFilteredCitations = citations.filter((citation: Citation) => {
+      const isApproved = isApprovedDomain(citation.url);
+      if (!isApproved) {
+        console.warn(`❌ REJECTED non-approved domain: ${citation.url}`);
+        return false;
+      }
+      const category = getDomainCategory(citation.url);
+      console.log(`✅ APPROVED: ${citation.url} (category: ${category})`);
+      return true;
+    });
+
+    console.log(`🔒 Domain filtering: ${domainFilteredCitations.length}/${citations.length} from approved domains`);
+
+    // PHASE 2: Verify URLs with retry logic
     const verifiedCitations = await Promise.all(
-      citations.map(async (citation: Citation) => {
+      domainFilteredCitations.map(async (citation: Citation) => {
         const verified = await verifyUrlWithRetry(citation.url);
         return { ...citation, verified };
       })
     );
 
     const validCitations = verifiedCitations.filter(c => c.verified);
-    console.log(`${validCitations.length} citations verified successfully`);
+    const rejectedCount = citations.length - validCitations.length;
+    console.log(`📊 Citation Stats:
+  - Total found: ${citations.length}
+  - Approved domains: ${domainFilteredCitations.length}
+  - Verified accessible: ${validCitations.length}
+  - Rejected: ${rejectedCount}
+`);
 
     // ✅ AUTHORITY SCORING - Prioritize high-quality sources
     const citationsWithScores = validCitations.map((citation: any) => {
