@@ -96,14 +96,18 @@ serve(async (req) => {
         }
 
         if (preview) {
-          // Just count replacements for preview
-          const matches = (article.detailed_content.match(new RegExp(replacement.original_url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
-          replacementCount += matches;
+          // Count citations in metadata that match the old URL
+          let citationMatches = 0;
+          const citations = article.external_citations || [];
+          if (Array.isArray(citations)) {
+            citationMatches = citations.filter((citation: any) => citation.url === replacement.original_url).length;
+          }
+          replacementCount += citationMatches;
           affectedArticles.push({
             articleId: article.id,
             slug: article.slug,
             headline: article.headline,
-            replacements: matches
+            replacements: citationMatches
           });
         } else {
           // Create backup revision
@@ -125,28 +129,24 @@ serve(async (req) => {
             continue;
           }
 
-          // Replace in content
-          const urlRegex = new RegExp(replacement.original_url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-          const newContent = article.detailed_content.replace(urlRegex, replacement.replacement_url);
-          const matches = (article.detailed_content.match(urlRegex) || []).length;
-          replacementCount += matches;
-
-          // Update external_citations array
+          // Update external_citations array and count replacements
+          let citationMatches = 0;
           let newCitations = article.external_citations || [];
           if (Array.isArray(newCitations)) {
             newCitations = newCitations.map((citation: any) => {
               if (citation.url === replacement.original_url) {
+                citationMatches++;
                 return { ...citation, url: replacement.replacement_url };
               }
               return citation;
             });
           }
+          replacementCount += citationMatches;
 
           // Update article
           const { error: updateError } = await supabase
             .from('blog_articles')
             .update({
-              detailed_content: newContent,
               external_citations: newCitations,
               updated_at: new Date().toISOString()
             })
@@ -171,10 +171,10 @@ serve(async (req) => {
             articleId: article.id,
             slug: article.slug,
             headline: article.headline,
-            replacements: matches
+            replacements: citationMatches
           });
 
-          console.log(`✅ Updated article ${article.slug} (${matches} replacements)`);
+          console.log(`✅ Updated article ${article.slug} (${citationMatches} citations updated)`);
         }
       }
 
@@ -203,14 +203,14 @@ serve(async (req) => {
     const totalArticles = [...new Set(affectedArticles.map(a => a.articleId))].length;
     const totalReplacements = results.reduce((sum, r) => sum + r.replacementCount, 0);
 
-    console.log(`✅ ${preview ? 'Preview' : 'Application'} complete: ${totalArticles} articles, ${totalReplacements} URLs replaced`);
+    console.log(`✅ ${preview ? 'Preview' : 'Application'} complete: ${totalArticles} articles, ${totalReplacements} citations updated`);
 
     return new Response(
       JSON.stringify({
         success: true,
         preview,
         articlesUpdated: totalArticles,
-        urlsReplaced: totalReplacements,
+        citationsUpdated: totalReplacements,
         affectedArticles,
         results
       }),

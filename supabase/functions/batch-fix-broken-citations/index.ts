@@ -38,7 +38,7 @@ serve(async (req) => {
       manualReview: 0,
       failed: 0,
       articlesUpdated: 0,
-      linksReplaced: 0,
+      citationsUpdated: 0,
       details: [] as any[]
     };
 
@@ -217,14 +217,14 @@ serve(async (req) => {
           console.log(`✅ Successfully auto-applied replacement for ${citation.url}`);
           results.autoApplied++;
           results.articlesUpdated += applyResult.articlesUpdated || 0;
-          results.linksReplaced += applyResult.urlsReplaced || 0;
+          results.citationsUpdated += applyResult.citationsUpdated || 0;
           results.details.push({
             url: citation.url,
             status: 'auto-applied',
             score: bestReplacement.confidence_score,
             replacement: bestReplacement.replacement_url,
             articlesUpdated: applyResult.articlesUpdated,
-            linksReplaced: applyResult.urlsReplaced
+            citationsUpdated: applyResult.citationsUpdated
           });
         } else {
           console.log(`📋 Saved for manual review: ${citation.url} (score: ${bestReplacement.confidence_score}/10)`);
@@ -256,7 +256,7 @@ serve(async (req) => {
       - Manual review: ${results.manualReview}
       - Failed: ${results.failed}
       - Articles updated: ${results.articlesUpdated}
-      - Links replaced: ${results.linksReplaced}
+      - Citations updated: ${results.citationsUpdated}
     `);
 
     return new Response(

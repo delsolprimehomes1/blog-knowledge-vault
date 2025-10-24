@@ -174,7 +174,7 @@ const CitationHealth = () => {
         `🎉 Batch fix complete!\n` +
         `✅ Auto-applied: ${results.autoApplied}\n` +
         `📚 Articles updated: ${results.articlesUpdated}\n` +
-        `🔗 Links replaced: ${results.linksReplaced}\n` +
+        `🔗 Citations updated: ${results.citationsUpdated}\n` +
         `📋 Manual review: ${results.manualReview}\n` +
         `❌ Failed: ${results.failed}`,
         { duration: 10000 }
@@ -414,7 +414,7 @@ const CitationHealth = () => {
               toast.success(
                 `✅ Auto-applied replacement (score: ${bestScore}/10)\n` +
                 `📚 Updated ${applyResult.articlesUpdated} article(s)\n` +
-                `🔗 Replaced ${applyResult.urlsReplaced} link(s)\n` +
+                `🔗 Updated ${applyResult.citationsUpdated} citation(s)\n` +
                 `${data.suggestions.length > 1 ? `${data.suggestions.length - 1} alternatives saved for review` : ''}`,
                 { duration: 6000 }
               );
