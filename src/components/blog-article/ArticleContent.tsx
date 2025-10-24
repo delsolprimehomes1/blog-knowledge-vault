@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { MermaidPreview } from "@/components/MermaidPreview";
-import { ExternalCitation } from "@/types/blog";
-import { injectExternalLinks, addCitationMarkers } from "@/lib/linkInjection";
+import { ExternalCitation, InternalLink } from "@/types/blog";
+import { injectExternalLinks, injectInternalLinks, addCitationMarkers } from "@/lib/linkInjection";
 
 interface ArticleContentProps {
   content: string;
@@ -12,6 +12,7 @@ interface ArticleContentProps {
   diagramUrl?: string;
   diagramDescription?: string;
   externalCitations?: ExternalCitation[];
+  internalLinks?: InternalLink[];
 }
 
 export const ArticleContent = ({
@@ -22,6 +23,7 @@ export const ArticleContent = ({
   diagramUrl,
   diagramDescription,
   externalCitations = [],
+  internalLinks = [],
 }: ArticleContentProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -47,7 +49,7 @@ export const ArticleContent = ({
     return htmlContent;
   };
 
-  // Process content: sanitize -> bold markers -> external links -> citation markers
+  // Process content: sanitize -> internal links -> bold markers -> external links -> citation markers
   const processContent = (htmlContent: string) => {
     let processed = sanitizeContent(htmlContent);
     
@@ -55,6 +57,8 @@ export const ArticleContent = ({
     processed = processed.replace(/\[CITATION_NEEDED:[^\]]*\]/g, '');
     processed = processed.replace(/\[CITATION_NEEDED\]/g, '');
     
+    // Process internal link placeholders FIRST (before other transformations)
+    processed = injectInternalLinks(processed, internalLinks);
     processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     processed = injectExternalLinks(processed, externalCitations);
     processed = addCitationMarkers(processed, externalCitations);

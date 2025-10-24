@@ -1,4 +1,41 @@
-import { ExternalCitation } from "@/types/blog";
+import { ExternalCitation, InternalLink } from "@/types/blog";
+
+/**
+ * Injects internal links by replacing [INTERNAL_LINK: ...] placeholders
+ */
+export const injectInternalLinks = (
+  content: string,
+  internalLinks: InternalLink[]
+): string => {
+  if (!internalLinks || internalLinks.length === 0) return content;
+
+  let processedContent = content;
+
+  // Regular expression to find [INTERNAL_LINK: Article Title]
+  const linkPattern = /\[INTERNAL_LINK:\s*([^\]]+)\]/g;
+  const matches = [...content.matchAll(linkPattern)];
+
+  matches.forEach((match) => {
+    const placeholderText = match[1].trim();
+
+    // Find matching internal link by title (fuzzy match)
+    const matchingLink = internalLinks.find(link => 
+      link.title.toLowerCase().includes(placeholderText.toLowerCase()) ||
+      placeholderText.toLowerCase().includes(link.title.toLowerCase())
+    );
+
+    if (matchingLink) {
+      // Replace placeholder with actual HTML link
+      const link = `<a href="${matchingLink.url}" class="internal-link">${matchingLink.title}</a>`;
+      processedContent = processedContent.replace(match[0], link);
+    } else {
+      // No matching link found - just remove the placeholder markup, keep the text
+      processedContent = processedContent.replace(match[0], placeholderText);
+    }
+  });
+
+  return processedContent;
+};
 
 /**
  * Injects external links into article content based on entity matching

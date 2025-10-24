@@ -252,6 +252,7 @@ const BlogArticle = () => {
               diagramUrl={article.diagram_url || undefined}
               diagramDescription={article.diagram_description || undefined}
               externalCitations={article.external_citations as ExternalCitation[]}
+              internalLinks={article.internal_links as InternalLink[]}
             />
 
             <SpeakableBox answer={article.speakable_answer} />
