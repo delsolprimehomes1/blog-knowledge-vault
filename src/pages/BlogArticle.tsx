@@ -14,6 +14,7 @@ import { TrustSignals } from "@/components/blog-article/TrustSignals";
 import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
 import { StickyMobileCTA } from "@/components/blog-article/StickyMobileCTA";
+import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { generateAllSchemas } from "@/lib/schemaGenerator";
 import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink } from "@/types/blog";
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
@@ -280,6 +281,9 @@ const BlogArticle = () => {
           </div>
         </div>
       </div>
+
+      {/* Company Footer */}
+      <BlogFooter />
 
       {/* Sticky Mobile CTA Footer */}
       <StickyMobileCTA />

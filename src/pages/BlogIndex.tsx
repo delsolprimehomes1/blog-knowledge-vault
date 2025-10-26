@@ -7,6 +7,7 @@ import { FilterBar } from "@/components/blog-index/FilterBar";
 import { SearchBar } from "@/components/blog-index/SearchBar";
 import { ArticleCard } from "@/components/blog-index/ArticleCard";
 import { BlogPagination } from "@/components/blog-index/BlogPagination";
+import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { Button } from "@/components/ui/button";
 import { FileQuestion } from "lucide-react";
 
@@ -200,6 +201,9 @@ const BlogIndex = () => {
           />
         </>
       )}
+
+      {/* Company Footer */}
+      <BlogFooter />
     </div>
   );
 };

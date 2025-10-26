@@ -20,8 +20,15 @@ const ORGANIZATION_SCHEMA = {
   "@type": "RealEstateAgent",
   "name": "Del Sol Prime Homes",
   "description": "Premium real estate agency specializing in Costa del Sol properties",
-  "url": "https://example.com",
-  "logo": "https://example.com/logo.png",
+  "url": "https://delsolprimehomes.com",
+  "logo": "https://delsolprimehomes.com/logo.png",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Calle Alfonso XIII, 6-1º",
+    "addressLocality": "Fuengirola",
+    "addressRegion": "Costa del Sol",
+    "addressCountry": "ES"
+  },
   "areaServed": [
     { "@type": "City", "name": "Marbella" },
     { "@type": "City", "name": "Estepona" },
@@ -33,8 +40,8 @@ const ORGANIZATION_SCHEMA = {
     "@type": "ContactPoint",
     "contactType": "Customer Service",
     "availableLanguage": ["en", "es", "de", "nl", "fr", "pl", "sv", "da", "hu"],
-    "telephone": "+34-XXX-XXX-XXX",
-    "email": "info@example.com"
+    "telephone": "+34-613-578-416",
+    "email": "info@delsolprimehomes.com"
   },
   "sameAs": [
     "https://www.facebook.com/example",
