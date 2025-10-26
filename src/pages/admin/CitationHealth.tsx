@@ -192,6 +192,25 @@ const CitationHealth = () => {
     }
   });
 
+  const cleanupUnusedCitations = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('cleanup-unused-citations');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message, {
+        description: `Removed ${data.orphaned_citations_removed} unused citations, ${data.replacement_suggestions_removed} orphaned replacements`,
+        duration: 5000
+      });
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+      queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
+    },
+    onError: (error) => {
+      toast.error(`Cleanup failed: ${error.message}`);
+    }
+  });
+
   const approveReplacement = useMutation({
     mutationFn: async (replacementId: string) => {
       const { error } = await supabase.from("dead_link_replacements").update({ status: "approved" }).eq("id", replacementId);
@@ -510,6 +529,18 @@ const CitationHealth = () => {
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Syncing...</>
               ) : (
                 <><RefreshCw className="mr-2 h-4 w-4" /> Sync Citation Tracking</>
+              )}
+            </Button>
+            <Button 
+              onClick={() => cleanupUnusedCitations.mutate()}
+              disabled={cleanupUnusedCitations.isPending}
+              variant="outline"
+              title="Remove health monitoring for citations not used in any articles"
+            >
+              {cleanupUnusedCitations.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cleaning...</>
+              ) : (
+                <><XCircle className="mr-2 h-4 w-4" /> Clean Up Unused</>
               )}
             </Button>
             <Button 
