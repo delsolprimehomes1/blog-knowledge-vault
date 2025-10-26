@@ -115,6 +115,12 @@ export const ArticleHeader = ({ article, author, reviewer, translations }: Artic
             <span className="text-sm font-medium">{new Date(article.date_published).toLocaleDateString()}</span>
           </Badge>
         )}
+        {article.date_modified && article.date_published && article.date_modified !== article.date_published && (
+          <Badge variant="outline" className="backdrop-blur-md bg-white/70 dark:bg-gray-900/70 border-white/30 shadow-md gap-2 px-4 py-2">
+            <RefreshCw className="h-4 w-4" style={{ color: 'hsl(42 58% 50%)' }} />
+            <span className="text-sm font-medium">Updated {new Date(article.date_modified).toLocaleDateString()}</span>
+          </Badge>
+        )}
         {article.read_time && (
           <Badge variant="outline" className="backdrop-blur-md bg-white/70 dark:bg-gray-900/70 border-white/30 shadow-md gap-2 px-4 py-2">
             <Clock className="h-4 w-4" style={{ color: 'hsl(42 58% 50%)' }} />
