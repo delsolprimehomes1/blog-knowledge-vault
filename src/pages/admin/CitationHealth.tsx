@@ -350,7 +350,11 @@ const CitationHealth = () => {
       });
       
       if (articles.length === 0) {
-        toast.error("Citation not found in any article");
+        toast.error(
+          "This citation is being monitored but isn't actually used in any published article. " +
+          "Click 'Clean Up Unused' to remove orphaned citations from monitoring.",
+          { duration: 7000 }
+        );
         return;
       }
       
