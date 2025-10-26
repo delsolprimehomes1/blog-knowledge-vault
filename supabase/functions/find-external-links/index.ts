@@ -128,7 +128,13 @@ serve(async (req) => {
   }
 
   try {
-    const { content, headline, language = 'es', requireGovernmentSource = false } = await req.json();
+    const { 
+      content, 
+      headline, 
+      language = 'es', 
+      requireGovernmentSource = false,
+      funnelStage = 'MOFU' // New parameter with default
+    } = await req.json();
     
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
@@ -180,6 +186,39 @@ serve(async (req) => {
       ? `\n\nMANDATORY: At least ONE source MUST be from an official government domain. This is non-negotiable and CRITICAL for article validation.`
       : '';
 
+    // Use new batch-aware citation finder
+    console.log(`🔍 Using batch citation system (funnel: ${funnelStage})`);
+    
+    const { findBetterCitationsWithBatch } = await import('../shared/citationFinder.ts');
+    
+    const result = await findBetterCitationsWithBatch(
+      headline,
+      language,
+      content,
+      funnelStage as 'TOFU' | 'MOFU' | 'BOFU',
+      PERPLEXITY_API_KEY,
+      'Costa del Sol real estate'
+    );
+
+    if (result.status === 'failed' || result.citations.length === 0) {
+      console.error(`❌ Batch citation system failed - no citations found`);
+      throw new Error('No citations found from batch system');
+    }
+
+    console.log(`✅ Found ${result.citations.length} citations from ${result.category} batch`);
+
+    // Transform to expected format
+    const citations = result.citations.map((c: any) => ({
+      sourceName: c.sourceName,
+      url: c.url,
+      anchorText: c.suggestedContext || c.description.substring(0, 50),
+      contextInArticle: c.suggestedContext,
+      relevance: c.relevance,
+      verified: true
+    }));
+
+    // Skip old Perplexity call logic - now handled by batch system
+    /* OLD CODE BELOW - KEEPING FOR REFERENCE BUT NOT EXECUTING
     console.log(`🔍 Citation search - Using TOP 20 PRIORITY domains (strategically selected for E-E-A-T authority)`);
 
     // ✅ Generate site query from TOP 20 priority domains
@@ -221,78 +260,12 @@ Return ONLY valid JSON in this exact format:
 
 Return only the JSON array, nothing else.`;
 
-    console.log('Calling Perplexity API to find authoritative sources...');
-    
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-        body: JSON.stringify({
-        model: 'sonar-pro',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a research expert finding authoritative ${config.languageName}-language sources. CRITICAL: Only use TOP 20 PRIORITY domains. Return only valid JSON arrays. ALL sources must be in ${config.languageName}.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.2,
-        max_tokens: 2000,
-        // ✅ Using TOP_20_PRIORITY_DOMAINS to stay within Perplexity's 20-domain limit
-        // This strategically selects the most authoritative sources while avoiding competitor links
-        search_domain_filter: [...TOP_20_PRIORITY_DOMAINS], // ✅ 20 domains max - API compliant
-      }),
-    });
+    // OLD PERPLEXITY CODE - NOW HANDLED BY BATCH SYSTEM
+    // Skipping to validation phase
+    */
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Perplexity API error:', response.status, errorText);
-      throw new Error(`Perplexity API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
-    
-    console.log('Perplexity response:', aiResponse);
-    
-    let citations: Citation[] = [];
-    try {
-      const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        citations = JSON.parse(jsonMatch[0]);
-      } else {
-        citations = JSON.parse(aiResponse);
-      }
-    } catch (parseError) {
-      console.error('Failed to parse citations JSON:', parseError);
-      throw new Error('Failed to parse AI response into citations');
-    }
-
-    if (!Array.isArray(citations) || citations.length === 0) {
-      console.error('No valid citations found in response');
-      throw new Error('No citations found');
-    }
-
-    console.log(`📥 Received ${citations.length} citations from Perplexity`);
-
-    // PHASE 1: Filter by approved domains FIRST
-    const domainFilteredCitations = citations.filter((citation: Citation) => {
-      const isApproved = isApprovedDomain(citation.url);
-      if (!isApproved) {
-        console.warn(`❌ REJECTED non-approved domain: ${citation.url}`);
-        return false;
-      }
-      const category = getDomainCategory(citation.url);
-      console.log(`✅ APPROVED: ${citation.url} (category: ${category})`);
-      return true;
-    });
-
-    console.log(`🔒 Domain filtering: ${domainFilteredCitations.length}/${citations.length} from approved domains`);
+    // Domain filtering already done by batch system
+    const domainFilteredCitations = citations;
 
     // PHASE 2: Verify URLs with retry logic
     const verifiedCitations = await Promise.all(
@@ -364,7 +337,11 @@ Return only the JSON array, nothing else.`;
         totalFound: citations.length,
         totalVerified: citationsWithScores.length,
         hasGovernmentSource: hasGovSource,
-        averageAuthorityScore: citationsWithScores.reduce((acc: number, c: any) => acc + c.authorityScore, 0) / citationsWithScores.length
+        averageAuthorityScore: citationsWithScores.reduce((acc: number, c: any) => acc + c.authorityScore, 0) / citationsWithScores.length,
+        // New batch system metadata
+        category: result.category,
+        batchSize: result.batchSize,
+        status: result.status
       }),
       { 
         headers: { 

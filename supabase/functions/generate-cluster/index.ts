@@ -1213,9 +1213,9 @@ Return ONLY valid JSON:
         article.reviewer_id = null;
       }
 
-      // 10. EXTERNAL CITATIONS (Perplexity for authoritative sources)
+      // 10. EXTERNAL CITATIONS (Perplexity with batch system)
       try {
-        console.log(`[Job ${jobId}] Finding external citations for article ${i+1}: "${plan.headline}" (${language})`);
+        console.log(`[Job ${jobId}] Finding external citations for article ${i+1}: "${plan.headline}" (${language}, ${plan.funnelStage})`);
         const citationsResponse = await withTimeout(
           retryWithBackoff(
             () => supabase.functions.invoke('find-external-links', {
@@ -1223,6 +1223,7 @@ Return ONLY valid JSON:
                 content: article.detailed_content,
                 headline: plan.headline,
                 language: language,
+                funnelStage: plan.funnelStage, // ✅ Pass funnel stage
               },
             }),
             3,
@@ -1233,7 +1234,11 @@ Return ONLY valid JSON:
         );
 
         if (citationsResponse.data?.citations && citationsResponse.data.citations.length > 0) {
-          console.log(`[Job ${jobId}] Found ${citationsResponse.data.citations.length} external citations (${citationsResponse.data.totalVerified || 0} verified)`);
+          console.log(`[Job ${jobId}] ✅ Citations found:`);
+          console.log(`[Job ${jobId}]   • Count: ${citationsResponse.data.citations.length}`);
+          console.log(`[Job ${jobId}]   • Category: ${citationsResponse.data.category || 'unknown'}`);
+          console.log(`[Job ${jobId}]   • Batch size: ${citationsResponse.data.batchSize || 'unknown'}`);
+          console.log(`[Job ${jobId}]   • Status: ${citationsResponse.data.status || 'unknown'}`);
           const citations = citationsResponse.data.citations;
           
           // Insert citations into content

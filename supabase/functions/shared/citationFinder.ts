@@ -220,6 +220,201 @@ Return only the JSON array, nothing else.`;
 /**
  * Verify that suggested citations are actually accessible
  */
+/**
+ * Find better citations using smart batch selection
+ * Uses only 1 category batch (max 20 domains) per article
+ */
+export async function findBetterCitationsWithBatch(
+  articleTopic: string,
+  articleLanguage: string,
+  articleContent: string,
+  funnelStage: 'TOFU' | 'MOFU' | 'BOFU',
+  perplexityApiKey: string,
+  focusArea?: string
+): Promise<{
+  citations: BetterCitation[];
+  category: string;
+  batchSize: number;
+  status: 'success' | 'partial' | 'failed';
+}> {
+  
+  const { selectBestCategoryBatch } = await import('./categorySelector.ts');
+  const { generateBatchSiteQuery, validateBatchSize } = await import('./domainBatches.ts');
+  
+  // Select best batch based on topic and funnel stage
+  const selection = selectBestCategoryBatch(articleTopic, funnelStage, articleLanguage);
+  
+  console.log(`🎯 Selected ${selection.category} batch (${selection.domains.length} domains)`);
+  console.log(`📝 Reasoning: ${selection.reasoning}`);
+  
+  if (selection.domains.length === 0) {
+    console.warn(`⚠️ No domains in ${selection.category} batch for ${articleLanguage}`);
+    return {
+      citations: [],
+      category: selection.category,
+      batchSize: 0,
+      status: 'failed'
+    };
+  }
+  
+  // Determine target citation count based on funnel stage
+  const targetCitations = funnelStage === 'BOFU' ? 6 : 
+                          funnelStage === 'MOFU' ? 5 : 3;
+  
+  const config = languageConfig[articleLanguage as keyof typeof languageConfig] || languageConfig.es;
+  const focusContext = focusArea 
+    ? `\n**Special Focus:** ${focusArea} - prioritize sources specific to this region/topic`
+    : '';
+  
+  // Build batch site query (max 20 domains)
+  const batchSiteQuery = selection.domains
+    .slice(0, 20)
+    .map(d => `site:${d}`)
+    .join(' OR ');
+
+  const prompt = `You are an expert research assistant finding authoritative external sources for a ${config.name} language article.
+
+**CRITICAL: ONLY use sources from ${selection.category} domains**
+Search format: ${batchSiteQuery} AND [your search terms]
+
+**Article Topic:** "${articleTopic}"
+**Language Required:** ${config.name}
+**Funnel Stage:** ${funnelStage}
+**Target Citations:** ${targetCitations}
+**Article Content Preview:**
+${articleContent.substring(0, 1000)}
+${focusContext}
+
+**CRITICAL REQUIREMENTS:**
+1. ALL sources MUST be from the ${selection.category} domain batch ONLY
+2. ALL sources MUST be in ${config.name} language
+3. Sources must be HIGH AUTHORITY (${selection.category} focus)
+4. Content must DIRECTLY relate to the article topic
+5. Sources must be currently accessible (HTTPS, active)
+6. Find exactly ${targetCitations} diverse, authoritative sources
+
+**${selection.category} Domain Batch (${selection.domains.length} domains):**
+${selection.domains.join(', ')}
+
+**Return ONLY valid JSON array in this EXACT format:**
+[
+  {
+    "url": "https://example.domain/...",
+    "sourceName": "Official Source Name",
+    "description": "Brief description of what this source contains (1-2 sentences)",
+    "relevance": "Why this source is relevant to the article topic",
+    "authorityScore": 9,
+    "language": "${articleLanguage}",
+    "suggestedContext": "Where in the article this citation should appear"
+  }
+]
+
+Return only the JSON array, nothing else.`;
+
+  console.log(`🔍 Requesting ${targetCitations} citations from Perplexity (${selection.category} batch)...`);
+
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${perplexityApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'sonar-pro',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert research assistant finding authoritative ${config.name}-language sources from ${selection.category} domains. Return ONLY valid JSON arrays.`
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 3000,
+      search_domain_filter: selection.domains.slice(0, 20), // API-level enforcement (max 20)
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Perplexity API error:', response.status, errorText);
+    return {
+      citations: [],
+      category: selection.category,
+      batchSize: selection.domains.length,
+      status: 'failed'
+    };
+  }
+
+  const data = await response.json();
+  const citationsText = data.choices[0].message.content;
+
+  console.log('Perplexity response:', citationsText.substring(0, 300));
+
+  try {
+    const jsonMatch = citationsText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      throw new Error('No JSON array found in response');
+    }
+
+    const citations = JSON.parse(jsonMatch[0]) as BetterCitation[];
+    console.log(`📥 Received ${citations.length} citations from Perplexity`);
+
+    // Validate citations are from selected batch ONLY
+    const validCitations = citations.filter(citation => {
+      if (!citation.url || !citation.sourceName || !citation.url.startsWith('http')) {
+        return false;
+      }
+      
+      // Check if URL is from selected batch
+      const urlLower = citation.url.toLowerCase();
+      const isInBatch = selection.domains.some(domain => 
+        urlLower.includes(domain.toLowerCase())
+      );
+      
+      if (!isInBatch) {
+        console.warn(`❌ REJECTED: ${citation.url} not in ${selection.category} batch`);
+        return false;
+      }
+      
+      console.log(`✅ APPROVED: ${citation.url} (${selection.category})`);
+      return true;
+    });
+
+    const rejectedCount = citations.length - validCitations.length;
+    const status = validCitations.length >= targetCitations ? 'success' : 
+                   validCitations.length > 0 ? 'partial' : 'failed';
+
+    console.log(`📊 Citation Stats:
+  - Category: ${selection.category}
+  - Batch size: ${selection.domains.length}
+  - Total found: ${citations.length}
+  - Approved: ${validCitations.length}
+  - Rejected: ${rejectedCount}
+  - Target: ${targetCitations}
+  - Status: ${status}
+`);
+
+    return {
+      citations: validCitations.slice(0, targetCitations),
+      category: selection.category,
+      batchSize: selection.domains.length,
+      status
+    };
+  } catch (parseError) {
+    console.error('Failed to parse citations:', parseError);
+    console.error('Raw response:', citationsText);
+    return {
+      citations: [],
+      category: selection.category,
+      batchSize: selection.domains.length,
+      status: 'failed'
+    };
+  }
+}
+
 export async function verifyCitations(citations: BetterCitation[]): Promise<BetterCitation[]> {
   console.log(`Verifying ${citations.length} citations...`);
 
