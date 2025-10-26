@@ -10,7 +10,7 @@ export const BlogFooter = () => {
             {/* Company Info */}
             <div className="space-y-4">
               <h3 className="text-xl font-bold text-foreground">DelSol Prime Homes</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm text-foreground/80 leading-relaxed">
                 Your trusted partner for premium properties on the beautiful Costa del Sol. 
                 We specialize in helping you find your dream home in Spain's most desirable coastal region.
               </p>
@@ -25,28 +25,28 @@ export const BlogFooter = () => {
               <nav className="flex flex-col space-y-3">
                 <Link 
                   to="/"
-                  className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                  className="group flex items-center gap-2 text-sm text-foreground/80 hover:text-primary transition-colors"
                 >
                   <Home className="w-4 h-4" />
                   <span className="group-hover:translate-x-1 transition-transform">Properties</span>
                 </Link>
                 <Link 
                   to="/blog"
-                  className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                  className="group flex items-center gap-2 text-sm text-foreground/80 hover:text-primary transition-colors"
                 >
                   <BookOpen className="w-4 h-4" />
                   <span className="group-hover:translate-x-1 transition-transform">Blog</span>
                 </Link>
                 <Link 
                   to="/"
-                  className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                  className="group flex items-center gap-2 text-sm text-foreground/80 hover:text-primary transition-colors"
                 >
                   <Users className="w-4 h-4" />
                   <span className="group-hover:translate-x-1 transition-transform">About Us</span>
                 </Link>
                 <Link 
                   to="/"
-                  className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                  className="group flex items-center gap-2 text-sm text-foreground/80 hover:text-primary transition-colors"
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span className="group-hover:translate-x-1 transition-transform">Contact</span>
@@ -61,7 +61,7 @@ export const BlogFooter = () => {
                 <div className="group flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <p className="text-muted-foreground leading-relaxed">
+                    <p className="text-foreground/80 leading-relaxed">
                       Calle Alfonso XIII, 6-1º<br />
                       Fuengirola<br />
                       Costa del Sol, Spain
@@ -71,7 +71,7 @@ export const BlogFooter = () => {
 
                 <a 
                   href="tel:+34613578416"
-                  className="group flex items-center gap-3 text-sm text-muted-foreground hover:text-primary transition-colors"
+                  className="group flex items-center gap-3 text-sm text-foreground/80 hover:text-primary transition-colors"
                 >
                   <Phone className="w-5 h-5 text-primary flex-shrink-0" />
                   <span className="group-hover:translate-x-1 transition-transform">
@@ -81,7 +81,7 @@ export const BlogFooter = () => {
 
                 <a 
                   href="mailto:info@delsolprimehomes.com"
-                  className="group flex items-center gap-3 text-sm text-muted-foreground hover:text-primary transition-colors break-all"
+                  className="group flex items-center gap-3 text-sm text-foreground/80 hover:text-primary transition-colors break-all"
                 >
                   <Mail className="w-5 h-5 text-primary flex-shrink-0" />
                   <span className="group-hover:translate-x-1 transition-transform">
@@ -95,10 +95,10 @@ export const BlogFooter = () => {
           {/* Copyright Bar */}
           <div className="mt-12 pt-8 border-t border-border/40">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-sm text-muted-foreground text-center md:text-left">
+              <p className="text-sm text-foreground/70 text-center md:text-left">
                 © 2025 DelSol Prime Homes. All rights reserved.
               </p>
-              <div className="flex gap-6 text-sm text-muted-foreground">
+              <div className="flex gap-6 text-sm text-foreground/70">
                 <Link to="/" className="hover:text-primary transition-colors">
                   Privacy Policy
                 </Link>
