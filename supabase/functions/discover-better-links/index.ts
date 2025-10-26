@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { 
-  isApprovedDomain, 
-  getDomainCategory, 
-  generateSiteQuery 
-} from "../shared/approvedDomains.ts";
+import { isCompetitor, getCompetitorReason } from "../shared/competitorBlacklist.ts";
+import { calculateAuthorityScore } from "../shared/authorityScoring.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,9 +47,6 @@ serve(async (req) => {
 
     const config = languageConfig[articleLanguage] || languageConfig.es;
 
-    // Generate approved domain filter for Perplexity search
-    const siteQuery = generateSiteQuery();
-
     const prompt = `Find 3-5 HIGH-QUALITY alternative sources to replace this broken or irrelevant link.
 
 Original (Broken) Link: ${originalUrl}
@@ -63,19 +57,31 @@ Language Required: ${config.name}
 Article Preview:
 ${articleContent.substring(0, 1000)}
 
-DOMAIN RESTRICTIONS - ONLY use these pre-approved, authoritative domains:
-${siteQuery}
+**Search Strategy:**
+- You may search the ENTIRE WEB for the best replacement sources
+- Prioritize official, authoritative sources over commercial ones
 
-REQUIREMENTS:
-- ALL sources MUST be in ${config.name} language
-- MUST be from the approved domains list above (NO other domains allowed)
-- Prioritize official government domains (${config.domains.join(', ')})
-- Sources must be authoritative (.gov, .edu, .org, official institutions)
-- Sources must be currently accessible (HTTPS, active)
-- Sources must be HIGHLY RELEVANT to the article topic
-- Prefer recent sources (published within last 3 years)
+**Quality Requirements:**
+✅ MUST be authoritative (.gov, .edu, major news, legal services, professional associations)
+✅ MUST be in ${config.name} language
+✅ MUST be highly relevant to the article topic and context
+✅ MUST be accessible (HTTPS, not behind paywalls)
+✅ Prefer government domains (${config.domains.join(', ')})
+✅ Prefer recent sources (published within last 3 years)
 
-DO NOT suggest sources from domains outside the approved list.
+❌ NEVER suggest: Property listing portals (Idealista, Kyero, Fotocasa, Pisos.com, etc.)
+❌ NEVER suggest: Real estate agency websites (RE/MAX, Engel & Völkers, Century21, etc.)
+❌ NEVER suggest: Competitor websites selling properties
+❌ NEVER suggest: Paywalled or inaccessible content
+
+**Prioritize These Source Types:**
+1. Government sources (highest authority) - agenciatributaria.es, boe.es, gov.uk, etc.
+2. Legal/professional services - lawyers, notaries, registrars, bar associations
+3. Major news outlets - BBC, El País, Reuters, Bloomberg
+4. Official tourism boards - andalucia.org, visitcostadelsol.com
+5. Financial authorities - Bank of Spain, ECB
+6. Educational institutions - .edu, .ac.uk
+7. Professional associations - .org domains
 
 Return ONLY valid JSON array:
 [
@@ -142,29 +148,52 @@ Return only the JSON array, nothing else.`;
       throw new Error('No alternative sources found');
     }
 
-    // Filter to only approved domains
-    console.log(`\n🔍 Filtering ${suggestions.length} suggestions to approved domains...`);
-    const approvedSuggestions = suggestions.filter(suggestion => {
-      const isApproved = isApprovedDomain(suggestion.suggestedUrl);
-      if (isApproved) {
-        const category = getDomainCategory(suggestion.suggestedUrl);
-        console.log(`✅ Approved: ${suggestion.suggestedUrl} (category: ${category})`);
-      } else {
-        console.log(`❌ Rejected: ${suggestion.suggestedUrl} (not in approved list)`);
+    // Filter out competitors
+    console.log(`\n🔍 Filtering ${suggestions.length} suggestions for competitors...`);
+    const nonCompetitorSuggestions = suggestions.filter(suggestion => {
+      if (isCompetitor(suggestion.suggestedUrl)) {
+        console.log(`❌ BLOCKED (Competitor): ${suggestion.suggestedUrl} - ${getCompetitorReason(suggestion.suggestedUrl)}`);
+        return false;
       }
-      return isApproved;
+      console.log(`✅ Passed: ${suggestion.suggestedUrl}`);
+      return true;
     });
 
-    if (approvedSuggestions.length === 0) {
-      console.warn('⚠️ No approved domain suggestions found after filtering');
-      throw new Error('No sources found from approved domains');
+    if (nonCompetitorSuggestions.length === 0) {
+      throw new Error('All suggested sources were competitors. Please try different search terms.');
     }
 
-    console.log(`✅ ${approvedSuggestions.length} approved suggestions remaining\n`);
+    console.log(`✅ ${nonCompetitorSuggestions.length}/${suggestions.length} suggestions passed competitor filter`);
+
+    // Score and sort by authority
+    const scoredSuggestions = nonCompetitorSuggestions.map(suggestion => {
+      const scores = calculateAuthorityScore({
+        url: suggestion.suggestedUrl,
+        sourceName: suggestion.sourceName,
+        description: suggestion.reason,
+        isAccessible: true
+      });
+      
+      return {
+        ...suggestion,
+        authorityScore: scores.totalScore,
+        authorityTier: scores.tier,
+        authorityBreakdown: scores
+      };
+    });
+
+    // Sort by authority score (highest first)
+    scoredSuggestions.sort((a, b) => b.authorityScore - a.authorityScore);
+
+    console.log(`\n📊 Top Suggestions by Authority:`);
+    scoredSuggestions.slice(0, 3).forEach(s => {
+      console.log(`   ${s.authorityScore}/100 (${s.authorityTier}) - ${s.sourceName}`);
+    });
+    console.log('');
 
     // Verify suggested URLs are accessible
     const verifiedSuggestions = await Promise.all(
-      approvedSuggestions.map(async (suggestion) => {
+      scoredSuggestions.map(async (suggestion) => {
         try {
           const verifyResponse = await fetch(suggestion.suggestedUrl, {
             method: 'HEAD',

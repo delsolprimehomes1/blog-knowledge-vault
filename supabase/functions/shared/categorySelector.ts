@@ -7,13 +7,14 @@ import { DomainCategory, DomainBatch, getBatchForCategory } from './domainBatche
 
 export interface CategorySelection {
   category: DomainCategory;
-  domains: string[];
+  domains: string[];  // Used as preferred examples to guide search, NOT as restrictions
   reasoning: string;
   confidence: 'high' | 'medium' | 'low';
 }
 
 /**
- * Select the best category batch based on topic and funnel stage
+ * Select the best category context for citation discovery
+ * Returns preferred domain examples to guide Perplexity, but does NOT restrict search to these domains
  */
 export function selectBestCategoryBatch(
   topic: string,

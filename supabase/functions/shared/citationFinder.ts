@@ -1,5 +1,7 @@
 // Advanced Citation Discovery with Perplexity AI
 import { getAllApprovedDomains, generateSiteQuery, isApprovedDomain, getDomainCategory } from './approvedDomains.ts';
+import { isCompetitor, getCompetitorReason } from './competitorBlacklist.ts';
+import { calculateAuthorityScore } from './authorityScoring.ts';
 
 export interface BetterCitation {
   url: string;
@@ -241,21 +243,11 @@ export async function findBetterCitationsWithBatch(
   const { selectBestCategoryBatch } = await import('./categorySelector.ts');
   const { generateBatchSiteQuery, validateBatchSize } = await import('./domainBatches.ts');
   
-  // Select best batch based on topic and funnel stage
+  // Select batch based on topic and funnel stage (for context, not restriction)
   const selection = selectBestCategoryBatch(articleTopic, funnelStage, articleLanguage);
   
-  console.log(`🎯 Selected ${selection.category} batch (${selection.domains.length} domains)`);
+  console.log(`🎯 Selected ${selection.category} context (${selection.domains.length} preferred domains)`);
   console.log(`📝 Reasoning: ${selection.reasoning}`);
-  
-  if (selection.domains.length === 0) {
-    console.warn(`⚠️ No domains in ${selection.category} batch for ${articleLanguage}`);
-    return {
-      citations: [],
-      category: selection.category,
-      batchSize: 0,
-      status: 'failed'
-    };
-  }
   
   // Determine target citation count based on funnel stage
   const targetCitations = funnelStage === 'BOFU' ? 6 : 
@@ -263,38 +255,48 @@ export async function findBetterCitationsWithBatch(
   
   const config = languageConfig[articleLanguage as keyof typeof languageConfig] || languageConfig.es;
   const focusContext = focusArea 
-    ? `\n**Special Focus:** ${focusArea} - prioritize sources specific to this region/topic`
+    ? `\n\n**PRIORITY FOCUS:** ${focusArea}\nFind sources specifically related to this aspect first.`
     : '';
-  
-  // Build batch site query (max 20 domains)
-  const batchSiteQuery = selection.domains
-    .slice(0, 20)
-    .map(d => `site:${d}`)
-    .join(' OR ');
 
   const prompt = `You are an expert research assistant finding authoritative external sources for a ${config.name} language article.
 
-**CRITICAL: ONLY use sources from ${selection.category} domains**
-Search format: ${batchSiteQuery} AND [your search terms]
+**Search Strategy:**
+- You may search the ENTIRE WEB for the best sources
+- Prioritize ${selection.category} sources (suggested: ${selection.domains.slice(0, 10).join(', ')})
+- But you are NOT limited to these domains - find the BEST sources available
 
 **Article Topic:** "${articleTopic}"
+**Funnel Stage:** ${funnelStage} (${funnelStage === 'TOFU' ? 'awareness' : funnelStage === 'MOFU' ? 'consideration' : 'decision'})
 **Language Required:** ${config.name}
-**Funnel Stage:** ${funnelStage}
-**Target Citations:** ${targetCitations}
-**Article Content Preview:**
-${articleContent.substring(0, 1000)}
+**Target:** ${targetCitations} high-authority citations
 ${focusContext}
 
-**CRITICAL REQUIREMENTS:**
-1. ALL sources MUST be from the ${selection.category} domain batch ONLY
-2. ALL sources MUST be in ${config.name} language
-3. Sources must be HIGH AUTHORITY (${selection.category} focus)
-4. Content must DIRECTLY relate to the article topic
-5. Sources must be currently accessible (HTTPS, active)
-6. Find exactly ${targetCitations} diverse, authoritative sources
+**Article Preview:**
+${articleContent.substring(0, 1500)}
 
-**${selection.category} Domain Batch (${selection.domains.length} domains):**
-${selection.domains.join(', ')}
+**Quality Requirements:**
+✅ MUST be authoritative (.gov, .edu, major news, legal services, professional associations)
+✅ MUST be in ${config.name} language
+✅ MUST be highly relevant to Costa del Sol real estate
+✅ MUST be accessible (HTTPS, not behind paywalls)
+✅ MUST support specific claims in the article
+✅ Prefer recent sources (within last 3 years)
+
+❌ NEVER cite: Property listing portals (Idealista, Kyero, Fotocasa, Pisos.com, etc.)
+❌ NEVER cite: Real estate agencies (RE/MAX, Engel & Völkers, Century21, etc.)
+❌ NEVER cite: Competitor websites selling properties
+❌ NEVER cite: Paywalled or inaccessible content
+
+**Prioritize These Source Types:**
+1. Government sources (agenciatributaria.es, boe.es, gov.uk, gob.es, etc.) - HIGHEST AUTHORITY
+2. Legal/professional services (lawyers, notaries, registrars, bar associations)
+3. Major news outlets (BBC, El País, Reuters, Bloomberg, Financial Times)
+4. Official tourism boards (andalucia.org, visitcostadelsol.com)
+5. Financial authorities (Bank of Spain, ECB, national banks)
+6. Educational institutions (.edu, .ac.uk)
+7. Professional associations and non-profits (.org)
+
+**Citation Strategy for ${funnelStage}:**
 
 **Return ONLY valid JSON array in this EXACT format:**
 [
@@ -333,7 +335,7 @@ Return only the JSON array, nothing else.`;
       ],
       temperature: 0.3,
       max_tokens: 3000,
-      search_domain_filter: selection.domains.slice(0, 20), // API-level enforcement (max 20)
+      // Removed search_domain_filter to allow searching entire web
     }),
   });
 
@@ -362,43 +364,64 @@ Return only the JSON array, nothing else.`;
     const citations = JSON.parse(jsonMatch[0]) as BetterCitation[];
     console.log(`📥 Received ${citations.length} citations from Perplexity`);
 
-    // Validate citations are from selected batch ONLY
-    const validCitations = citations.filter(citation => {
+    // Filter out competitors
+    console.log(`\n🔍 Filtering citations for competitors...`);
+    const nonCompetitorCitations = citations.filter(citation => {
       if (!citation.url || !citation.sourceName || !citation.url.startsWith('http')) {
         return false;
       }
       
-      // Check if URL is from selected batch
-      const urlLower = citation.url.toLowerCase();
-      const isInBatch = selection.domains.some(domain => 
-        urlLower.includes(domain.toLowerCase())
-      );
-      
-      if (!isInBatch) {
-        console.warn(`❌ REJECTED: ${citation.url} not in ${selection.category} batch`);
+      // Check if competitor
+      if (isCompetitor(citation.url)) {
+        console.log(`❌ BLOCKED (Competitor): ${citation.url} - ${getCompetitorReason(citation.url)}`);
         return false;
       }
       
-      console.log(`✅ APPROVED: ${citation.url} (${selection.category})`);
+      console.log(`✅ Passed: ${citation.sourceName}`);
       return true;
     });
 
-    const rejectedCount = citations.length - validCitations.length;
-    const status = validCitations.length >= targetCitations ? 'success' : 
-                   validCitations.length > 0 ? 'partial' : 'failed';
+    console.log(`✅ ${nonCompetitorCitations.length}/${citations.length} citations passed competitor filter`);
 
-    console.log(`📊 Citation Stats:
-  - Category: ${selection.category}
-  - Batch size: ${selection.domains.length}
-  - Total found: ${citations.length}
-  - Approved: ${validCitations.length}
-  - Rejected: ${rejectedCount}
-  - Target: ${targetCitations}
-  - Status: ${status}
-`);
+    // Score all citations by authority
+    const scoredCitations = nonCompetitorCitations.map(citation => {
+      const scores = calculateAuthorityScore({
+        url: citation.url,
+        sourceName: citation.sourceName,
+        description: citation.description,
+        isAccessible: true // Will verify later if needed
+      });
+      
+      return {
+        ...citation,
+        authorityScore: scores.totalScore,
+        authorityTier: scores.tier,
+        authorityBreakdown: scores
+      };
+    });
+
+    // Sort by authority score (highest first)
+    scoredCitations.sort((a, b) => b.authorityScore - a.authorityScore);
+
+    console.log(`\n📊 Top Citations by Authority Score:`);
+    scoredCitations.slice(0, 5).forEach(c => {
+      console.log(`   ${c.authorityScore}/100 (${c.authorityTier}) - ${c.sourceName}`);
+    });
+
+    const status = scoredCitations.length >= targetCitations ? 'success' : 
+                   scoredCitations.length > 0 ? 'partial' : 'failed';
+
+    console.log(`
+📊 Citation Discovery Results:
+   Initial: ${citations.length}
+   After filtering: ${scoredCitations.length}
+   Target: ${targetCitations}
+   Status: ${status}
+   Category: ${selection.category}
+    `);
 
     return {
-      citations: validCitations.slice(0, targetCitations),
+      citations: scoredCitations.slice(0, targetCitations),
       category: selection.category,
       batchSize: selection.domains.length,
       status
