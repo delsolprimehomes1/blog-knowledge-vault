@@ -15,6 +15,7 @@ import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
 import { StickyMobileCTA } from "@/components/blog-article/StickyMobileCTA";
 import { BlogFooter } from "@/components/blog-article/BlogFooter";
+import { CompanyContactSection } from "@/components/blog-article/CompanyContactSection";
 import { generateAllSchemas } from "@/lib/schemaGenerator";
 import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink } from "@/types/blog";
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
@@ -232,6 +233,7 @@ const BlogArticle = () => {
         <script type="application/ld+json">{JSON.stringify(schemas.breadcrumb)}</script>
         {schemas.faq && <script type="application/ld+json">{JSON.stringify(schemas.faq)}</script>}
         <script type="application/ld+json">{JSON.stringify(schemas.organization)}</script>
+        <script type="application/ld+json">{JSON.stringify(schemas.localBusiness)}</script>
       </Helmet>
 
       <div className="min-h-screen py-8 md:py-12">
@@ -269,6 +271,8 @@ const BlogArticle = () => {
             />
 
             {author && <AuthorBio author={author} />}
+
+            <CompanyContactSection />
 
             {relatedArticles && relatedArticles.length > 0 && (
               <RelatedArticles articles={relatedArticles} />

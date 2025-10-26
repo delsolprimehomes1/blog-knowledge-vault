@@ -12,6 +12,7 @@ export interface GeneratedSchemas {
   breadcrumb: any;
   faq?: any;
   organization: any;
+  localBusiness: any;
   errors: SchemaValidationError[];
 }
 
@@ -262,17 +263,73 @@ export function isAutoFixable(error: SchemaValidationError): boolean {
   return error.field === 'featured_image_alt' && error.severity === 'warning';
 }
 
+export function generateLocalBusinessSchema(baseUrl: string = "https://delsolprimehomes.com"): any {
+  return {
+    "@context": "https://schema.org",
+    "@type": ["RealEstateAgent", "LocalBusiness"],
+    "name": "Del Sol Prime Homes",
+    "description": "Premium real estate agency specializing in Costa del Sol properties, offering expert guidance for foreign buyers and investors",
+    "image": `${baseUrl}/logo.png`,
+    "logo": `${baseUrl}/logo.png`,
+    "url": baseUrl,
+    "telephone": "+34-613-578-416",
+    "email": "info@delsolprimehomes.com",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Calle Alfonso XIII, 6-1º",
+      "addressLocality": "Fuengirola",
+      "addressRegion": "Málaga",
+      "postalCode": "29640",
+      "addressCountry": "ES"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 36.5397,
+      "longitude": -4.6262
+    },
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "opens": "09:00",
+        "closes": "18:00"
+      }
+    ],
+    "priceRange": "€€€",
+    "areaServed": [
+      { "@type": "City", "name": "Marbella" },
+      { "@type": "City", "name": "Estepona" },
+      { "@type": "City", "name": "Fuengirola" },
+      { "@type": "City", "name": "Benalmádena" },
+      { "@type": "City", "name": "Mijas" },
+      { "@type": "City", "name": "Torremolinos" },
+      { "@type": "City", "name": "Málaga" }
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "Customer Service",
+      "telephone": "+34-613-578-416",
+      "email": "info@delsolprimehomes.com",
+      "availableLanguage": ["en", "es", "de", "nl", "fr", "pl", "sv", "da", "hu"]
+    },
+    "sameAs": [
+      baseUrl
+    ]
+  };
+}
+
 export function generateAllSchemas(
   article: BlogArticle,
   author: Author | null,
   reviewer: Author | null,
-  baseUrl: string = "https://example.com"
+  baseUrl: string = "https://delsolprimehomes.com"
 ): GeneratedSchemas {
   const articleResult = generateArticleSchema(article, author, reviewer, baseUrl);
   const speakable = generateSpeakableSchema(article);
   const breadcrumb = generateBreadcrumbSchema(article, baseUrl);
   const faq = generateFAQSchema(article, author);
   const organization = ORGANIZATION_SCHEMA;
+  const localBusiness = generateLocalBusinessSchema(baseUrl);
   
   const validationErrors = validateSchemaRequirements(article);
   
@@ -282,6 +339,7 @@ export function generateAllSchemas(
     breadcrumb,
     faq,
     organization,
+    localBusiness,
     errors: [...articleResult.errors, ...validationErrors]
   };
 }
