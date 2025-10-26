@@ -17,7 +17,7 @@ interface CitationHealth {
   url: string;
   source_name: string;
   last_checked_at: string;
-  status: 'healthy' | 'broken' | 'redirected' | 'slow' | 'unreachable';
+  status: 'healthy' | 'broken' | 'redirected' | 'slow' | 'unreachable' | 'replaced';
   http_status_code: number | null;
   response_time_ms: number;
   redirect_url: string | null;
@@ -78,6 +78,7 @@ export const CitationHealthAnalysis = ({ healthData, onFindReplacement }: Citati
       unreachable: <Badge className="bg-orange-600"><AlertCircle className="mr-1 h-3 w-3" />Unreachable</Badge>,
       redirected: <Badge className="bg-blue-600"><TrendingUp className="mr-1 h-3 w-3" />Redirected</Badge>,
       slow: <Badge className="bg-yellow-600"><Clock className="mr-1 h-3 w-3" />Slow</Badge>,
+      replaced: <Badge className="bg-purple-600">🔄 Replaced</Badge>,
     };
     return badges[status];
   };
@@ -89,7 +90,7 @@ export const CitationHealthAnalysis = ({ healthData, onFindReplacement }: Citati
           <CardTitle>Citation Health Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <StatCard 
               label="Healthy" 
               count={stats.healthy || 0}
@@ -110,6 +111,13 @@ export const CitationHealthAnalysis = ({ healthData, onFindReplacement }: Citati
               icon="⚠️"
               description="Network errors, SSL issues, timeouts"
               variant="warning"
+            />
+            <StatCard 
+              label="Replaced" 
+              count={stats.replaced || 0}
+              icon="🔄"
+              description="Citations replaced with better alternatives"
+              variant="secondary"
             />
             <StatCard 
               label="Redirected" 

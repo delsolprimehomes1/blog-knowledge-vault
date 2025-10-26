@@ -32,7 +32,7 @@ interface CitationHealth {
   url: string;
   source_name: string;
   last_checked_at: string;
-  status: 'healthy' | 'broken' | 'redirected' | 'slow' | 'unreachable';
+  status: 'healthy' | 'broken' | 'redirected' | 'slow' | 'unreachable' | 'replaced';
   http_status_code: number | null;
   response_time_ms: number;
   redirect_url: string | null;
@@ -476,14 +476,16 @@ const CitationHealth = () => {
     acc.total++;
     if (item.status === 'healthy') acc.healthy++;
     else if (item.status === 'broken' || item.status === 'unreachable') acc.broken++;
+    else if (item.status === 'replaced') acc.replaced++;
     return acc;
-  }, { total: 0, healthy: 0, broken: 0 }) || { total: 0, healthy: 0, broken: 0 };
+  }, { total: 0, healthy: 0, broken: 0, replaced: 0 }) || { total: 0, healthy: 0, broken: 0, replaced: 0 };
 
   const healthPercentage = stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 0;
 
   const getStatusBadge = (status: CitationHealth['status']) => {
     if (status === 'healthy') return <Badge className="bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" />Healthy</Badge>;
     if (status === 'broken') return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Broken</Badge>;
+    if (status === 'replaced') return <Badge className="bg-purple-600"><ArrowRight className="mr-1 h-3 w-3" />Replaced</Badge>;
     return <Badge variant="secondary">{status}</Badge>;
   };
 
