@@ -20,8 +20,9 @@ import { StickyMobileCTA } from "@/components/blog-article/StickyMobileCTA";
 import { FloatingCTA } from "@/components/blog-article/FloatingCTA";
 import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { CompanyContactSection } from "@/components/blog-article/CompanyContactSection";
+import { FAQSection } from "@/components/blog-article/FAQSection";
 import { generateAllSchemas } from "@/lib/schemaGenerator";
-import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink } from "@/types/blog";
+import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink, FAQEntity } from "@/types/blog";
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 import { Navbar } from "@/components/Navbar";
 
@@ -287,6 +288,8 @@ const BlogArticle = () => {
             <SpeakableBox answer={article.speakable_answer} />
 
             <TableOfContents content={article.detailed_content} />
+
+            <FAQSection faqEntities={article.faq_entities as FAQEntity[]} />
 
             <InternalLinksSection links={article.internal_links as InternalLink[]} />
 

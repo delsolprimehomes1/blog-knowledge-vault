@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function FAQBackfill() {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [regenerateExisting, setRegenerateExisting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<{
     total: number;
@@ -20,16 +21,21 @@ export default function FAQBackfill() {
     errors: Array<{ id: string; headline: string; error: string }>;
   } | null>(null);
 
-  // Fetch articles without FAQs
+  // Fetch articles without FAQs or all published articles (based on regenerateExisting)
   const { data: articlesNeedingFAQs, isLoading } = useQuery({
-    queryKey: ["articles-without-faqs"],
+    queryKey: ["articles-without-faqs", regenerateExisting],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("blog_articles")
         .select("id, headline, status, faq_entities")
-        .eq("status", "published")
-        .or("faq_entities.is.null,faq_entities.eq.[]");
+        .eq("status", "published");
+      
+      // Only filter for missing FAQs if not regenerating existing
+      if (!regenerateExisting) {
+        query = query.or("faq_entities.is.null,faq_entities.eq.[]");
+      }
 
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -178,9 +184,10 @@ export default function FAQBackfill() {
               articles that don't have them yet. Each FAQ includes:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>3-5 relevant question-answer pairs</li>
-              <li>JSON-LD FAQPage schema markup for search engines</li>
-              <li>Speakable schema for voice assistants</li>
+              <li>Exactly 1 FAQ that directly answers the article title</li>
+              <li>150-250 word comprehensive answer optimized for AI/LLM reading</li>
+              <li>JSON-LD FAQPage schema with speakable markup</li>
+              <li>Funnel-stage-specific focus (TOFU/MOFU/BOFU)</li>
             </ul>
             <p className="text-sm text-muted-foreground mt-2">
               ⚡ New articles will automatically get FAQs when published!
@@ -197,6 +204,19 @@ export default function FAQBackfill() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2 p-3 border rounded-lg bg-muted/50">
+              <input
+                type="checkbox"
+                id="regenerate-existing"
+                checked={regenerateExisting}
+                onChange={(e) => setRegenerateExisting(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <label htmlFor="regenerate-existing" className="text-sm font-medium cursor-pointer">
+                Regenerate existing FAQs (convert multi-FAQ articles to single FAQ format)
+              </label>
+            </div>
+
             <Button
               onClick={handleGenerateFAQs}
               disabled={isGenerating || !articlesNeedingFAQs || articlesNeedingFAQs.length === 0}
@@ -211,7 +231,7 @@ export default function FAQBackfill() {
               ) : (
                 <>
                   <Sparkles className="mr-2 h-5 w-5" />
-                  Generate FAQs for {articlesNeedingFAQs?.length || 0} Articles
+                  {regenerateExisting ? "Regenerate" : "Generate"} FAQs for {articlesNeedingFAQs?.length || 0} Articles
                 </>
               )}
             </Button>

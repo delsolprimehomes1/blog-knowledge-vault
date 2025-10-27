@@ -85,7 +85,7 @@ serve(async (req) => {
           .slice(0, 1000)
           .join(' ');
 
-        const prompt = `Based on this article, generate 3-6 FAQ pairs that answer common questions readers would have.
+        const prompt = `Generate exactly 1 FAQ that directly answers the main question in this article's title.
 
 Article Details:
 - Headline: ${article.headline}
@@ -95,15 +95,17 @@ Article Details:
 - Content Preview: ${contentPreview}
 
 Requirements:
-- Generate 3-6 question-answer pairs
-- Questions should be natural and conversational
-- Answers should be 100-200 words each
+- Create 1 question that rephrases the headline as a natural question
+- Provide a comprehensive 150-250 word answer optimized for voice assistants and AI reading
 - Include specific details from the article
 - Match the article's language (${article.language})
-- Focus on what readers at ${article.funnel_stage} stage would ask
-- For TOFU: informational, educational questions
-- For MOFU: comparison, process, timing questions  
-- For BOFU: specific, actionable, decision-making questions
+
+Funnel Stage Guidelines:
+${article.funnel_stage === 'TOFU' 
+  ? '- TOFU: Focus on "What is..." or "Why..." with educational, awareness-building content that helps readers understand the basics'
+  : article.funnel_stage === 'MOFU'
+  ? '- MOFU: Focus on "How to..." or "What are the differences..." with detailed process explanations and comparisons'
+  : '- BOFU: Focus on "Should I..." or "How do I start..." with actionable, decision-oriented guidance'}
 
 Return ONLY valid JSON in this format:
 {
@@ -146,8 +148,8 @@ Return ONLY valid JSON in this format:
         const faqEntities: FAQEntity[] = parsed.faq_entities || [];
 
         // Validate FAQs
-        if (faqEntities.length < 3 || faqEntities.length > 6) {
-          throw new Error(`Invalid FAQ count: ${faqEntities.length}. Expected 3-6.`);
+        if (faqEntities.length !== 1) {
+          throw new Error(`Invalid FAQ count: ${faqEntities.length}. Expected exactly 1.`);
         }
 
         for (const faq of faqEntities) {
@@ -155,8 +157,8 @@ Return ONLY valid JSON in this format:
             throw new Error('FAQ missing question or answer');
           }
           const wordCount = faq.answer.split(/\s+/).length;
-          if (wordCount < 50 || wordCount > 250) {
-            console.warn(`FAQ answer word count ${wordCount} outside 100-200 range`);
+          if (wordCount < 100 || wordCount > 300) {
+            console.warn(`FAQ answer word count ${wordCount} outside 150-250 range`);
           }
         }
 

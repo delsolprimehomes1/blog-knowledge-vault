@@ -141,12 +141,26 @@ export function generateArticleSchema(
 }
 
 export function generateSpeakableSchema(article: BlogArticle): any {
+  const cssSelectors = [".speakable-answer", ".qa-summary"];
+  const xpaths = ["/html/body/article/section[@class='speakable-answer']"];
+  
+  // Add FAQ selectors for AI/LLM optimization
+  if (article.faq_entities && article.faq_entities.length > 0) {
+    cssSelectors.push(".faq-section", ".faq-question", ".faq-answer");
+    xpaths.push("/html/body/article/section[@class='faq-section']");
+  }
+  
   const schema: any = {
     "@context": "https://schema.org",
     "@type": "SpeakableSpecification",
-    "cssSelector": [".speakable-answer", ".qa-summary"],
-    "xpath": ["/html/body/article/section[@class='speakable-answer']"]
+    "cssSelector": cssSelectors,
+    "xpath": xpaths
   };
+  
+  // Add FAQ-specific metadata for better AI understanding
+  if (article.faq_entities && article.faq_entities.length > 0) {
+    schema.description = "This page contains an FAQ that directly answers the main question posed in the article title, optimized for voice assistants and AI reading.";
+  }
   
   // Add associated image for voice assistants and AI understanding
   if (article.featured_image_url) {
@@ -215,8 +229,24 @@ export function generateFAQSchema(
         "@type": "Answer",
         "text": faq.answer,
         ...(author && { "author": generatePersonSchema(author) })
+      },
+      // Add speakable markup to each FAQ for AI/voice assistants
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": [".faq-question", ".faq-answer"]
       }
-    }))
+    })),
+    // Add page-level speakable for better AI discovery
+    "speakable": {
+      "@type": "SpeakableSpecification",
+      "cssSelector": [".faq-section"],
+      "xpath": ["/html/body/article/section[@class='faq-section']"]
+    },
+    "about": {
+      "@type": "Article",
+      "headline": article.headline,
+      "description": article.meta_description
+    }
   };
 }
 

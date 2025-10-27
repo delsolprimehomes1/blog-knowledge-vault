@@ -43,8 +43,8 @@ export const FAQSection = ({
   };
 
   const addQuestion = () => {
-    if (faqEntities.length < 6) {
-      onFaqEntitiesChange([...faqEntities, { question: "", answer: "" }]);
+    if (faqEntities.length < 1) {
+      onFaqEntitiesChange([{ question: "", answer: "" }]);
     }
   };
 
@@ -136,9 +136,9 @@ export const FAQSection = ({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>FAQ Entities (Optional)</CardTitle>
+            <CardTitle>FAQ Section (Recommended)</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Enable for QA articles to add FAQPage schema markup
+              Add 1 FAQ that directly answers the question in your article title - optimized for AI and voice assistants
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -210,21 +210,22 @@ export const FAQSection = ({
               </div>
 
               <div>
-                <Label>Answer * (100-200 words)</Label>
+                <Label>Answer * (150-250 words, optimized for AI/voice assistants)</Label>
                 <Textarea
                   value={faq.answer}
                   onChange={(e) => updateQuestion(index, "answer", e.target.value)}
-                  placeholder="Provide a detailed answer..."
-                  rows={4}
+                  placeholder="Provide a comprehensive answer that directly addresses the question in your article title..."
+                  rows={6}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   {faq.answer.split(/\s+/).filter(w => w).length} words
+                  {faq.answer.split(/\s+/).filter(w => w).length < 150 && " (aim for 150-250 words)"}
                 </p>
               </div>
             </div>
           ))}
 
-          {faqEntities.length < 6 && (
+          {faqEntities.length === 0 && (
             <Button
               type="button"
               variant="outline"
@@ -232,18 +233,11 @@ export const FAQSection = ({
               className="w-full"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Question
+              Add FAQ
             </Button>
           )}
 
-          {faqEntities.length > 0 && faqEntities.length < 3 && (
-            <p className="text-sm text-amber-600 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              Minimum 3 Q&A pairs recommended for FAQ schema
-            </p>
-          )}
-
-          {faqEntities.length >= 3 && (
+          {faqEntities.length > 0 && (
             <Collapsible open={showSchema} onOpenChange={setShowSchema}>
               <CollapsibleTrigger asChild>
                 <Button type="button" variant="outline" className="w-full">
@@ -260,7 +254,7 @@ export const FAQSection = ({
           )}
 
           <p className="text-sm text-muted-foreground">
-            {faqEntities.length} of 3-6 Q&A pairs added
+            {faqEntities.length === 1 ? "1 FAQ added (matches article title)" : "Add 1 FAQ that answers your article title"}
           </p>
         </CardContent>
       )}
