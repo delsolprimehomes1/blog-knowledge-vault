@@ -268,7 +268,38 @@ export function NonApprovedCitationsPanel() {
         newSet.delete(variables.articleId);
         return newSet;
       });
-      toast.error("Failed to find replacement: " + (error as Error).message);
+      
+      const errorMessage = (error as Error).message || '';
+      
+      // Check if it's a "no approved alternatives" error
+      if (errorMessage.includes('No approved domain alternatives found') || 
+          errorMessage.includes('non-2xx status code')) {
+        try {
+          const domain = new URL(variables.url).hostname.replace('www.', '');
+          toast.error(
+            `❌ No approved alternatives found for ${domain}\n\n` +
+            `The AI couldn't find replacement sources from your approved list.\n` +
+            `Options: Remove citation manually below or add this domain to your approved list.`,
+            { 
+              duration: 10000,
+              action: {
+                label: 'Remove Now',
+                onClick: () => handleRemoveCitation(variables.url, variables.articleId)
+              }
+            }
+          );
+        } catch {
+          toast.error(
+            `❌ No approved alternatives found\n\n` +
+            `The AI couldn't find replacement sources from your approved list.\n` +
+            `Options: Remove citation manually or add domain to approved list.`,
+            { duration: 8000 }
+          );
+        }
+      } else {
+        // Generic error for other issues
+        toast.error("Failed to find replacement: " + errorMessage);
+      }
     }
   });
 
