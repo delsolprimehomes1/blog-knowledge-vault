@@ -17,6 +17,13 @@ interface DiagramGeneratorProps {
 
 type DiagramType = 'flowchart' | 'timeline' | 'comparison';
 
+// Helper to check for meaningful content
+const hasContent = (content: string): boolean => {
+  if (!content) return false;
+  const textOnly = content.replace(/<[^>]*>/g, '').trim();
+  return textOnly.length > 50;
+};
+
 export const DiagramGenerator = ({ 
   articleContent, 
   headline,
@@ -31,8 +38,19 @@ export const DiagramGenerator = ({
   const [showPreview, setShowPreview] = useState(!!currentDiagramUrl);
 
   const generateDiagram = async () => {
-    if (!articleContent || !headline) {
-      toast.error("Please add headline and content before generating a diagram");
+    console.log('Diagram generator - Content check:', {
+      hasHeadline: !!headline,
+      contentLength: articleContent?.length || 0,
+      hasValidContent: hasContent(articleContent)
+    });
+
+    if (!headline) {
+      toast.error("Please add a headline before generating a diagram");
+      return;
+    }
+    
+    if (!hasContent(articleContent)) {
+      toast.error("Please add at least 50 characters of content before generating a diagram");
       return;
     }
 
@@ -105,8 +123,13 @@ export const DiagramGenerator = ({
 
         <Button 
           onClick={generateDiagram} 
-          disabled={isGenerating || !articleContent}
+          disabled={isGenerating || !headline || !hasContent(articleContent)}
           variant="secondary"
+          title={
+            !headline ? "Add headline first" :
+            !hasContent(articleContent) ? "Add at least 50 characters of content first" :
+            "Generate diagram from article content"
+          }
         >
           {isGenerating ? (
             <>
