@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 export const BlogFooter = () => {
   return (
     <footer className="relative mt-16 border-t border-border/40">
-      <div className="glass-dark">
+      <div className="glass-dark rounded-t-3xl overflow-hidden">
         <div className="container mx-auto px-4 py-12 md:py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
             {/* Company Info */}
