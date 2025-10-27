@@ -21,6 +21,7 @@ const Articles = () => {
   const [funnelFilter, setFunnelFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isGeneratingFAQs, setIsGeneratingFAQs] = useState(false);
+  const [isRecitingArticles, setIsRecitingArticles] = useState(false);
   const itemsPerPage = 20;
 
   const { data: articles, isLoading, error } = useQuery({
@@ -151,6 +152,45 @@ const Articles = () => {
     }
   };
 
+  const handleBulkRecitation = async () => {
+    setIsRecitingArticles(true);
+    try {
+      toast({
+        title: "Starting Bulk Re-citation",
+        description: "Replacing all citations with approved domains only...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('bulk-recite-articles', {
+        body: {
+          preview: false,
+          language: languageFilter !== 'all' ? languageFilter : null,
+          category: categoryFilter !== 'all' ? categoryFilter : null,
+          batchSize: 5,
+        }
+      });
+
+      if (error) throw error;
+
+      const summary = data.summary;
+      toast({
+        title: "Bulk Re-citation Complete",
+        description: `✅ ${summary.successCount} articles updated, ${summary.totalNewCitations} citations from approved domains`,
+      });
+
+      // Refresh the article list
+      window.location.reload();
+    } catch (error) {
+      console.error('Bulk re-citation error:', error);
+      toast({
+        title: "Bulk Re-citation Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRecitingArticles(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -209,6 +249,54 @@ const Articles = () => {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Bulk Re-citation Card */}
+        <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-blue-500" />
+              Bulk Citation Replacement
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Replace all citations in published articles with sources from your approved 141-domain list.
+              </p>
+              <div className="flex items-start gap-2 p-3 bg-blue-500/5 rounded-lg border border-blue-500/20">
+                <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1 text-xs">
+                  <p className="font-medium text-blue-700 dark:text-blue-300">Full Replace Strategy</p>
+                  <p className="text-blue-600/80 dark:text-blue-400/80">
+                    All current citations will be replaced with high-authority sources from approved domains only. 
+                    Backups are created automatically with 24-hour rollback capability.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  {filteredArticles.length} article{filteredArticles.length !== 1 ? 's' : ''} will be processed
+                </p>
+                {(languageFilter !== 'all' || categoryFilter !== 'all') && (
+                  <p className="text-xs text-muted-foreground">
+                    (Filtered by: {languageFilter !== 'all' ? `${languageFilter}` : ''}{categoryFilter !== 'all' ? `, ${categoryFilter}` : ''})
+                  </p>
+                )}
+              </div>
+              <Button 
+                onClick={handleBulkRecitation}
+                disabled={isRecitingArticles || filteredArticles.length === 0}
+                variant="default"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                {isRecitingArticles ? "Processing..." : "Re-cite All Articles"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
