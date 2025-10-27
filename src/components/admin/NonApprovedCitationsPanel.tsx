@@ -18,6 +18,121 @@ export function NonApprovedCitationsPanel() {
     queryFn: getArticlesWithNonApprovedCitations,
   });
 
+  const applyReplacementMutation = useMutation({
+    mutationFn: async ({
+      articleId,
+      oldUrl,
+      newUrl,
+      newSource,
+      confidence
+    }: {
+      articleId: string;
+      oldUrl: string;
+      newUrl: string;
+      newSource: string;
+      confidence: number;
+    }) => {
+      // 1. Fetch current article
+      const { data: article, error: fetchError } = await supabase
+        .from('blog_articles')
+        .select('external_citations, detailed_content, headline')
+        .eq('id', articleId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Create backup revision
+      const { error: revisionError } = await supabase
+        .from('article_revisions')
+        .insert({
+          article_id: articleId,
+          previous_content: article.detailed_content,
+          previous_citations: article.external_citations,
+          revision_type: 'citation_replacement',
+          change_reason: `Auto-replaced non-approved citation: ${oldUrl} → ${newUrl}`,
+          changed_by: (await supabase.auth.getUser()).data.user?.id
+        });
+
+      if (revisionError) throw revisionError;
+
+      // 3. Update external_citations array
+      const citations = (article.external_citations as any[]) || [];
+      const updatedCitations = citations.map(citation => {
+        if (citation.url === oldUrl) {
+          return {
+            ...citation,
+            url: newUrl,
+            source: newSource,
+            replaced_at: new Date().toISOString(),
+            replacement_confidence: confidence
+          };
+        }
+        return citation;
+      });
+
+      // 4. Update article
+      const { error: updateError } = await supabase
+        .from('blog_articles')
+        .update({ external_citations: updatedCitations })
+        .eq('id', articleId);
+
+      if (updateError) throw updateError;
+
+      // 5. Update citation_usage_tracking
+      await supabase
+        .from('citation_usage_tracking')
+        .delete()
+        .eq('article_id', articleId)
+        .eq('citation_url', oldUrl);
+
+      await supabase
+        .from('citation_usage_tracking')
+        .insert({
+          article_id: articleId,
+          citation_url: newUrl,
+          citation_source: newSource,
+          anchor_text: citations.find(c => c.url === oldUrl)?.text || ''
+        });
+
+      return { 
+        oldUrl, 
+        newUrl, 
+        newSource,
+        confidence,
+        headline: article.headline 
+      };
+    },
+    onSuccess: (data) => {
+      setProcessingCitation(null);
+      
+      const oldDomain = new URL(data.oldUrl).hostname;
+      const newDomain = new URL(data.newUrl).hostname;
+      
+      if (data.confidence < 70) {
+        toast.warning(
+          `⚠️ Replaced with moderate confidence (${data.confidence}/100)\n` +
+          `${oldDomain} → ${newDomain}\n` +
+          `You may want to review this change`,
+          { duration: 8000 }
+        );
+      } else {
+        toast.success(
+          `✅ Auto-Replaced Citation!\n` +
+          `${oldDomain} → ${newDomain}\n` +
+          `Confidence: ${data.confidence}/100 • Backup created`,
+          { duration: 8000 }
+        );
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ["non-approved-citations"] });
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+    },
+    onError: (error) => {
+      setProcessingCitation(null);
+      toast.error("Failed to apply replacement: " + (error as Error).message);
+    }
+  });
+
   const findReplacementMutation = useMutation({
     mutationFn: async ({ 
       url, 
@@ -39,33 +154,47 @@ export function NonApprovedCitationsPanel() {
           articleContent,
           articleLanguage,
           context: 'Replacing non-approved citation with approved source',
-          mustBeApproved: true  // New parameter to filter only approved domains
+          mustBeApproved: true
         }
       });
       
       if (error) throw error;
-      return data;
+      return { data, url, articleId };
     },
-    onSuccess: (data, variables) => {
-      setProcessingCitation(null);
+    onSuccess: async (result) => {
+      const { data, url, articleId } = result;
       
-      if (data?.suggestions && data.suggestions.length > 0) {
-        const bestScore = data.suggestions[0].authorityScore || 0;
-        toast.success(
-          `✅ Found ${data.suggestions.length} approved replacement(s)\n` +
-          `Best match: ${bestScore}/100 authority score\n` +
-          `Check the Citation Health page to review and apply`,
+      if (!data?.suggestions || data.suggestions.length === 0) {
+        setProcessingCitation(null);
+        toast.warning(
+          "❌ No approved alternatives found\n" +
+          "Options: 1) Remove citation manually, 2) Add domain to approved list",
           { duration: 6000 }
         );
-        queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
-        queryClient.invalidateQueries({ queryKey: ["approved-replacements"] });
-      } else {
-        toast.warning(
-          "No approved alternatives found for this citation.\n" +
-          "You may need to manually find a replacement or remove the citation.",
-          { duration: 5000 }
-        );
+        return;
       }
+
+      // Get best verified match or fallback to highest authority
+      const bestMatch = data.suggestions.find((s: any) => s.verified) || data.suggestions[0];
+      
+      if (!bestMatch.verified) {
+        setProcessingCitation(null);
+        toast.error(
+          "❌ Found suggestions but none could be verified\n" +
+          "The AI found alternatives but they're currently inaccessible",
+          { duration: 6000 }
+        );
+        return;
+      }
+
+      // Auto-apply the replacement
+      applyReplacementMutation.mutate({
+        articleId,
+        oldUrl: url,
+        newUrl: bestMatch.suggestedUrl,
+        newSource: bestMatch.sourceName,
+        confidence: bestMatch.authorityScore || 0
+      });
     },
     onError: (error) => {
       setProcessingCitation(null);
@@ -280,12 +409,22 @@ export function NonApprovedCitationsPanel() {
                           <Button
                             size="sm"
                             onClick={() => handleFindReplacement(citation.url, article)}
-                            disabled={processingCitation === citation.url || findReplacementMutation.isPending}
+                            disabled={
+                              processingCitation === citation.url || 
+                              findReplacementMutation.isPending ||
+                              applyReplacementMutation.isPending
+                            }
                           >
                             {processingCitation === citation.url ? (
-                              <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Finding...</>
+                              findReplacementMutation.isPending ? (
+                                <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Finding AI replacement...</>
+                              ) : applyReplacementMutation.isPending ? (
+                                <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Applying replacement...</>
+                              ) : (
+                                <><Sparkles className="h-4 w-4 mr-1" /> Find & Replace</>
+                              )
                             ) : (
-                              <><Sparkles className="h-4 w-4 mr-1" /> Find Replacement</>
+                              <><Sparkles className="h-4 w-4 mr-1" /> Find & Replace</>
                             )}
                           </Button>
                           <Button
