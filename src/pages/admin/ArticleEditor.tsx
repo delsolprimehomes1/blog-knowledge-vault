@@ -844,6 +844,10 @@ const ArticleEditor = () => {
         <FAQSection
           faqEntities={faqEntities}
           onFaqEntitiesChange={setFaqEntities}
+          headline={headline}
+          detailedContent={detailedContent}
+          metaDescription={metaDescription}
+          language={language}
         />
 
         {/* Section 11: Translations */}

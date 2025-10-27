@@ -6,20 +6,32 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { AlertCircle, Plus, Trash2, ChevronUp, ChevronDown, Code } from "lucide-react";
+import { AlertCircle, Plus, Trash2, ChevronUp, ChevronDown, Code, Sparkles } from "lucide-react";
 import { FAQEntity } from "@/types/blog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface FAQSectionProps {
   faqEntities: FAQEntity[];
   onFaqEntitiesChange: (entities: FAQEntity[]) => void;
+  headline: string;
+  detailedContent: string;
+  metaDescription: string;
+  language: string;
 }
 
 export const FAQSection = ({
   faqEntities,
   onFaqEntitiesChange,
+  headline,
+  detailedContent,
+  metaDescription,
+  language,
 }: FAQSectionProps) => {
   const [isEnabled, setIsEnabled] = useState(faqEntities.length > 0);
   const [showSchema, setShowSchema] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
 
   const handleToggle = (enabled: boolean) => {
     setIsEnabled(enabled);
@@ -55,6 +67,53 @@ export const FAQSection = ({
     onFaqEntitiesChange(updated);
   };
 
+  const handleAutoGenerate = async () => {
+    if (!headline || !detailedContent) {
+      toast({
+        title: "Missing Content",
+        description: "Please add a headline and content before generating FAQs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-article-faqs', {
+        body: {
+          articles: [{
+            headline,
+            detailed_content: detailedContent,
+            meta_description: metaDescription,
+            language,
+          }]
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.results?.[0]?.faq_entities) {
+        onFaqEntitiesChange(data.results[0].faq_entities);
+        setIsEnabled(true);
+        toast({
+          title: "FAQs Generated",
+          description: `Successfully generated ${data.results[0].faq_entities.length} Q&A pairs`,
+        });
+      } else {
+        throw new Error("No FAQs generated");
+      }
+    } catch (error) {
+      console.error("Error generating FAQs:", error);
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate FAQs",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const generateSchema = () => {
     return {
       "@context": "https://schema.org",
@@ -82,13 +141,25 @@ export const FAQSection = ({
               Enable for QA articles to add FAQPage schema markup
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Label htmlFor="faq-toggle">Enable FAQ Schema</Label>
-            <Switch
-              id="faq-toggle"
-              checked={isEnabled}
-              onCheckedChange={handleToggle}
-            />
+          <div className="flex items-center gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAutoGenerate}
+              disabled={isGenerating || !headline || !detailedContent}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              {isGenerating ? "Generating..." : "Auto-generate FAQs"}
+            </Button>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="faq-toggle">Enable FAQ Schema</Label>
+              <Switch
+                id="faq-toggle"
+                checked={isEnabled}
+                onCheckedChange={handleToggle}
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
