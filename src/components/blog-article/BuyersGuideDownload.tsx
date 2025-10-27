@@ -54,7 +54,7 @@ export const BuyersGuideDownload = ({ funnelStage, articleSlug }: BuyersGuideDow
   if (isDismissed || !isVisible) return null;
 
   return (
-    <div className="hidden md:block fixed left-8 bottom-8 z-50 animate-slide-in-left">
+    <div className="hidden md:block fixed right-8 top-1/2 -translate-y-1/2 z-50 animate-slide-in-right">
       <div className="relative group">
         {/* Dismiss button (appears on hover) */}
         <button
