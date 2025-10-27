@@ -142,7 +142,7 @@ REMINDER: The domains listed above are the ONLY acceptable sources. Any URL from
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-large-128k-online',
+        model: 'sonar-pro',
         messages: [
           { role: 'system', content: 'You are a citation research assistant. You must ONLY cite from the approved domain list provided. Return ONLY valid JSON arrays with no additional text.' },
           { role: 'user', content: prompt }
