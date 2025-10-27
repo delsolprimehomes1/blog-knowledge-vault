@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 export function NonApprovedCitationsPanel() {
   const queryClient = useQueryClient();
   const [processingCitation, setProcessingCitation] = useState<string | null>(null);
+  const [processingArticles, setProcessingArticles] = useState<Set<string>>(new Set());
 
   const { data: articlesWithIssues, isLoading } = useQuery({
     queryKey: ["non-approved-citations"],
@@ -106,8 +107,8 @@ export function NonApprovedCitationsPanel() {
           })
           .eq('id', existingNewUrlTracking.id);
       } else {
-        // New URL doesn't exist - insert it
-        await supabase
+        // New URL doesn't exist - try to insert it
+        const { error: insertError } = await supabase
           .from('citation_usage_tracking')
           .insert({
             article_id: articleId,
@@ -117,6 +118,34 @@ export function NonApprovedCitationsPanel() {
             is_active: true,
             last_verified_at: new Date().toISOString()
           });
+
+        // Handle race condition: if insert fails due to duplicate, update instead
+        if (insertError && insertError.code === '23505') { // 23505 = unique_violation
+          console.log(`Race condition detected - updating existing tracking for ${newUrl}`);
+          
+          // Another mutation just inserted this, so update it instead
+          const { data: nowExisting } = await supabase
+            .from('citation_usage_tracking')
+            .select('id')
+            .eq('article_id', articleId)
+            .eq('citation_url', newUrl)
+            .single();
+
+          if (nowExisting) {
+            await supabase
+              .from('citation_usage_tracking')
+              .update({
+                citation_source: newSource,
+                is_active: true,
+                last_verified_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', nowExisting.id);
+          }
+        } else if (insertError) {
+          // Some other error - throw it
+          throw insertError;
+        }
       }
 
       return { 
@@ -124,11 +153,17 @@ export function NonApprovedCitationsPanel() {
         newUrl, 
         newSource,
         confidence,
-        headline: article.headline 
+        headline: article.headline,
+        articleId
       };
     },
     onSuccess: (data) => {
       setProcessingCitation(null);
+      setProcessingArticles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(data.articleId);
+        return newSet;
+      });
       
       const oldDomain = new URL(data.oldUrl).hostname;
       const newDomain = new URL(data.newUrl).hostname;
@@ -152,8 +187,13 @@ export function NonApprovedCitationsPanel() {
       queryClient.invalidateQueries({ queryKey: ["non-approved-citations"] });
       queryClient.invalidateQueries({ queryKey: ["citation-health"] });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       setProcessingCitation(null);
+      setProcessingArticles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(variables.articleId);
+        return newSet;
+      });
       toast.error("Failed to apply replacement: " + (error as Error).message);
     }
   });
@@ -221,8 +261,13 @@ export function NonApprovedCitationsPanel() {
         confidence: bestMatch.authorityScore || 0
       });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       setProcessingCitation(null);
+      setProcessingArticles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(variables.articleId);
+        return newSet;
+      });
       toast.error("Failed to find replacement: " + (error as Error).message);
     }
   });
@@ -272,6 +317,7 @@ export function NonApprovedCitationsPanel() {
     article: ArticleWithNonApprovedCitations
   ) => {
     setProcessingCitation(url);
+    setProcessingArticles(prev => new Set(prev).add(article.id));
     
     // Fetch full article content
     const { data: fullArticle } = await supabase
@@ -435,6 +481,7 @@ export function NonApprovedCitationsPanel() {
                             size="sm"
                             onClick={() => handleFindReplacement(citation.url, article)}
                             disabled={
+                              processingArticles.has(article.id) ||
                               processingCitation === citation.url || 
                               findReplacementMutation.isPending ||
                               applyReplacementMutation.isPending
@@ -456,7 +503,10 @@ export function NonApprovedCitationsPanel() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleRemoveCitation(citation.url, article.id)}
-                            disabled={removeCitationMutation.isPending}
+                            disabled={
+                              processingArticles.has(article.id) ||
+                              removeCitationMutation.isPending
+                            }
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
