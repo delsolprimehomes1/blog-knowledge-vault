@@ -39,6 +39,7 @@ export const BlogFooter = () => {
                 </Link>
                 <Link 
                   to="/about"
+                  onClick={() => window.scrollTo(0, 0)}
                   className="group flex items-center gap-2 text-sm text-white/90 hover:text-primary transition-colors"
                 >
                   <Users className="w-4 h-4" />
