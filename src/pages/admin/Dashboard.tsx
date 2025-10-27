@@ -9,6 +9,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { validateSchemaRequirements } from "@/lib/schemaGenerator";
 import { toast } from "sonner";
 import { useState } from "react";
+import { ContentFreshnessPanel } from "@/components/admin/ContentFreshnessPanel";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -302,6 +303,9 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Content Freshness Monitor */}
+        <ContentFreshnessPanel />
 
         {/* Language Distribution */}
         <Card>

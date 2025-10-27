@@ -63,6 +63,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "article_revisions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "article_revisions_replacement_id_fkey"
             columns: ["replacement_id"]
             isOneToOne: false
@@ -372,6 +379,13 @@ export type Database = {
             referencedRelation: "blog_articles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "citation_usage_tracking_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cluster_generations: {
@@ -467,6 +481,57 @@ export type Database = {
         }
         Relationships: []
       }
+      content_updates: {
+        Row: {
+          article_id: string
+          created_at: string
+          id: string
+          new_date_modified: string
+          previous_date_modified: string | null
+          update_notes: string | null
+          update_type: string
+          updated_by: string | null
+          updated_fields: Json | null
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          id?: string
+          new_date_modified?: string
+          previous_date_modified?: string | null
+          update_notes?: string | null
+          update_type: string
+          updated_by?: string | null
+          updated_fields?: Json | null
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          id?: string
+          new_date_modified?: string
+          previous_date_modified?: string | null
+          update_notes?: string | null
+          update_type?: string
+          updated_by?: string | null
+          updated_fields?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_updates_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_updates_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dead_link_replacements: {
         Row: {
           applied_at: string | null
@@ -523,6 +588,7 @@ export type Database = {
       }
       external_citation_health: {
         Row: {
+          authority_score: number | null
           content_hash: string | null
           created_at: string | null
           first_seen_at: string | null
@@ -535,13 +601,16 @@ export type Database = {
           redirect_url: string | null
           response_time_ms: number | null
           source_name: string | null
+          source_type: string | null
           status: string | null
           times_failed: number | null
           times_verified: number | null
           updated_at: string | null
           url: string
+          verification_date: string | null
         }
         Insert: {
+          authority_score?: number | null
           content_hash?: string | null
           created_at?: string | null
           first_seen_at?: string | null
@@ -554,13 +623,16 @@ export type Database = {
           redirect_url?: string | null
           response_time_ms?: number | null
           source_name?: string | null
+          source_type?: string | null
           status?: string | null
           times_failed?: number | null
           times_verified?: number | null
           updated_at?: string | null
           url: string
+          verification_date?: string | null
         }
         Update: {
+          authority_score?: number | null
           content_hash?: string | null
           created_at?: string | null
           first_seen_at?: string | null
@@ -573,11 +645,13 @@ export type Database = {
           redirect_url?: string | null
           response_time_ms?: number | null
           source_name?: string | null
+          source_type?: string | null
           status?: string | null
           times_failed?: number | null
           times_verified?: number | null
           updated_at?: string | null
           url?: string
+          verification_date?: string | null
         }
         Relationships: []
       }
@@ -621,6 +695,13 @@ export type Database = {
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "link_suggestions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
             referencedColumns: ["id"]
           },
         ]
@@ -680,6 +761,13 @@ export type Database = {
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "link_validations_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
             referencedColumns: ["id"]
           },
         ]
@@ -746,7 +834,45 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      content_freshness_report: {
+        Row: {
+          date_modified: string | null
+          date_published: string | null
+          days_since_update: number | null
+          freshness_status: string | null
+          headline: string | null
+          id: string | null
+          language: string | null
+          slug: string | null
+          status: string | null
+          update_count: number | null
+        }
+        Insert: {
+          date_modified?: string | null
+          date_published?: string | null
+          days_since_update?: never
+          freshness_status?: never
+          headline?: string | null
+          id?: string | null
+          language?: string | null
+          slug?: string | null
+          status?: string | null
+          update_count?: never
+        }
+        Update: {
+          date_modified?: string | null
+          date_published?: string | null
+          days_since_update?: never
+          freshness_status?: never
+          headline?: string | null
+          id?: string | null
+          language?: string | null
+          slug?: string | null
+          status?: string | null
+          update_count?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_extension_exists: {

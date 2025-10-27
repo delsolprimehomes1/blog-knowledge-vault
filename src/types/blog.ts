@@ -36,6 +36,9 @@ export interface ExternalCitation {
   text: string;
   url: string;
   source: string;
+  sourceType?: 'government' | 'news' | 'legal' | 'academic' | 'organization' | 'commercial';
+  authorityScore?: number; // 0-100
+  verificationDate?: string;
 }
 
 export interface FAQEntity {

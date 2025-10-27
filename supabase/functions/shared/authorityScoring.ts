@@ -30,23 +30,28 @@ export function calculateAuthorityScore(citation: {
   let accessibilityScore = citation.isAccessible ? 20 : 0;
   let relevanceScore = 5; // Base relevance
   
-  // ==== Domain Authority (0-40 points) ====
+  // ==== Domain Authority (0-40 points) ==== 
+  // INCREASED WEIGHTING FOR GOVERNMENT SOURCES (AI Citation Priority)
   if (domain.match(/\.(gov|gob|edu|ac)\./)) {
     domainScore = 40; // Government/education - highest authority
-  } else if (domain.match(/europa\.eu|oecd\.org|worldbank\.org|imf\.org|un\.org/)) {
+  } else if (domain.match(/boe\.es|agenciatributaria|registradores\.org|notariado\.org|juntadeandalucia\.es|seg-social\.es|mpr\.gob\.es/)) {
+    domainScore = 40; // Spanish government authorities - PRIMARY TIER
+  } else if (domain.match(/europa\.eu|oecd\.org|worldbank\.org|imf\.org|un\.org|ecb\.europa\.eu/)) {
     domainScore = 38; // International organizations
-  } else if (domain.match(/boe\.es|agenciatributaria|registradores|notariado|juntadeandalucia/)) {
-    domainScore = 40; // Spanish government authorities
+  } else if (domain.match(/gov\.uk|irs\.gov|hmrc\.gov\.uk|belastingdienst\.nl/)) {
+    domainScore = 37; // Other government tax/legal authorities
   } else if (domain.match(/bbc\.com|reuters|bloomberg|guardian|elpais\.com|elmundo\.es|ft\.com/)) {
-    domainScore = 30; // Major news outlets
+    domainScore = 28; // Major news outlets (reduced to prioritize gov sources)
   } else if (domain.match(/notaries|notariado|registradores|lawyer|legal|abogado|solicitor|attorney/)) {
-    domainScore = 28; // Legal/professional services
-  } else if (domain.match(/\.(org|net)$/)) {
-    domainScore = 25; // Non-profits, associations
-  } else if (domain.match(/turismo|tourism|travel|visit/)) {
-    domainScore = 22; // Official tourism boards
+    domainScore = 26; // Legal/professional services (slightly reduced)
+  } else if (domain.match(/\.(org)$/) && !domain.match(/\.(com|net)/)) {
+    domainScore = 24; // Non-profits, associations (slightly reduced)
+  } else if (domain.match(/turismo|tourism|travel|visit/) && domain.match(/\.es$/)) {
+    domainScore = 23; // Official Spanish tourism boards
+  } else if (domain.match(/\.(net)$/)) {
+    domainScore = 20; // .net domains
   } else {
-    domainScore = 15; // General websites (must prove quality through content)
+    domainScore = 12; // General websites - REDUCED to penalize commercial sources
   }
   
   // ==== Content Quality (0-30 points) ====
