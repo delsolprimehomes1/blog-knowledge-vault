@@ -12,6 +12,9 @@ import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { Button } from "@/components/ui/button";
 import { FileQuestion } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import { SchemaMeta } from "@/components/SchemaMeta";
+import { generateAllBlogIndexSchemas } from "@/lib/blogIndexSchemaGenerator";
+import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
 
 const ARTICLES_PER_PAGE = 9;
 
@@ -31,6 +34,8 @@ const BlogIndex = () => {
 
   const selectedCategory = searchParams.get("category") || "all";
   const selectedLanguage = searchParams.get("lang") || "all";
+  
+  const baseUrl = 'https://delsolprimehomes.com';
 
   // Fetch categories
   const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery({
@@ -134,6 +139,9 @@ const BlogIndex = () => {
   const endIndex = startIndex + ARTICLES_PER_PAGE;
   const currentArticles = articlesData?.slice(startIndex, endIndex) || [];
 
+  // Generate schemas with article data
+  const schemas = generateAllBlogIndexSchemas(articlesData as any || [], baseUrl);
+
   if (hasError) {
     return (
       <div className="container mx-auto px-4 py-12">
@@ -149,10 +157,47 @@ const BlogIndex = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="container mx-auto px-4 py-12 pt-16 md:pt-20">
-        <BlogHeader totalCount={totalArticles} />
+    <>
+      <SchemaMeta
+        title="Costa del Sol Property Blog - Expert Real Estate Insights & Guides"
+        description="Comprehensive guides on buying property in Costa del Sol, Spain. Expert insights on real estate market trends, legal procedures, investment opportunities, and lifestyle tips for international buyers."
+        canonical={`${baseUrl}/blog`}
+        ogTitle="Costa del Sol Property Blog - DelSol Prime Homes"
+        ogDescription="Expert guides on buying property in Costa del Sol. Real estate market trends, legal advice, and lifestyle insights for UK and Irish buyers."
+        ogImage={`${baseUrl}/costa-del-sol-bg.jpg`}
+        robots="index, follow"
+        schemas={[
+          schemas.collection,
+          schemas.breadcrumb,
+          schemas.itemList,
+          schemas.speakable,
+          ORGANIZATION_SCHEMA,
+        ].filter(Boolean)}
+      />
+      
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        
+        {/* Hero Section with Speakable Content */}
+        <section className="relative py-12 md:py-16 overflow-hidden bg-gradient-to-br from-primary/10 via-background to-primary/5">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto text-center space-y-4 speakable-summary blog-hero-description">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">
+                Costa del Sol Property Blog
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground">
+                Your comprehensive guide to buying property in Costa del Sol, Spain. Expert insights on real estate market trends, legal procedures, investment opportunities, and lifestyle tips for international buyers from UK, Ireland, and across Europe.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <div className="container mx-auto px-4 py-12">
+          <div className="text-center mb-8">
+            <p className="text-muted-foreground">
+              {totalArticles} {totalArticles === 1 ? 'article' : 'articles'} available
+            </p>
+          </div>
 
       <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
@@ -217,10 +262,11 @@ const BlogIndex = () => {
         </>
       )}
 
-        {/* Company Footer */}
-        <BlogFooter />
+          {/* Company Footer */}
+          <BlogFooter />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

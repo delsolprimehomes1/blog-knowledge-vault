@@ -5,11 +5,18 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/ui/button";
 import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
+import { SchemaMeta } from "@/components/SchemaMeta";
+import { usePageSchema } from "@/hooks/usePageSchema";
+import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
+import { TERMS_OF_SERVICE_FAQS } from "@/lib/legalSchemaGenerator";
 
 const TermsOfService = () => {
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
+
+  const schemas = usePageSchema({ pageType: 'legal-terms' });
+  const baseUrl = 'https://delsolprimehomes.com';
 
   const sections = [
     { id: "acceptance", label: "Acceptance of Terms" },
@@ -58,9 +65,36 @@ const TermsOfService = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden">
+    <>
+      <SchemaMeta
+        title="Terms of Service - DelSol Prime Homes | Real Estate Legal Terms"
+        description="DelSol Prime Homes Terms of Service: Legal terms governing use of our real estate services in Costa del Sol, Spain. User responsibilities and service descriptions."
+        canonical={`${baseUrl}/terms-of-service`}
+        ogTitle="Terms of Service - DelSol Prime Homes"
+        ogDescription="Legal terms and conditions for using DelSol Prime Homes real estate services in Costa del Sol, Spain."
+        robots="index, follow"
+        schemas={[
+          schemas.webpage,
+          schemas.breadcrumb,
+          schemas.faq,
+          schemas.speakable,
+          ORGANIZATION_SCHEMA,
+        ]}
+      />
+      
+      <div className="min-h-screen bg-background">
+        {/* Speakable Summary */}
+        <section className="container mx-auto px-4 pt-24">
+          <div className="speakable-summary bg-primary/5 border border-primary/20 rounded-lg p-6 max-w-4xl mx-auto">
+            <h2 className="text-xl font-semibold mb-3 text-foreground">What are DelSol Prime Homes' terms of service?</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              DelSol Prime Homes Terms of Service govern your use of our real estate services in Costa del Sol, Spain. These terms outline user responsibilities, service descriptions, property listing disclaimers, and legal limitations. We provide informational services only - always consult qualified lawyers and financial advisors for property transactions.
+            </p>
+          </div>
+        </section>
+
+        {/* Hero Section */}
+        <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-background to-purple-500/10" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center space-y-4">
@@ -374,8 +408,35 @@ const TermsOfService = () => {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="container mx-auto px-4 pb-16">
+        <Card className="glass-premium border-border/40">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-3">
+              <FileText className="w-6 h-6 text-primary" />
+              Frequently Asked Questions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="space-y-2">
+              {TERMS_OF_SERVICE_FAQS.map((faq, index) => (
+                <AccordionItem key={index} value={`faq-${index}`} className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <span className="font-semibold text-foreground text-left">{faq.question}</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground pb-4">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </CardContent>
+        </Card>
+      </section>
+
       <BlogFooter />
     </div>
+    </>
   );
 };
 

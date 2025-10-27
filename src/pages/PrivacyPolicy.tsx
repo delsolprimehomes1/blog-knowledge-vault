@@ -5,11 +5,18 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/ui/button";
 import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
+import { SchemaMeta } from "@/components/SchemaMeta";
+import { usePageSchema } from "@/hooks/usePageSchema";
+import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
+import { PRIVACY_POLICY_FAQS } from "@/lib/legalSchemaGenerator";
 
 const PrivacyPolicy = () => {
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
+
+  const schemas = usePageSchema({ pageType: 'legal-privacy' });
+  const baseUrl = 'https://delsolprimehomes.com';
 
   const sections = [
     { id: "introduction", label: "Introduction" },
@@ -54,9 +61,36 @@ const PrivacyPolicy = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden">
+    <>
+      <SchemaMeta
+        title="Privacy Policy - DelSol Prime Homes | GDPR Compliant Data Protection"
+        description="DelSol Prime Homes Privacy Policy: How we collect, use, and protect your personal information. GDPR compliant data protection for Costa del Sol property clients."
+        canonical={`${baseUrl}/privacy-policy`}
+        ogTitle="Privacy Policy - DelSol Prime Homes"
+        ogDescription="Learn how DelSol Prime Homes protects your personal data. GDPR compliant privacy policy for Costa del Sol real estate services."
+        robots="index, follow"
+        schemas={[
+          schemas.webpage,
+          schemas.breadcrumb,
+          schemas.faq,
+          schemas.speakable,
+          ORGANIZATION_SCHEMA,
+        ]}
+      />
+      
+      <div className="min-h-screen bg-background">
+        {/* Speakable Summary */}
+        <section className="container mx-auto px-4 pt-24">
+          <div className="speakable-summary bg-primary/5 border border-primary/20 rounded-lg p-6 max-w-4xl mx-auto">
+            <h2 className="text-xl font-semibold mb-3 text-foreground">What is DelSol Prime Homes' privacy policy?</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              DelSol Prime Homes Privacy Policy explains how we collect, use, and protect your personal information. We comply with GDPR and Spanish data protection laws, ensuring your data is secure and your privacy rights are respected. You have full control over your data including rights to access, rectification, erasure, and portability.
+            </p>
+          </div>
+        </section>
+
+        {/* Hero Section */}
+        <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-primary/10" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center space-y-4">
@@ -279,10 +313,10 @@ const PrivacyPolicy = () => {
                   <div className="bg-muted/20 p-3 rounded">
                     <p className="font-semibold text-foreground text-sm mb-1">Analytics Cookies</p>
                     <p className="text-sm">
-                      We use Google Analytics 4 to understand how visitors interact with our website. 
-                      This helps us improve our content and services. Google Analytics collects 
-                      information anonymously and reports website trends without identifying individual visitors.
-                      You can opt-out of Google Analytics by declining cookies or installing the{' '}
+                      We use Google Analytics 4 (GA4) and Google Tag Manager (GTM) to understand how visitors 
+                      interact with our website. Analytics are always enabled to help us improve our content 
+                      and services. Google Analytics collects information anonymously and reports website trends 
+                      without identifying individual visitors. You can opt-out of Google Analytics by installing the{' '}
                       <a 
                         href="https://tools.google.com/dlpage/gaoptout" 
                         target="_blank" 
@@ -395,8 +429,35 @@ const PrivacyPolicy = () => {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="container mx-auto px-4 pb-16">
+        <Card className="glass-premium border-border/40">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-3">
+              <FileText className="w-6 h-6 text-primary" />
+              Frequently Asked Questions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="space-y-2">
+              {PRIVACY_POLICY_FAQS.map((faq, index) => (
+                <AccordionItem key={index} value={`faq-${index}`} className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <span className="font-semibold text-foreground text-left">{faq.question}</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground pb-4">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </CardContent>
+        </Card>
+      </section>
+
       <BlogFooter />
     </div>
+    </>
   );
 };
 
