@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 
 export const BlogFooter = () => {
   return (
-    <footer className="relative mt-16 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-gradient-to-r before:from-transparent before:via-primary/50 before:to-transparent before:rounded-full">
-      <div className="glass-premium rounded-t-3xl overflow-hidden border border-border/20 border-b-0">
+    <footer className="relative mt-16 border-t border-border/40">
+      <div className="glass-dark">
         <div className="container mx-auto px-4 py-12 md:py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
             {/* Company Info */}
@@ -93,7 +93,7 @@ export const BlogFooter = () => {
           </div>
 
           {/* Copyright Bar */}
-          <div className="mt-12 pt-8 relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-border/60 before:to-transparent">
+          <div className="mt-12 pt-8 border-t border-border/40">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-sm text-white/70 text-center md:text-left">
                 © 2025 DelSol Prime Homes. All rights reserved.
