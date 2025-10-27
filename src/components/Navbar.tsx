@@ -20,18 +20,33 @@ export const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleDownload = () => {
-    const link = document.createElement("a");
-    link.href = "/buyers-guide.pdf";
-    link.download = "Costa-Del-Sol-Property-Buyers-Guide-2025.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    try {
+      // Verify file exists first
+      const response = await fetch('/buyers-guide.pdf', { method: 'HEAD' });
+      if (!response.ok) {
+        console.error('PDF file not found');
+        return;
+      }
+      
+      const link = document.createElement("a");
+      link.href = "/buyers-guide.pdf";
+      link.download = "Costa-Del-Sol-Property-Buyers-Guide-2025.pdf";
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    trackEvent("download", {
-      file_name: "buyers-guide",
-      source: "navbar",
-    });
+      trackEvent("download", {
+        file_name: "buyers-guide",
+        source: "navbar",
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -76,6 +91,7 @@ export const Navbar = () => {
             </NavLink>
 
             <Button
+              type="button"
               onClick={handleDownload}
               className={cn(
                 "px-6 py-2.5 rounded-full font-semibold text-sm md:text-base",
@@ -120,8 +136,9 @@ export const Navbar = () => {
                 </NavLink>
 
                 <Button
-                  onClick={() => {
-                    handleDownload();
+                  type="button"
+                  onClick={(e) => {
+                    handleDownload(e);
                     setIsMobileMenuOpen(false);
                   }}
                   className={cn(
