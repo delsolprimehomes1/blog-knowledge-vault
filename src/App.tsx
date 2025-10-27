@@ -22,6 +22,7 @@ import CitationHealth from "./pages/admin/CitationHealth";
 import Auth from "./pages/Auth";
 import BlogArticle from "./pages/BlogArticle";
 import BlogIndex from "./pages/BlogIndex";
+import About from "./pages/About";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -51,6 +52,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/blog" element={<BlogIndex />} />
           <Route path="/blog/:slug" element={<BlogArticle />} />
+          <Route path="/about" element={<About />} />
           <Route path="/sitemap" element={<Sitemap />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
