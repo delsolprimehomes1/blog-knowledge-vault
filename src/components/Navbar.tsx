@@ -163,31 +163,15 @@ export const Navbar = () => {
                     setIsMobileMenuOpen(false);
                   }}
                   className={cn(
-                    "relative w-full px-6 py-4 rounded-2xl font-bold text-base overflow-hidden group",
-                    "backdrop-blur-xl bg-white/10 dark:bg-black/10",
-                    "before:absolute before:inset-0 before:rounded-2xl",
-                    "before:bg-gradient-to-r before:from-primary/90 before:via-[hsl(42_58%_50%)]/90 before:to-primary/90",
-                    "before:bg-[length:200%_100%] before:transition-all before:duration-700",
-                    "hover:before:bg-[position:100%_0]",
-                    "after:absolute after:inset-0 after:rounded-2xl after:p-[2px]",
-                    "after:bg-gradient-to-r after:from-primary after:via-[hsl(42_58%_65%)] after:to-primary",
-                    "after:bg-[length:200%_100%] after:animate-shimmer",
-                    "after:-z-10",
-                    "text-white relative z-10 tracking-wide",
-                    "shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
-                    "hover:shadow-[0_8px_40px_rgba(255,183,3,0.4),0_0_20px_rgba(255,183,3,0.3)]",
-                    "dark:shadow-[0_8px_30px_rgba(255,183,3,0.2)]",
-                    "dark:hover:shadow-[0_8px_50px_rgba(255,183,3,0.5),0_0_30px_rgba(255,183,3,0.4)]",
-                    "transition-all duration-500 ease-out",
-                    "active:scale-95 active:shadow-[0_4px_20px_rgba(255,183,3,0.3)]",
-                    "hover:scale-[1.02] hover:-translate-y-0.5",
-                    "flex items-center justify-center gap-3"
+                    "w-full px-6 py-3 rounded-full font-semibold text-base",
+                    "bg-gradient-to-r from-primary to-[hsl(42_58%_50%)]",
+                    "text-white shadow-md shadow-primary/30",
+                    "hover:shadow-xl hover:scale-105 hover:shadow-primary/40",
+                    "transition-all duration-300",
+                    "flex items-center justify-center gap-2"
                   )}
                 >
-                  <Download className={cn(
-                    "w-5 h-5 transition-all duration-300 ease-out",
-                    "group-hover:animate-bounce group-active:scale-90"
-                  )} />
+                  <Download className="w-5 h-5" />
                   Download Buyers Guide
                 </Button>
               </nav>
