@@ -289,32 +289,43 @@ serve(async (req) => {
 
     console.log('Final image prompt:', finalPrompt);
 
+    // Create timeout promise helper
+    const timeoutPromise = (ms: number) => new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout - FAL.ai took longer than 60 seconds')), ms)
+    );
+
     let result: FalResult;
 
     if (imageUrl) {
-      // Editing mode - use nano-banana/edit with contextual prompt
+      // Editing mode - use nano-banana/edit with 60-second timeout
       console.log('Editing existing image:', imageUrl);
-      result = await fal.subscribe("fal-ai/nano-banana/edit", {
-        input: {
-          prompt: finalPrompt,
-          image_size: "landscape_16_9",
-          num_images: 1,
-          image_urls: [imageUrl]
-        },
-        logs: true,
-      }) as FalResult;
+      result = await Promise.race([
+        fal.subscribe("fal-ai/nano-banana/edit", {
+          input: {
+            prompt: finalPrompt,
+            image_size: "landscape_16_9",
+            num_images: 1,
+            image_urls: [imageUrl]
+          },
+          logs: true,
+        }) as Promise<FalResult>,
+        timeoutPromise(60000)
+      ]);
     } else {
-      // Generation mode - use flux/dev with contextual prompt
+      // Generation mode - use flux/dev with 60-second timeout
       console.log('Generating new image with contextual prompt');
-      result = await fal.subscribe("fal-ai/flux/dev", {
-        input: {
-          prompt: finalPrompt,
-          image_size: "landscape_16_9",
-          num_inference_steps: 28,
-          num_images: 1,
-        },
-        logs: true,
-      }) as FalResult;
+      result = await Promise.race([
+        fal.subscribe("fal-ai/flux/dev", {
+          input: {
+            prompt: finalPrompt,
+            image_size: "landscape_16_9",
+            num_inference_steps: 28,
+            num_images: 1,
+          },
+          logs: true,
+        }) as Promise<FalResult>,
+        timeoutPromise(60000)
+      ]);
     }
 
     return new Response(

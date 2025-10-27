@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Sparkles, Image as ImageIcon, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { Sparkles, Image as ImageIcon, CheckCircle2, XCircle, Loader2, AlertCircle, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -28,6 +28,7 @@ export default function BatchImageGeneration() {
   const queryClient = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState<GenerationProgress[]>([]);
+  const [canResume, setCanResume] = useState(false);
 
   const { data: articlesWithoutImages = [], isLoading } = useQuery({
     queryKey: ['articles-without-images'],
@@ -43,100 +44,178 @@ export default function BatchImageGeneration() {
     },
   });
 
-  const generateImageForArticle = async (article: ArticleWithoutImage): Promise<void> => {
-    // Call generate-image function
-    const { data, error } = await supabase.functions.invoke('generate-image', {
-      body: { headline: article.headline }
-    });
+  // Check for saved progress on mount
+  useEffect(() => {
+    const savedProgress = localStorage.getItem('image-generation-progress');
+    if (savedProgress) {
+      setCanResume(true);
+    }
+  }, []);
 
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+  const generateImageForArticle = async (article: ArticleWithoutImage, retryCount = 0): Promise<void> => {
+    const MAX_RETRIES = 2;
+    const TIMEOUT_MS = 75000; // 75 seconds (edge function has 60s timeout + buffer)
 
-    const tempImageUrl = data.images[0].url;
+    try {
+      // Create timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Generation timeout - took longer than 75 seconds')), TIMEOUT_MS)
+      );
 
-    // Download image
-    const imageResponse = await fetch(tempImageUrl);
-    if (!imageResponse.ok) throw new Error('Failed to download image');
+      // Race between generation and timeout
+      await Promise.race([
+        (async () => {
+          // Call generate-image function
+          const { data, error } = await supabase.functions.invoke('generate-image', {
+            body: { headline: article.headline }
+          });
 
-    const imageBlob = await imageResponse.blob();
-    const fileName = `article-${article.id}.jpg`;
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
 
-    // Upload to storage
-    const { error: uploadError } = await supabase.storage
-      .from('article-images')
-      .upload(fileName, imageBlob, {
-        contentType: 'image/jpeg',
-        upsert: true
-      });
+          const tempImageUrl = data.images[0].url;
 
-    if (uploadError) throw uploadError;
+          // Download image
+          const imageResponse = await fetch(tempImageUrl);
+          if (!imageResponse.ok) throw new Error('Failed to download image');
 
-    // Get public URL
-    const { data: publicUrlData } = supabase.storage
-      .from('article-images')
-      .getPublicUrl(fileName);
+          const imageBlob = await imageResponse.blob();
+          const fileName = `article-${article.id}.jpg`;
 
-    // Update article with new image URL
-    const { error: updateError } = await supabase
-      .from('blog_articles')
-      .update({
-        featured_image_url: publicUrlData.publicUrl,
-        featured_image_alt: `${article.headline} - Costa del Sol real estate`,
-      })
-      .eq('id', article.id);
+          // Upload to storage
+          const { error: uploadError } = await supabase.storage
+            .from('article-images')
+            .upload(fileName, imageBlob, {
+              contentType: 'image/jpeg',
+              upsert: true
+            });
 
-    if (updateError) throw updateError;
+          if (uploadError) throw uploadError;
+
+          // Get public URL
+          const { data: publicUrlData } = supabase.storage
+            .from('article-images')
+            .getPublicUrl(fileName);
+
+          // Update article with new image URL
+          const { error: updateError } = await supabase
+            .from('blog_articles')
+            .update({
+              featured_image_url: publicUrlData.publicUrl,
+              featured_image_alt: `${article.headline} - Costa del Sol real estate`,
+            })
+            .eq('id', article.id);
+
+          if (updateError) throw updateError;
+        })(),
+        timeoutPromise
+      ]);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Error generating image for article ${article.id} (attempt ${retryCount + 1}):`, errorMessage);
+      
+      // Retry logic for transient failures (but not for timeouts)
+      if (retryCount < MAX_RETRIES && !errorMessage.toLowerCase().includes('timeout')) {
+        console.log(`Retrying article ${article.id}... (${retryCount + 1}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+        return generateImageForArticle(article, retryCount + 1);
+      }
+      
+      throw new Error(`${errorMessage} (after ${retryCount + 1} attempts)`);
+    }
   };
 
-  const handleGenerateAll = async () => {
+  const saveProgress = (currentProgress: GenerationProgress[]) => {
+    localStorage.setItem('image-generation-progress', JSON.stringify(currentProgress));
+  };
+
+  const loadProgress = (): GenerationProgress[] => {
+    const saved = localStorage.getItem('image-generation-progress');
+    return saved ? JSON.parse(saved) : [];
+  };
+
+  const clearProgress = () => {
+    localStorage.removeItem('image-generation-progress');
+    setCanResume(false);
+  };
+
+  const handleGenerateAll = async (resume = false) => {
     if (articlesWithoutImages.length === 0) return;
 
     setIsGenerating(true);
-    const initialProgress = articlesWithoutImages.map(a => ({
-      articleId: a.id,
-      status: 'pending' as const,
-    }));
-    setProgress(initialProgress);
+    let initialProgress: GenerationProgress[];
+
+    if (resume) {
+      initialProgress = loadProgress();
+      setProgress(initialProgress);
+    } else {
+      initialProgress = articlesWithoutImages.map(a => ({
+        articleId: a.id,
+        status: 'pending' as const,
+      }));
+      setProgress(initialProgress);
+      clearProgress();
+    }
 
     let successCount = 0;
     let errorCount = 0;
 
-    for (let i = 0; i < articlesWithoutImages.length; i++) {
-      const article = articlesWithoutImages[i];
+    // Process 3 images concurrently for speed
+    const CONCURRENT_LIMIT = 3;
+    const articlesToProcess = articlesWithoutImages.filter(article => 
+      !resume || !initialProgress.find(p => p.articleId === article.id && p.status === 'success')
+    );
+
+    for (let i = 0; i < articlesToProcess.length; i += CONCURRENT_LIMIT) {
+      const batch = articlesToProcess.slice(i, i + CONCURRENT_LIMIT);
       
-      setProgress(prev => prev.map(p => 
-        p.articleId === article.id 
-          ? { ...p, status: 'generating' }
-          : p
-      ));
+      await Promise.all(
+        batch.map(async (article) => {
+          try {
+            setProgress(prev => {
+              const updated = prev.map(p => 
+                p.articleId === article.id 
+                  ? { ...p, status: 'generating' as const }
+                  : p
+              );
+              return updated;
+            });
 
-      try {
-        await generateImageForArticle(article);
-        successCount++;
-        
-        setProgress(prev => prev.map(p => 
-          p.articleId === article.id 
-            ? { ...p, status: 'success' }
-            : p
-        ));
-      } catch (error) {
-        errorCount++;
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        
-        setProgress(prev => prev.map(p => 
-          p.articleId === article.id 
-            ? { ...p, status: 'error', error: errorMessage }
-            : p
-        ));
-      }
+            await generateImageForArticle(article);
 
-      // Small delay between requests to avoid rate limiting
-      if (i < articlesWithoutImages.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+            setProgress(prev => {
+              const updated = prev.map(p => 
+                p.articleId === article.id 
+                  ? { ...p, status: 'success' as const }
+                  : p
+              );
+              saveProgress(updated);
+              return updated;
+            });
+
+            successCount++;
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            
+            setProgress(prev => {
+              const updated = prev.map(p => 
+                p.articleId === article.id 
+                  ? { ...p, status: 'error' as const, error: errorMessage }
+                  : p
+              );
+              saveProgress(updated);
+              return updated;
+            });
+            errorCount++;
+          }
+        })
+      );
+
+      console.log(`Progress: ${i + batch.length}/${articlesToProcess.length} processed`);
     }
 
     setIsGenerating(false);
+    clearProgress();
     
     toast({
       title: "Batch Generation Complete",
@@ -206,14 +285,26 @@ export default function BatchImageGeneration() {
               <CardContent>
                 <div className="space-y-4">
                   <Button
-                    onClick={handleGenerateAll}
+                    onClick={() => handleGenerateAll(false)}
                     disabled={isGenerating}
                     size="lg"
                     className="w-full"
                   >
                     <Sparkles className="h-5 w-5 mr-2" />
-                    {isGenerating ? "Generating Images..." : `Generate All Missing Images (${articlesWithoutImages.length})`}
+                    {isGenerating ? "Generating Images... (3 at a time)" : `Generate All Missing Images (${articlesWithoutImages.length})`}
                   </Button>
+
+                  {canResume && !isGenerating && (
+                    <Button
+                      onClick={() => handleGenerateAll(true)}
+                      variant="outline"
+                      size="lg"
+                      className="w-full"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Resume Previous Session
+                    </Button>
+                  )}
 
                   {isGenerating && (
                     <div className="space-y-2">
