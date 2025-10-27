@@ -15,13 +15,13 @@ interface MediaSectionProps {
   featuredImageUrl: string;
   featuredImageAlt: string;
   featuredImageCaption: string;
-  diagramMermaidCode: string;
+  diagramUrl: string;
   diagramDescription: string;
   detailedContent: string;
   onImageChange: (url: string, alt: string) => void;
   onImageUpload: (file: File) => Promise<void>;
   onFeaturedImageCaptionChange: (value: string) => void;
-  onDiagramGenerated: (mermaidCode: string, description: string) => void;
+  onDiagramGenerated: (diagramUrl: string, description: string) => void;
   imageUploading: boolean;
   errors?: Record<string, string>;
 }
@@ -31,7 +31,7 @@ export const MediaSection = ({
   featuredImageUrl,
   featuredImageAlt,
   featuredImageCaption,
-  diagramMermaidCode,
+  diagramUrl,
   diagramDescription,
   detailedContent,
   onImageChange,
@@ -162,7 +162,7 @@ export const MediaSection = ({
         <DiagramGenerator
           articleContent={detailedContent}
           headline={headline}
-          currentMermaidCode={diagramMermaidCode}
+          currentDiagramUrl={diagramUrl}
           currentDescription={diagramDescription}
           onDiagramGenerated={onDiagramGenerated}
         />

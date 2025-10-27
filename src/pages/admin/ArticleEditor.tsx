@@ -63,7 +63,7 @@ const ArticleEditor = () => {
   const [featuredImageUrl, setFeaturedImageUrl] = useState("");
   const [featuredImageAlt, setFeaturedImageAlt] = useState("");
   const [featuredImageCaption, setFeaturedImageCaption] = useState("");
-  const [diagramMermaidCode, setDiagramMermaidCode] = useState("");
+  const [diagramUrl, setDiagramUrl] = useState("");
   const [diagramDescription, setDiagramDescription] = useState("");
   
   const [authorId, setAuthorId] = useState("");
@@ -167,7 +167,7 @@ const ArticleEditor = () => {
       setFeaturedImageUrl(article.featured_image_url || "");
       setFeaturedImageAlt(article.featured_image_alt || "");
       setFeaturedImageCaption(article.featured_image_caption || "");
-      setDiagramMermaidCode(article.diagram_url || ""); // diagram_url stores Mermaid code
+      setDiagramUrl(article.diagram_url || "");
       setDiagramDescription(article.diagram_description || "");
       setAuthorId(article.author_id || "");
       setReviewerId(article.reviewer_id || "");
@@ -303,7 +303,7 @@ const ArticleEditor = () => {
         featured_image_url: featuredImageUrl,
         featured_image_alt: featuredImageAlt,
         featured_image_caption: featuredImageCaption || null,
-        diagram_url: diagramMermaidCode || null, // Store Mermaid code in diagram_url
+        diagram_url: diagramUrl || null,
         diagram_description: diagramDescription || null,
         author_id: authorId || null,
         reviewer_id: reviewerId || null,
@@ -756,10 +756,10 @@ const ArticleEditor = () => {
             <DiagramGenerator
               articleContent={detailedContent}
               headline={headline}
-              currentMermaidCode={diagramMermaidCode}
+              currentDiagramUrl={diagramUrl}
               currentDescription={diagramDescription}
-              onDiagramGenerated={(mermaidCode, description) => {
-                setDiagramMermaidCode(mermaidCode);
+              onDiagramGenerated={(url, description) => {
+                setDiagramUrl(url);
                 setDiagramDescription(description);
               }}
             />

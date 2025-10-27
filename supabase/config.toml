@@ -3,7 +3,7 @@ project_id = "kazggnufaoicopvmwhdl"
 [functions.generate-image]
 verify_jwt = false
 
-[functions.generate-diagram]
+[functions.generate-diagram-image]
 verify_jwt = false
 
 [functions.find-internal-links]
