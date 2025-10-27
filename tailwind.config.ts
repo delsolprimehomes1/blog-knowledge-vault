@@ -109,10 +109,6 @@ export default {
           "0%": { transform: "translateX(100%)", opacity: "0" },
           "100%": { transform: "translateX(0)", opacity: "1" },
         },
-        "slide-in-left": {
-          "0%": { transform: "translateX(-100%)", opacity: "0" },
-          "100%": { transform: "translateX(0)", opacity: "1" },
-        },
         "pulse-slow": {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.8" },
@@ -127,7 +123,6 @@ export default {
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "slide-in-up": "slide-in-up 0.4s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
-        "slide-in-left": "slide-in-left 0.3s ease-out",
         "pulse-slow": "pulse-slow 3s ease-in-out infinite",
       },
     },

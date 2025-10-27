@@ -17,7 +17,6 @@ import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
 import { StickyMobileCTA } from "@/components/blog-article/StickyMobileCTA";
 import { FloatingCTA } from "@/components/blog-article/FloatingCTA";
-import { BuyersGuideDownload } from "@/components/blog-article/BuyersGuideDownload";
 import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { CompanyContactSection } from "@/components/blog-article/CompanyContactSection";
 import { generateAllSchemas } from "@/lib/schemaGenerator";
@@ -316,12 +315,6 @@ const BlogArticle = () => {
       {/* Floating Desktop CTA - TOFU/MOFU only */}
       <FloatingCTA 
         funnelStage={article.funnel_stage as FunnelStage} 
-        articleSlug={article.slug}
-      />
-
-      {/* Buyers Guide Download - TOFU only */}
-      <BuyersGuideDownload
-        funnelStage={article.funnel_stage as FunnelStage}
         articleSlug={article.slug}
       />
 
