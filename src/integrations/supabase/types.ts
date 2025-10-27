@@ -948,6 +948,16 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      replace_citation_tracking: {
+        Args: {
+          p_anchor_text: string
+          p_article_id: string
+          p_new_source: string
+          p_new_url: string
+          p_old_url: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "editor" | "viewer"

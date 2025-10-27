@@ -79,42 +79,20 @@ export function NonApprovedCitationsPanel() {
 
       if (updateError) throw updateError;
 
-      // 5. Update citation_usage_tracking with atomic upsert
-      // First, delete the old URL tracking
-      const { error: deleteError } = await supabase
-        .from('citation_usage_tracking')
-        .delete()
-        .eq('article_id', articleId)
-        .eq('citation_url', oldUrl);
-
-      if (deleteError) {
-        console.warn('Failed to delete old tracking:', deleteError);
-        // Continue anyway - the upsert below will handle it
-      }
-
-      // Use atomic upsert - handled entirely by PostgreSQL
-      // If (article_id, citation_url) already exists, it UPDATEs
-      // If it doesn't exist, it INSERTs
-      // All happens atomically at database level - no race conditions!
+      // 5. Update citation_usage_tracking using atomic database function
+      // This eliminates race conditions by handling everything in a single PostgreSQL transaction
       const replacedCitation = citations.find(c => c.url === oldUrl);
+      
+      const { error: trackingError } = await supabase.rpc('replace_citation_tracking', {
+        p_article_id: articleId,
+        p_old_url: oldUrl,
+        p_new_url: newUrl,
+        p_new_source: newSource,
+        p_anchor_text: replacedCitation?.text || ''
+      });
 
-      const { error: upsertError } = await supabase
-        .from('citation_usage_tracking')
-        .upsert({
-          article_id: articleId,
-          citation_url: newUrl,
-          citation_source: newSource,
-          anchor_text: replacedCitation?.text || '',
-          is_active: true,
-          last_verified_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'article_id,citation_url',
-          ignoreDuplicates: false  // UPDATE on conflict instead of ignoring
-        });
-
-      if (upsertError) {
-        console.error('Upsert failed:', upsertError);
+      if (trackingError) {
+        console.error('Citation tracking update failed:', trackingError);
         // Don't throw - the main citation replacement succeeded
         // Tracking is secondary and shouldn't break the UX
       }
