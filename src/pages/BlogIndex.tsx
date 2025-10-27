@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { trackSearch } from "@/utils/analytics";
 import { BlogHeader } from "@/components/blog-index/BlogHeader";
 import { FilterBar } from "@/components/blog-index/FilterBar";
 import { SearchBar } from "@/components/blog-index/SearchBar";
@@ -90,6 +91,13 @@ const BlogIndex = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedCategory, selectedLanguage, searchQuery]);
+
+  // Track search queries with GA4
+  useEffect(() => {
+    if (searchQuery && articlesData) {
+      trackSearch(searchQuery, articlesData.length);
+    }
+  }, [searchQuery, articlesData]);
 
   const handleCategoryChange = (category: string) => {
     const params = new URLSearchParams(searchParams);

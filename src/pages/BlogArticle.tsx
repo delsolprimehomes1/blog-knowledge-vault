@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { trackArticleView } from "@/utils/analytics";
 import { Helmet } from "react-helmet";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,18 @@ const BlogArticle = () => {
   }, []);
 
   const { slug } = useParams<{ slug: string }>();
+
+  // Track article view with GA4 when article data loads
+  const trackArticleViewEffect = (article: any) => {
+    if (article) {
+      trackArticleView(
+        article.id,
+        article.headline,
+        article.language || 'en',
+        article.funnel_stage || 'TOFU'
+      );
+    }
+  };
 
   // Check if article is already pre-rendered in static HTML
   const staticContent = document.querySelector('.static-content');
@@ -115,6 +128,11 @@ const BlogArticle = () => {
     },
     enabled: !!article?.cta_article_ids,
   });
+
+  // Track article view with GA4 when article data is available
+  useEffect(() => {
+    trackArticleViewEffect(article);
+  }, [article]);
 
   if (isLoading) {
     return (

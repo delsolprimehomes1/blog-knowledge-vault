@@ -278,7 +278,20 @@ const PrivacyPolicy = () => {
                   </div>
                   <div className="bg-muted/20 p-3 rounded">
                     <p className="font-semibold text-foreground text-sm mb-1">Analytics Cookies</p>
-                    <p className="text-sm">Help us understand how visitors interact with our website.</p>
+                    <p className="text-sm">
+                      We use Google Analytics 4 to understand how visitors interact with our website. 
+                      This helps us improve our content and services. Google Analytics collects 
+                      information anonymously and reports website trends without identifying individual visitors.
+                      You can opt-out of Google Analytics by declining cookies or installing the{' '}
+                      <a 
+                        href="https://tools.google.com/dlpage/gaoptout" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-primary underline hover:text-primary/80"
+                      >
+                        Google Analytics Opt-out Browser Add-on
+                      </a>.
+                    </p>
                   </div>
                   <div className="bg-muted/20 p-3 rounded">
                     <p className="font-semibold text-foreground text-sm mb-1">Marketing Cookies</p>
