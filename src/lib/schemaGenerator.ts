@@ -16,7 +16,7 @@ export interface GeneratedSchemas {
   errors: SchemaValidationError[];
 }
 
-const ORGANIZATION_SCHEMA = {
+export const ORGANIZATION_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "RealEstateAgent",
   "name": "Del Sol Prime Homes",
