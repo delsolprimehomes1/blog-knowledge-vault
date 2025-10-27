@@ -312,7 +312,7 @@ const BlogArticle = () => {
       {/* Company Footer */}
       <BlogFooter />
 
-      {/* Floating Desktop CTA - All funnel stages */}
+      {/* Floating Desktop CTA - TOFU/MOFU only */}
       <FloatingCTA 
         funnelStage={article.funnel_stage as FunnelStage} 
         articleSlug={article.slug}
@@ -320,11 +320,6 @@ const BlogArticle = () => {
 
       {/* Sticky Mobile CTA Footer */}
       <StickyMobileCTA />
-
-      {/* Chatbot Widget - Only for BOFU articles */}
-      {article.funnel_stage === "BOFU" && (
-        <ChatbotWidget articleSlug={article.slug} language={article.language} />
-      )}
     </>
   );
 };

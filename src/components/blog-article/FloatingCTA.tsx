@@ -53,17 +53,17 @@ export const FloatingCTA = ({ funnelStage, articleSlug }: FloatingCTAProps) => {
     }
   };
 
-  if (isDismissed || !isVisible) return null;
+  // Don't show floating CTA on BOFU pages
+  if (funnelStage === "BOFU") return null;
 
-  const isBOFU = funnelStage === "BOFU";
+  if (isDismissed || !isVisible) return null;
 
   return (
     <div
-      className={`
+      className="
         hidden md:block fixed bottom-8 right-8 z-50
         animate-slide-in-right
-        ${isBOFU ? 'animate-pulse-slow' : ''}
-      `}
+      "
     >
       <div className="relative group">
         {/* Close button */}
@@ -76,53 +76,24 @@ export const FloatingCTA = ({ funnelStage, articleSlug }: FloatingCTAProps) => {
         </button>
 
         {/* TOFU/MOFU: Subtle & Supportive */}
-        {!isBOFU && (
-          <Button
-            onClick={handleClick}
-            className="
-              px-5 py-3 rounded-full
-              bg-white/80 dark:bg-gray-900/80 
-              backdrop-blur-sm 
-              border border-primary/20
-              text-foreground
-              shadow-lg hover:shadow-xl
-              transition-all duration-300
-              hover:scale-105
-              hover:border-primary/40
-            "
-            size="lg"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="font-semibold">Chat with Expert Now</span>
-          </Button>
-        )}
-
-        {/* BOFU: Prominent & Conversion-Focused */}
-        {isBOFU && (
-          <div className="relative">
-            {/* Pulsing ring animation */}
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-            <div className="absolute inset-0 rounded-full bg-primary/30 animate-pulse" />
-            
-            <Button
-              onClick={handleClick}
-              className="
-                relative
-                px-6 py-4 rounded-full
-                bg-gradient-to-r from-primary to-[hsl(42_58%_50%)]
-                text-white font-bold text-base
-                shadow-2xl shadow-primary/40
-                hover:shadow-[0_20px_60px_-10px_rgba(var(--primary-rgb),0.5)]
-                transition-all duration-300
-                hover:scale-105
-              "
-              size="lg"
-            >
-              <Phone className="w-5 h-5" />
-              <span>Schedule Free Consultation</span>
-            </Button>
-          </div>
-        )}
+        <Button
+          onClick={handleClick}
+          className="
+            px-5 py-3 rounded-full
+            bg-white/80 dark:bg-gray-900/80 
+            backdrop-blur-sm 
+            border border-primary/20
+            text-foreground
+            shadow-lg hover:shadow-xl
+            transition-all duration-300
+            hover:scale-105
+            hover:border-primary/40
+          "
+          size="lg"
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span className="font-semibold">Chat with Expert Now</span>
+        </Button>
       </div>
     </div>
   );
