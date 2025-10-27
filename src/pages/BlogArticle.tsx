@@ -16,6 +16,7 @@ import { TrustSignals } from "@/components/blog-article/TrustSignals";
 import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
 import { StickyMobileCTA } from "@/components/blog-article/StickyMobileCTA";
+import { FloatingCTA } from "@/components/blog-article/FloatingCTA";
 import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { CompanyContactSection } from "@/components/blog-article/CompanyContactSection";
 import { generateAllSchemas } from "@/lib/schemaGenerator";
@@ -310,6 +311,12 @@ const BlogArticle = () => {
 
       {/* Company Footer */}
       <BlogFooter />
+
+      {/* Floating Desktop CTA - All funnel stages */}
+      <FloatingCTA 
+        funnelStage={article.funnel_stage as FunnelStage} 
+        articleSlug={article.slug}
+      />
 
       {/* Sticky Mobile CTA Footer */}
       <StickyMobileCTA />
