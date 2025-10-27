@@ -58,6 +58,28 @@ export function NonApprovedCitationsPanel() {
 
       // 3. Update external_citations array
       const citations = (article.external_citations as any[]) || [];
+      
+      // Check if newUrl already exists in the article (excluding the oldUrl we're replacing)
+      const normalizeUrl = (urlString: string) => {
+        try {
+          const urlObj = new URL(urlString);
+          return urlObj.hostname.replace('www.', '') + urlObj.pathname.replace(/\/$/, '');
+        } catch {
+          return urlString;
+        }
+      };
+      
+      const newUrlExists = citations.some(citation => {
+        return normalizeUrl(citation.url) === normalizeUrl(newUrl) && citation.url !== oldUrl;
+      });
+
+      if (newUrlExists) {
+        const newDomain = new URL(newUrl).hostname;
+        throw new Error(
+          `This article already cites ${newDomain}. Cannot add duplicate citations from the same source.`
+        );
+      }
+      
       const updatedCitations = citations.map(citation => {
         if (citation.url === oldUrl) {
           return {
