@@ -13,6 +13,7 @@ export function NonApprovedCitationsPanel() {
   const queryClient = useQueryClient();
   const [processingCitation, setProcessingCitation] = useState<string | null>(null);
   const [processingArticles, setProcessingArticles] = useState<Set<string>>(new Set());
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
 
   const { data: articlesWithIssues, isLoading } = useQuery({
     queryKey: ["non-approved-citations"],
@@ -374,6 +375,63 @@ export function NonApprovedCitationsPanel() {
     removeCitationMutation.mutate({ articleId, citationUrl: url });
   };
 
+  const handleBatchReplaceAll = async () => {
+    if (!confirm(
+      `🤖 Batch Replace All Non-Approved Citations?\n\n` +
+      `This will:\n` +
+      `• Find approved alternatives for ${totalNonApproved} citations\n` +
+      `• Auto-apply high-confidence replacements (≥80%)\n` +
+      `• Flag lower-confidence ones for manual review\n` +
+      `• Create backup revisions for all changes\n\n` +
+      `This may take several minutes. Continue?`
+    )) {
+      return;
+    }
+
+    setIsBatchProcessing(true);
+    const toastId = toast.loading("🔄 Processing non-approved citations...");
+
+    try {
+      const { data, error } = await supabase.functions.invoke('batch-replace-non-approved', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      const results = data.results;
+      
+      toast.dismiss(toastId);
+      
+      if (results.autoApplied > 0 || results.manualReview > 0) {
+        toast.success(
+          `🎉 Batch replacement complete!\n\n` +
+          `✅ Auto-applied: ${results.autoApplied} citations\n` +
+          `📋 Manual review: ${results.manualReview} citations\n` +
+          `❌ No alternatives: ${results.noAlternatives} citations\n` +
+          `✓ Already approved: ${results.alreadyApproved} citations\n` +
+          `📊 ${results.articlesUpdated} articles updated`,
+          { duration: 12000 }
+        );
+      } else {
+        toast.info(
+          `ℹ️ No replacements made\n\n` +
+          `${results.alreadyApproved} citations already use approved domains\n` +
+          `${results.noAlternatives} citations have no approved alternatives`,
+          { duration: 8000 }
+        );
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["non-approved-citations"] });
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+
+    } catch (error) {
+      toast.dismiss(toastId);
+      toast.error("Failed to batch replace citations: " + (error as Error).message);
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -412,6 +470,29 @@ export function NonApprovedCitationsPanel() {
           You can find AI-powered replacements from approved domains or remove problematic citations.
         </AlertDescription>
       </Alert>
+
+      {totalNonApproved > 0 && (
+        <div className="flex justify-end">
+          <Button
+            onClick={handleBatchReplaceAll}
+            disabled={isBatchProcessing}
+            size="lg"
+            className="gap-2"
+          >
+            {isBatchProcessing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                🤖 Auto-Replace All Non-Approved Citations
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
