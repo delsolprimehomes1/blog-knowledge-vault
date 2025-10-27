@@ -201,6 +201,35 @@ export function NonApprovedCitationsPanel() {
         return;
       }
 
+      // Normalize URLs for comparison
+      const normalizeUrl = (urlString: string) => {
+        try {
+          const urlObj = new URL(urlString);
+          return urlObj.hostname.replace('www.', '') + urlObj.pathname.replace(/\/$/, '');
+        } catch {
+          return urlString;
+        }
+      };
+
+      const normalizedOld = normalizeUrl(url);
+      const normalizedNew = normalizeUrl(bestMatch.suggestedUrl);
+
+      // Check if replacement is the same as original
+      if (normalizedOld === normalizedNew) {
+        setProcessingCitation(null);
+        setProcessingArticles(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(articleId);
+          return newSet;
+        });
+        toast.success(
+          "✅ No replacement needed\n" +
+          "This citation is already using an approved domain",
+          { duration: 4000 }
+        );
+        return;
+      }
+
       // Auto-apply the replacement
       applyReplacementMutation.mutate({
         articleId,
