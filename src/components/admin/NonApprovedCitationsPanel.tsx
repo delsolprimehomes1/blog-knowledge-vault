@@ -79,73 +79,44 @@ export function NonApprovedCitationsPanel() {
 
       if (updateError) throw updateError;
 
-      // 5. Update citation_usage_tracking
-      // First, check if the new URL already exists in this article
-      const { data: existingNewUrlTracking } = await supabase
-        .from('citation_usage_tracking')
-        .select('id')
-        .eq('article_id', articleId)
-        .eq('citation_url', newUrl)
-        .maybeSingle();
-
-      // Delete the old URL tracking
-      await supabase
+      // 5. Update citation_usage_tracking with atomic upsert
+      // First, delete the old URL tracking
+      const { error: deleteError } = await supabase
         .from('citation_usage_tracking')
         .delete()
         .eq('article_id', articleId)
         .eq('citation_url', oldUrl);
 
-      if (existingNewUrlTracking) {
-        // New URL already exists in tracking - just update it
-        await supabase
-          .from('citation_usage_tracking')
-          .update({
-            citation_source: newSource,
-            is_active: true,
-            last_verified_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingNewUrlTracking.id);
-      } else {
-        // New URL doesn't exist - try to insert it
-        const { error: insertError } = await supabase
-          .from('citation_usage_tracking')
-          .insert({
-            article_id: articleId,
-            citation_url: newUrl,
-            citation_source: newSource,
-            anchor_text: citations.find(c => c.url === oldUrl)?.text || '',
-            is_active: true,
-            last_verified_at: new Date().toISOString()
-          });
+      if (deleteError) {
+        console.warn('Failed to delete old tracking:', deleteError);
+        // Continue anyway - the upsert below will handle it
+      }
 
-        // Handle race condition: if insert fails due to duplicate, update instead
-        if (insertError && insertError.code === '23505') { // 23505 = unique_violation
-          console.log(`Race condition detected - updating existing tracking for ${newUrl}`);
-          
-          // Another mutation just inserted this, so update it instead
-          const { data: nowExisting } = await supabase
-            .from('citation_usage_tracking')
-            .select('id')
-            .eq('article_id', articleId)
-            .eq('citation_url', newUrl)
-            .single();
+      // Use atomic upsert - handled entirely by PostgreSQL
+      // If (article_id, citation_url) already exists, it UPDATEs
+      // If it doesn't exist, it INSERTs
+      // All happens atomically at database level - no race conditions!
+      const replacedCitation = citations.find(c => c.url === oldUrl);
 
-          if (nowExisting) {
-            await supabase
-              .from('citation_usage_tracking')
-              .update({
-                citation_source: newSource,
-                is_active: true,
-                last_verified_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', nowExisting.id);
-          }
-        } else if (insertError) {
-          // Some other error - throw it
-          throw insertError;
-        }
+      const { error: upsertError } = await supabase
+        .from('citation_usage_tracking')
+        .upsert({
+          article_id: articleId,
+          citation_url: newUrl,
+          citation_source: newSource,
+          anchor_text: replacedCitation?.text || '',
+          is_active: true,
+          last_verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'article_id,citation_url',
+          ignoreDuplicates: false  // UPDATE on conflict instead of ignoring
+        });
+
+      if (upsertError) {
+        console.error('Upsert failed:', upsertError);
+        // Don't throw - the main citation replacement succeeded
+        // Tracking is secondary and shouldn't break the UX
       }
 
       return { 
