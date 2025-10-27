@@ -14,7 +14,7 @@ const APPROVED_DOMAINS = {
   ],
   government_official: [
     'boe.es', 'agenciatributaria.es', 'exteriores.gob.es', 
-    'juntadeandalucia.es', 'gov.uk', 'gov.ie', 'cnmc.es', 'ine.es',
+    'juntadeandalucia.es', 'gov.uk', 'gov.ie', 'dfa.ie', 'cnmc.es', 'ine.es',
     'catastro.gob.es', 'e-justice.europa.eu', 
     'extranjeria.administracionespublicas.gob.es', 'mjusticia.gob.es'
   ],

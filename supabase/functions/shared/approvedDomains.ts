@@ -24,6 +24,7 @@ export const APPROVED_DOMAINS = {
     'juntadeandalucia.es',
     'gov.uk',
     'gov.ie',
+    'dfa.ie',
     'cnmc.es',
     'ine.es',
     'catastro.gob.es',
