@@ -78,21 +78,28 @@ export function NonApprovedCitationsPanel() {
 
       if (updateError) throw updateError;
 
-      // 5. Update citation_usage_tracking
-      await supabase
-        .from('citation_usage_tracking')
-        .delete()
-        .eq('article_id', articleId)
-        .eq('citation_url', oldUrl);
+    // 5. Update citation_usage_tracking
+    // First delete the old URL tracking
+    await supabase
+      .from('citation_usage_tracking')
+      .delete()
+      .eq('article_id', articleId)
+      .eq('citation_url', oldUrl);
 
-      await supabase
-        .from('citation_usage_tracking')
-        .insert({
-          article_id: articleId,
-          citation_url: newUrl,
-          citation_source: newSource,
-          anchor_text: citations.find(c => c.url === oldUrl)?.text || ''
-        });
+    // Use upsert to handle case where newUrl already exists in this article
+    await supabase
+      .from('citation_usage_tracking')
+      .upsert({
+        article_id: articleId,
+        citation_url: newUrl,
+        citation_source: newSource,
+        anchor_text: citations.find(c => c.url === oldUrl)?.text || '',
+        is_active: true,
+        last_verified_at: new Date().toISOString()
+      }, {
+        onConflict: 'article_id,citation_url',
+        ignoreDuplicates: false
+      });
 
       return { 
         oldUrl, 
