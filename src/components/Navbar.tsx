@@ -25,20 +25,27 @@ export const Navbar = () => {
     e?.stopPropagation();
     
     try {
-      // Verify file exists first
-      const response = await fetch('/buyers-guide.pdf', { method: 'HEAD' });
+      // Fetch the PDF as a blob
+      const response = await fetch('/buyers-guide.pdf');
       if (!response.ok) {
         console.error('PDF file not found');
         return;
       }
       
+      // Create blob URL for download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create and trigger download
       const link = document.createElement("a");
-      link.href = "/buyers-guide.pdf";
+      link.href = url;
       link.download = "Costa-Del-Sol-Property-Buyers-Guide-2025.pdf";
-      link.target = "_blank";
       document.body.appendChild(link);
       link.click();
+      
+      // Cleanup
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       trackEvent("download", {
         file_name: "buyers-guide",
