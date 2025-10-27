@@ -78,28 +78,46 @@ export function NonApprovedCitationsPanel() {
 
       if (updateError) throw updateError;
 
-    // 5. Update citation_usage_tracking
-    // First delete the old URL tracking
-    await supabase
-      .from('citation_usage_tracking')
-      .delete()
-      .eq('article_id', articleId)
-      .eq('citation_url', oldUrl);
+      // 5. Update citation_usage_tracking
+      // First, check if the new URL already exists in this article
+      const { data: existingNewUrlTracking } = await supabase
+        .from('citation_usage_tracking')
+        .select('id')
+        .eq('article_id', articleId)
+        .eq('citation_url', newUrl)
+        .maybeSingle();
 
-    // Use upsert to handle case where newUrl already exists in this article
-    await supabase
-      .from('citation_usage_tracking')
-      .upsert({
-        article_id: articleId,
-        citation_url: newUrl,
-        citation_source: newSource,
-        anchor_text: citations.find(c => c.url === oldUrl)?.text || '',
-        is_active: true,
-        last_verified_at: new Date().toISOString()
-      }, {
-        onConflict: 'article_id,citation_url',
-        ignoreDuplicates: false
-      });
+      // Delete the old URL tracking
+      await supabase
+        .from('citation_usage_tracking')
+        .delete()
+        .eq('article_id', articleId)
+        .eq('citation_url', oldUrl);
+
+      if (existingNewUrlTracking) {
+        // New URL already exists in tracking - just update it
+        await supabase
+          .from('citation_usage_tracking')
+          .update({
+            citation_source: newSource,
+            is_active: true,
+            last_verified_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingNewUrlTracking.id);
+      } else {
+        // New URL doesn't exist - insert it
+        await supabase
+          .from('citation_usage_tracking')
+          .insert({
+            article_id: articleId,
+            citation_url: newUrl,
+            citation_source: newSource,
+            anchor_text: citations.find(c => c.url === oldUrl)?.text || '',
+            is_active: true,
+            last_verified_at: new Date().toISOString()
+          });
+      }
 
       return { 
         oldUrl, 
