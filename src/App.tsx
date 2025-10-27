@@ -22,6 +22,8 @@ import BlogArticle from "./pages/BlogArticle";
 import BlogIndex from "./pages/BlogIndex";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +46,8 @@ const App = () => (
           <Route path="/blog" element={<BlogIndex />} />
           <Route path="/blog/:slug" element={<BlogArticle />} />
           <Route path="/sitemap" element={<Sitemap />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           
           {/* Protected Admin Routes */}
           <Route path="/admin" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

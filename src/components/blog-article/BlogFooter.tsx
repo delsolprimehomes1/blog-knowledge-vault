@@ -99,10 +99,10 @@ export const BlogFooter = () => {
                 © 2025 DelSol Prime Homes. All rights reserved.
               </p>
               <div className="flex gap-6 text-sm text-white/70">
-                <Link to="/" className="hover:text-primary transition-colors">
+                <Link to="/privacy-policy" className="hover:text-primary transition-colors">
                   Privacy Policy
                 </Link>
-                <Link to="/" className="hover:text-primary transition-colors">
+                <Link to="/terms-of-service" className="hover:text-primary transition-colors">
                   Terms of Service
                 </Link>
               </div>
