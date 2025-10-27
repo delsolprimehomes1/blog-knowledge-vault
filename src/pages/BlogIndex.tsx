@@ -178,19 +178,7 @@ const BlogIndex = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         
-        {/* Hero Section with Speakable Content */}
-        <section className="relative py-12 md:py-16 overflow-hidden bg-gradient-to-br from-primary/10 via-background to-primary/5">
-          <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto text-center space-y-4 speakable-summary blog-hero-description">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">
-                Costa del Sol Property Blog
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground">
-                Your comprehensive guide to buying property in Costa del Sol, Spain. Expert insights on real estate market trends, legal procedures, investment opportunities, and lifestyle tips for international buyers from UK, Ireland, and across Europe.
-              </p>
-            </div>
-          </div>
-        </section>
+        <BlogHeader totalCount={totalArticles} />
 
         <div className="container mx-auto px-4 py-12">
           <div className="text-center mb-8">

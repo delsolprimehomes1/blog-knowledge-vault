@@ -20,10 +20,13 @@ export const BlogHeader = ({ totalCount }: BlogHeaderProps) => {
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/60" />
       
       {/* Content */}
-      <div className="relative z-10 text-center px-4 animate-fade-in">
-        <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-tight">
-          LATEST BLOG FOR RENT AND BUY
+      <div className="relative z-10 text-center px-4 animate-fade-in space-y-6">
+        <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-tight speakable-summary">
+          Costa del Sol Property Blog
         </h1>
+        <p className="text-lg md:text-xl text-white/90 max-w-3xl mx-auto blog-hero-description speakable-summary">
+          Your comprehensive guide to buying property in Costa del Sol, Spain. Expert insights on real estate market trends, legal procedures, investment opportunities, and lifestyle tips for international buyers.
+        </p>
       </div>
     </header>
   );
