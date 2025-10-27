@@ -268,6 +268,51 @@ export type Database = {
           },
         ]
       }
+      bulk_recitation_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          error_count: number | null
+          error_message: string | null
+          id: string
+          progress_current: number | null
+          progress_total: number | null
+          started_at: string | null
+          status: string
+          success_count: number | null
+          total_new_citations: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          error_count?: number | null
+          error_message?: string | null
+          id?: string
+          progress_current?: number | null
+          progress_total?: number | null
+          started_at?: string | null
+          status?: string
+          success_count?: number | null
+          total_new_citations?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          error_count?: number | null
+          error_message?: string | null
+          id?: string
+          progress_current?: number | null
+          progress_total?: number | null
+          started_at?: string | null
+          status?: string
+          success_count?: number | null
+          total_new_citations?: number | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string

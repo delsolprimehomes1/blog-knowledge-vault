@@ -28,7 +28,58 @@ serve(async (req) => {
 
     const { preview = false, language = null, category = null, batchSize = 5 } = await req.json();
 
-    console.log(`🚀 Starting bulk re-citation - Preview: ${preview}, Language: ${language}, Category: ${category}`);
+    // Create job record
+    const { data: job, error: jobError } = await supabase
+      .from('bulk_recitation_jobs')
+      .insert({
+        status: 'running',
+        progress_current: 0,
+        progress_total: 0,
+      })
+      .select()
+      .single();
+
+    if (jobError) throw jobError;
+
+    console.log(`🚀 Started bulk re-citation job ${job.id}`);
+
+    // Start background processing (don't await)
+    processArticlesInBackground(job.id, preview, language, category, batchSize);
+
+    // Return immediately with job ID
+    return new Response(
+      JSON.stringify({ jobId: job.id, status: 'running' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Bulk re-citation error:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        success: false 
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+});
+
+async function processArticlesInBackground(
+  jobId: string,
+  preview: boolean,
+  language: string | null,
+  category: string | null,
+  batchSize: number
+) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  try {
+    console.log(`📊 Processing job ${jobId} - Preview: ${preview}, Language: ${language}, Category: ${category}`);
 
     // Query all published articles with external citations
     let query = supabase
@@ -53,17 +104,28 @@ serve(async (req) => {
     console.log(`📊 Found ${articles?.length || 0} articles to process`);
 
     if (!articles || articles.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'No articles found to process',
-          results: [] 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      await supabase
+        .from('bulk_recitation_jobs')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          progress_current: 0,
+          progress_total: 0
+        })
+        .eq('id', jobId);
+      return;
     }
 
+    // Update job with total count
+    await supabase
+      .from('bulk_recitation_jobs')
+      .update({ progress_total: articles.length })
+      .eq('id', jobId);
+
     const results: ProcessingResult[] = [];
+    let successCount = 0;
+    let errorCount = 0;
+    let totalNewCitations = 0;
 
     // Process in batches
     for (let i = 0; i < articles.length; i += batchSize) {
@@ -86,9 +148,9 @@ serve(async (req) => {
               {
                 body: {
                   articleTopic: article.headline,
-                  articleContent: article.detailed_content.substring(0, 2000), // First 2000 chars
+                  articleContent: article.detailed_content.substring(0, 2000),
                   articleLanguage: article.language,
-                  verifyUrls: false, // Skip verification for speed
+                  verifyUrls: false,
                 }
               }
             );
@@ -105,7 +167,6 @@ serve(async (req) => {
             }
 
             if (preview) {
-              // Preview mode - don't save changes
               results.push({
                 articleId: article.id,
                 slug: article.slug,
@@ -114,6 +175,8 @@ serve(async (req) => {
                 oldCitationsCount: oldCount,
                 newCitationsCount: newCitations.length,
               });
+              successCount++;
+              totalNewCitations += newCitations.length;
               console.log(`   ✅ Preview complete`);
               return;
             }
@@ -134,7 +197,7 @@ serve(async (req) => {
               console.warn(`   ⚠️ Failed to create backup: ${revisionError.message}`);
             }
 
-            // Full Replace: Update article with new citations
+            // Update article with new citations
             const { error: updateError } = await supabase
               .from('blog_articles')
               .update({
@@ -175,6 +238,8 @@ serve(async (req) => {
               oldCitationsCount: oldCount,
               newCitationsCount: newCitations.length,
             });
+            successCount++;
+            totalNewCitations += newCitations.length;
 
             console.log(`   ✅ Successfully replaced citations`);
 
@@ -189,9 +254,21 @@ serve(async (req) => {
               newCitationsCount: 0,
               error: error instanceof Error ? error.message : 'Unknown error',
             });
+            errorCount++;
           }
         })
       );
+
+      // Update progress after each batch
+      await supabase
+        .from('bulk_recitation_jobs')
+        .update({
+          progress_current: Math.min(i + batchSize, articles.length),
+          success_count: successCount,
+          error_count: errorCount,
+          total_new_citations: totalNewCitations
+        })
+        .eq('id', jobId);
 
       // Small delay between batches
       if (i + batchSize < articles.length) {
@@ -199,43 +276,32 @@ serve(async (req) => {
       }
     }
 
-    const successCount = results.filter(r => r.status === 'success').length;
-    const errorCount = results.filter(r => r.status === 'error').length;
-    const totalOldCitations = results.reduce((sum, r) => sum + r.oldCitationsCount, 0);
-    const totalNewCitations = results.reduce((sum, r) => sum + r.newCitationsCount, 0);
+    // Mark job as completed
+    await supabase
+      .from('bulk_recitation_jobs')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        progress_current: articles.length,
+        success_count: successCount,
+        error_count: errorCount,
+        total_new_citations: totalNewCitations
+      })
+      .eq('id', jobId);
 
-    console.log(`\n🎉 Bulk re-citation complete!`);
-    console.log(`   ✅ Success: ${successCount}`);
-    console.log(`   ❌ Errors: ${errorCount}`);
-    console.log(`   📊 Citations replaced: ${totalOldCitations} → ${totalNewCitations}`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        preview,
-        summary: {
-          totalArticles: articles.length,
-          successCount,
-          errorCount,
-          totalOldCitations,
-          totalNewCitations,
-        },
-        results,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.log(`\n✅ Job ${jobId} complete - Success: ${successCount}, Errors: ${errorCount}, Citations: ${totalNewCitations}`);
 
   } catch (error) {
-    console.error('Bulk re-citation error:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        success: false 
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    console.error(`❌ Job ${jobId} failed:`, error);
+    
+    // Mark job as failed
+    await supabase
+      .from('bulk_recitation_jobs')
+      .update({
+        status: 'failed',
+        completed_at: new Date().toISOString(),
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      })
+      .eq('id', jobId);
   }
-});
+}

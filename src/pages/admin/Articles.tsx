@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle, ArticleStatus, FunnelStage, Language } from "@/types/blog";
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Edit, Eye, Trash2, Plus, AlertCircle, Sparkles } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Search, Edit, Eye, Trash2, Plus, AlertCircle, Sparkles, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 
@@ -22,6 +23,15 @@ const Articles = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isGeneratingFAQs, setIsGeneratingFAQs] = useState(false);
   const [isRecitingArticles, setIsRecitingArticles] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobProgress, setJobProgress] = useState<{
+    current: number;
+    total: number;
+    percentage: number;
+    success_count: number;
+    error_count: number;
+    total_new_citations: number;
+  } | null>(null);
   const itemsPerPage = 20;
 
   const { data: articles, isLoading, error } = useQuery({
@@ -153,11 +163,17 @@ const Articles = () => {
   };
 
   const handleBulkRecitation = async () => {
-    setIsRecitingArticles(true);
+    if (!confirm(`Are you sure you want to replace citations in ${filteredArticles.length} articles? This will replace ALL current citations with approved domain sources.`)) {
+      return;
+    }
+
     try {
+      setIsRecitingArticles(true);
+      setJobProgress(null);
+      
       toast({
         title: "Starting Bulk Re-citation",
-        description: "Replacing all citations with approved domains only...",
+        description: "Processing articles in the background. You'll see progress updates below.",
       });
 
       const { data, error } = await supabase.functions.invoke('bulk-recite-articles', {
@@ -171,23 +187,17 @@ const Articles = () => {
 
       if (error) throw error;
 
-      const summary = data.summary;
-      toast({
-        title: "Bulk Re-citation Complete",
-        description: `✅ ${summary.successCount} articles updated, ${summary.totalNewCitations} citations from approved domains`,
-      });
+      // Set job ID to start polling
+      setJobId(data.jobId);
 
-      // Refresh the article list
-      window.location.reload();
-    } catch (error) {
-      console.error('Bulk re-citation error:', error);
+    } catch (error: any) {
+      console.error('Error starting bulk re-citation:', error);
+      setIsRecitingArticles(false);
       toast({
-        title: "Bulk Re-citation Failed",
-        description: error instanceof Error ? error.message : "An error occurred",
+        title: "Failed to Start Re-citation",
+        description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsRecitingArticles(false);
     }
   };
 
@@ -293,10 +303,43 @@ const Articles = () => {
                 disabled={isRecitingArticles || filteredArticles.length === 0}
                 variant="default"
               >
-                <Sparkles className="mr-2 h-4 w-4" />
-                {isRecitingArticles ? "Processing..." : "Re-cite All Articles"}
+                {isRecitingArticles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Re-cite All Articles
+                  </>
+                )}
               </Button>
             </div>
+
+            {/* Progress Display */}
+            {jobProgress && (
+              <div className="mt-6 space-y-3 pt-4 border-t">
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Processing Articles</span>
+                  <span>{jobProgress.current} / {jobProgress.total}</span>
+                </div>
+                <Progress value={jobProgress.percentage} className="h-3" />
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="font-medium">{jobProgress.success_count} Success</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="font-medium">{jobProgress.error_count} Errors</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <span className="font-medium">🔗 {jobProgress.total_new_citations} Citations</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
