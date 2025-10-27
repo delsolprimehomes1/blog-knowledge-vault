@@ -101,28 +101,36 @@ async function searchBatch(
     ? 'Proporciona descripciones en español.'
     : 'Provide descriptions in English.';
 
-  const prompt = `Find 5-8 authoritative sources about "${articleTopic}" from ONLY these specific domains: ${batchDomains.join(', ')}
+  const prompt = `CRITICAL RESTRICTION: You MUST ONLY cite sources from these EXACT domains. DO NOT use any other websites.
+
+APPROVED DOMAINS FOR THIS SEARCH:
+${batchDomains.map(d => `- ${d}`).join('\n')}
+
+TASK: Find 5-8 authoritative sources about "${articleTopic}"
 
 ${languageInstructions}
 
-Context: ${articleContent.substring(0, 500)}
+Article Context: ${articleContent.substring(0, 500)}
 
-CRITICAL REQUIREMENTS:
-1. ONLY search the domains listed above
-2. Find recent, high-quality articles
-3. Prioritize government, educational, and official sources
-4. Return JSON array with: url, source, description, relevance, language
+STRICT REQUIREMENTS:
+1. ⚠️ ONLY USE THE DOMAINS LISTED ABOVE - NO EXCEPTIONS
+2. Each URL must be from one of the approved domains
+3. Find recent, high-quality articles
+4. Prioritize government, educational, and official sources
+5. Return ONLY a valid JSON array
 
-Format:
+RESPONSE FORMAT (JSON array only, no other text):
 [
   {
-    "url": "full URL",
-    "source": "domain name",
+    "url": "full URL from approved domain",
+    "source": "exact domain name from list",
     "description": "what this source covers",
     "relevance": "why relevant to topic",
     "language": "${articleLanguage}"
   }
-]`;
+]
+
+REMINDER: The domains listed above are the ONLY acceptable sources. Any URL from another domain will be rejected.`;
 
   console.log(`🔍 Searching ${batchName} (${batchDomains.length} domains)...`);
 
@@ -136,19 +144,21 @@ Format:
       body: JSON.stringify({
         model: 'llama-3.1-sonar-large-128k-online',
         messages: [
-          { role: 'system', content: 'You are a citation research assistant. Return ONLY valid JSON arrays.' },
+          { role: 'system', content: 'You are a citation research assistant. You must ONLY cite from the approved domain list provided. Return ONLY valid JSON arrays with no additional text.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.2,
         max_tokens: 2000,
-        search_domain_filter: batchDomains,
         return_images: false,
         return_related_questions: false
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
       console.error(`❌ ${batchName} failed: ${response.status}`);
+      console.error(`   Error response:`, errorText);
+      console.error(`   Attempted domains:`, batchDomains.slice(0, 5).join(', '), `... (${batchDomains.length} total)`);
       return [];
     }
 
@@ -164,9 +174,50 @@ Format:
 
     const citations = JSON.parse(jsonMatch[0]) as BetterCitation[];
     
-    // Filter competitors and calculate authority scores
+    // Helper function to extract domain from URL
+    const extractDomain = (url: string): string => {
+      try {
+        const urlObj = new URL(url);
+        return urlObj.hostname.replace(/^www\./, '').toLowerCase();
+      } catch {
+        return '';
+      }
+    };
+
+    // Normalize batch domains for comparison
+    const normalizedBatchDomains = batchDomains.map(d => d.toLowerCase().replace(/^www\./, ''));
+    
+    // Filter: competitors, invalid URLs, and URLs NOT from approved batch domains
     const validCitations = citations
-      .filter(c => c.url && !isCompetitor(c.url))
+      .filter(c => {
+        if (!c.url) {
+          console.log(`   ⚠️ Rejected: Missing URL`);
+          return false;
+        }
+        
+        if (isCompetitor(c.url)) {
+          console.log(`   ⚠️ Rejected: Competitor - ${c.url}`);
+          return false;
+        }
+        
+        const citationDomain = extractDomain(c.url);
+        if (!citationDomain) {
+          console.log(`   ⚠️ Rejected: Invalid URL - ${c.url}`);
+          return false;
+        }
+        
+        // Check if domain is in the approved batch
+        const isApproved = normalizedBatchDomains.some(approvedDomain => 
+          citationDomain === approvedDomain || citationDomain.endsWith(`.${approvedDomain}`)
+        );
+        
+        if (!isApproved) {
+          console.log(`   ⚠️ Rejected: Not from approved batch - ${c.url} (domain: ${citationDomain})`);
+          return false;
+        }
+        
+        return true;
+      })
       .map(c => {
         const scores = calculateAuthorityScore({
           url: c.url,
@@ -181,7 +232,7 @@ Format:
         };
       });
 
-    console.log(`   ✅ ${batchName}: Found ${validCitations.length} valid citations`);
+    console.log(`   ✅ ${batchName}: Found ${validCitations.length} valid citations (from ${citations.length} total)`);
     return validCitations;
 
   } catch (error) {

@@ -43,7 +43,23 @@ serve(async (req) => {
     );
 
     if (citations.length === 0) {
-      throw new Error('No suitable citations found');
+      console.error('⚠️ No citations found across any batch tiers');
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'No suitable citations found from approved domains. All batches returned no results.',
+          citations: [],
+          totalFound: 0,
+          verifiedCount: 0
+        }),
+        { 
+          status: 404,
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
     }
 
     // Optionally verify URLs are accessible
