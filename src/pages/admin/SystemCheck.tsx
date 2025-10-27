@@ -39,7 +39,7 @@ export default function SystemCheck() {
     { phase: 2, name: 'CMS Dashboard UI', testFn: testPhase2 },
     { phase: 3, name: 'Content Editor - Basic Fields', testFn: testPhase3 },
     { phase: 4, name: 'Content Editor - E-E-A-T & Links', testFn: testPhase4 },
-    { phase: 5, name: 'FAQ Builder', testFn: testPhase5 },
+    { phase: 5, name: 'FAQ Builder & Auto-Generation', testFn: testPhase5 },
     { phase: 6, name: 'Multilingual Translation Manager', testFn: testPhase6 },
     { phase: 7, name: 'Auto JSON-LD Schema Generation', testFn: testPhase7 },
     { phase: 8, name: 'Public Article Display Page', testFn: testPhase8 },

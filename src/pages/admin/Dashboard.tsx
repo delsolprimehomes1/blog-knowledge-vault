@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle } from "@/types/blog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Globe, Plus, AlertCircle, CheckCircle2, Shield, RefreshCw, Rocket } from "lucide-react";
+import { FileText, TrendingUp, Globe, Plus, AlertCircle, CheckCircle2, Shield, RefreshCw, Rocket, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { validateSchemaRequirements } from "@/lib/schemaGenerator";
@@ -113,6 +113,22 @@ const Dashboard = () => {
 
   const schemaHealthScore = articles && articles.length > 0
     ? Math.round((schemaHealth!.valid / articles.length) * 100)
+    : 0;
+
+  // Calculate FAQ statistics
+  const faqStats = articles?.reduce((acc, article) => {
+    const hasFAQs = article.faq_entities && Array.isArray(article.faq_entities) && article.faq_entities.length > 0;
+    if (hasFAQs) {
+      acc.withFAQs++;
+      acc.totalFAQs += article.faq_entities.length;
+    } else {
+      acc.withoutFAQs++;
+    }
+    return acc;
+  }, { withFAQs: 0, withoutFAQs: 0, totalFAQs: 0 });
+
+  const faqCoverage = articles && articles.length > 0
+    ? Math.round((faqStats!.withFAQs / articles.length) * 100)
     : 0;
 
   const handleRebuildSite = async () => {
@@ -301,6 +317,66 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* FAQ Statistics */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              FAQ Coverage
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="p-6 border rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30">
+                <div className="text-sm font-medium text-muted-foreground mb-2">
+                  Articles with FAQs
+                </div>
+                <div className="text-3xl font-bold text-green-600">
+                  {faqStats?.withFAQs || 0}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {faqCoverage}% coverage
+                </div>
+              </div>
+
+              <div className="p-6 border rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
+                <div className="text-sm font-medium text-muted-foreground mb-2">
+                  Missing FAQs
+                </div>
+                <div className="text-3xl font-bold text-amber-600">
+                  {faqStats?.withoutFAQs || 0}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {faqStats?.withoutFAQs ? 'Need generation' : 'All covered'}
+                </div>
+              </div>
+
+              <div className="p-6 border rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30">
+                <div className="text-sm font-medium text-muted-foreground mb-2">
+                  Total FAQs
+                </div>
+                <div className="text-3xl font-bold text-blue-600">
+                  {faqStats?.totalFAQs || 0}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Avg: {articles && articles.length > 0 ? ((faqStats?.totalFAQs || 0) / articles.length).toFixed(1) : 0} per article
+                </div>
+              </div>
+            </div>
+
+            {faqStats && faqStats.withoutFAQs > 0 && (
+              <Button 
+                onClick={() => navigate('/admin/faq-backfill')}
+                className="w-full mt-4"
+                variant="outline"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                Generate FAQs for {faqStats.withoutFAQs} Articles
+              </Button>
+            )}
           </CardContent>
         </Card>
 

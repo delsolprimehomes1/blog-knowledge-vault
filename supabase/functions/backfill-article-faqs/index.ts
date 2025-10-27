@@ -27,30 +27,44 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Get articles without FAQs
-    const { data: articles, error: fetchError } = await supabaseClient
-      .from('blog_articles')
-      .select('id, slug, headline, detailed_content, meta_description, language, funnel_stage, status')
-      .eq('status', 'published')
-      .or('faq_entities.is.null,faq_entities.eq.[]');
+    // Check if articles are provided in the request (single article mode from trigger or batch UI)
+    const body = req.method === 'POST' ? await req.json() : {};
+    const providedArticles = body.articles;
+    const singleArticleMode = body.single_article_mode === true;
 
-    if (fetchError) throw fetchError;
+    let articles;
     
-    console.log(`Found ${articles?.length || 0} articles without FAQs`);
+    if (providedArticles && Array.isArray(providedArticles) && providedArticles.length > 0) {
+      // Use provided articles (from trigger or batch UI)
+      console.log(`Processing ${providedArticles.length} provided article(s)...`);
+      articles = providedArticles;
+    } else {
+      // Get articles without FAQs (original behavior)
+      const { data: fetchedArticles, error: fetchError } = await supabaseClient
+        .from('blog_articles')
+        .select('id, slug, headline, detailed_content, meta_description, language, funnel_stage, status')
+        .eq('status', 'published')
+        .or('faq_entities.is.null,faq_entities.eq.[]');
+
+      if (fetchError) throw fetchError;
+      
+      articles = fetchedArticles || [];
+      console.log(`Found ${articles.length} articles without FAQs`);
+    }
 
     const results = {
       total: articles?.length || 0,
       processed: 0,
-      success: 0,
+      successful: 0,
       failed: 0,
-      errors: [] as string[]
+      errors: [] as Array<{ id: string; headline: string; error: string }>
     };
 
     if (!articles || articles.length === 0) {
       return new Response(JSON.stringify({
         success: true,
         message: 'No articles need FAQs',
-        results
+        summary: results
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -154,29 +168,36 @@ Return ONLY valid JSON in this format:
 
         if (updateError) throw updateError;
 
-        console.log(`✅ Generated ${faqEntities.length} FAQs for article ${article.slug}`);
-        results.success++;
+        console.log(`✅ Generated ${faqEntities.length} FAQs for article ${article.slug || article.id}`);
+        results.successful++;
 
       } catch (error) {
-        const errorMsg = `Failed for ${article.slug}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error(`❌ ${errorMsg}`);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`❌ Failed for ${article.slug || article.id}: ${errorMsg}`);
         results.failed++;
-        results.errors.push(errorMsg);
+        results.errors.push({
+          id: article.id,
+          headline: article.headline,
+          error: errorMsg
+        });
       }
 
-      // Small delay to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Small delay to avoid rate limits (skip for single article mode)
+      if (!singleArticleMode) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
 
     console.log(`\n📊 Final Results:`);
     console.log(`   Total: ${results.total}`);
-    console.log(`   Success: ${results.success}`);
+    console.log(`   Successful: ${results.successful}`);
     console.log(`   Failed: ${results.failed}`);
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Processed ${results.processed} articles. ${results.success} successful, ${results.failed} failed.`,
-      results
+      message: `Processed ${results.processed} articles. ${results.successful} successful, ${results.failed} failed.`,
+      summary: results,
+      errors: results.errors
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
