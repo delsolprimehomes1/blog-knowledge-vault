@@ -15,7 +15,7 @@ export const SearchBar = ({ searchQuery, onSearchChange }: SearchBarProps) => {
         placeholder="Search articles..."
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="pl-12 h-12 text-base md:h-10 md:text-sm"
+        className="pl-12 h-12 text-base md:h-10 md:text-sm rounded-xl focus:ring-2 focus:ring-primary/20"
       />
     </div>
   );

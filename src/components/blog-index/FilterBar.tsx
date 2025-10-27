@@ -47,7 +47,7 @@ export const FilterBar = ({
         </div>
 
         <Select value={selectedCategory} onValueChange={onCategoryChange}>
-          <SelectTrigger className="w-full md:w-[200px] h-12 md:h-10 text-base md:text-sm">
+          <SelectTrigger className="w-full md:w-[200px] h-12 md:h-10 text-base md:text-sm rounded-xl">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -61,7 +61,7 @@ export const FilterBar = ({
         </Select>
 
         <Select value={selectedLanguage} onValueChange={onLanguageChange}>
-          <SelectTrigger className="w-full md:w-[200px] h-12 md:h-10 text-base md:text-sm">
+          <SelectTrigger className="w-full md:w-[200px] h-12 md:h-10 text-base md:text-sm rounded-xl">
             <SelectValue placeholder="All Languages" />
           </SelectTrigger>
           <SelectContent>

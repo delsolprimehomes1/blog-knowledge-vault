@@ -180,9 +180,9 @@ const BlogIndex = () => {
         
         <BlogHeader totalCount={totalArticles} />
 
-        <div className="container mx-auto px-4 py-12">
-          <div className="text-center mb-8">
-            <p className="text-muted-foreground">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 py-12">
+          <div className="text-center mb-4 md:mb-8">
+            <p className="text-sm md:text-base text-muted-foreground">
               {totalArticles} {totalArticles === 1 ? 'article' : 'articles'} available
             </p>
           </div>
@@ -224,7 +224,7 @@ const BlogIndex = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             {currentArticles.map((article, index) => {
               const authorInfo = article.authors as any;
               return (
