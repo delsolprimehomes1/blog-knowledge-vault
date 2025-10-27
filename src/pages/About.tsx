@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { CompanyContactSection } from "@/components/blog-article/CompanyContactSection";
 import { Link } from "react-router-dom";
 import costadelsolBg from "@/assets/costa-del-sol-bg.jpg";
+import { Navbar } from "@/components/Navbar";
 
 const About = () => {
   return (
     <div className="min-h-screen bg-background">
+      <Navbar />
       {/* Hero Section */}
-      <section className="relative h-[60vh] md:h-[70vh] flex items-center justify-center">
+      <section className="relative h-[60vh] md:h-[70vh] flex items-center justify-center pt-16 md:pt-20">
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${costadelsolBg})` }}

@@ -22,6 +22,7 @@ import { CompanyContactSection } from "@/components/blog-article/CompanyContactS
 import { generateAllSchemas } from "@/lib/schemaGenerator";
 import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink } from "@/types/blog";
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
+import { Navbar } from "@/components/Navbar";
 
 const BlogArticle = () => {
   React.useEffect(() => {
@@ -259,7 +260,8 @@ const BlogArticle = () => {
         <script type="application/ld+json">{JSON.stringify(schemas.localBusiness)}</script>
       </Helmet>
 
-      <div className="min-h-screen py-8 md:py-12">
+      <Navbar />
+      <div className="min-h-screen py-8 md:py-12 pt-16 md:pt-20">
         <div className="flex flex-col">
           {/* Mobile-first single column with max-width for readability */}
           <div className="max-w-4xl mx-auto w-full px-5 sm:px-6 space-y-12 md:space-y-16">

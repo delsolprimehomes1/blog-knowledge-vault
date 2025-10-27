@@ -11,6 +11,7 @@ import { BlogPagination } from "@/components/blog-index/BlogPagination";
 import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { Button } from "@/components/ui/button";
 import { FileQuestion } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
 
 const ARTICLES_PER_PAGE = 9;
 
@@ -148,8 +149,10 @@ const BlogIndex = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <BlogHeader totalCount={totalArticles} />
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="container mx-auto px-4 py-12 pt-16 md:pt-20">
+        <BlogHeader totalCount={totalArticles} />
 
       <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
@@ -214,8 +217,9 @@ const BlogIndex = () => {
         </>
       )}
 
-      {/* Company Footer */}
-      <BlogFooter />
+        {/* Company Footer */}
+        <BlogFooter />
+      </div>
     </div>
   );
 };
