@@ -1,21 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import * as fal from "npm:@fal-ai/serverless-client@0.15.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-interface FalImage {
-  url: string;
-  width: number;
-  height: number;
-  content_type: string;
-}
-
-interface FalResult {
-  images: FalImage[];
-}
 
 // Helper functions from generate-image
 function inferPropertyType(headline: string): string {
@@ -122,45 +110,49 @@ serve(async (req) => {
       throw new Error('Missing required parameters: headline and diagramType');
     }
 
-    const falKey = Deno.env.get('FAL_KEY');
-    if (!falKey) {
-      throw new Error('FAL_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
     }
-
-    fal.config({
-      credentials: falKey
-    });
 
     console.log('Generating diagram:', { headline, diagramType });
 
     const prompt = generateDiagramPrompt(headline, diagramType as 'flowchart' | 'timeline' | 'comparison');
     console.log('Generated prompt:', prompt);
 
-    const result = await fal.subscribe("fal-ai/flux/dev", {
-      input: {
-        prompt: prompt,
-        image_size: {
-          width: 1536,
-          height: 1024
-        },
-        num_inference_steps: 28,
-        guidance_scale: 3.5,
-        num_images: 1,
-        enable_safety_checker: true
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
       },
-      logs: true,
-      onQueueUpdate: (update) => {
-        if (update.status === "IN_PROGRESS" && update.logs) {
-          console.log('Generation progress:', update.logs[update.logs.length - 1]);
-        }
-      }
-    }) as FalResult;
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        modalities: ["image", "text"]
+      })
+    });
 
-    if (!result.images || result.images.length === 0) {
-      throw new Error('No images generated');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI Gateway error:', response.status, errorText);
+      throw new Error(`AI Gateway error: ${response.status}`);
     }
 
-    const diagramImage = result.images[0];
+    const data = await response.json();
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+    if (!imageUrl) {
+      console.error('No image in response:', JSON.stringify(data));
+      throw new Error('No image generated');
+    }
+
+    console.log('Image generated successfully');
     
     // Generate description based on diagram type
     let description = '';
@@ -182,7 +174,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        imageUrl: diagramImage.url,
+        imageUrl: imageUrl,
         description: description,
         prompt: prompt
       }),
