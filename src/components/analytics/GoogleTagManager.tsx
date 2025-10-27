@@ -18,12 +18,8 @@ export function GoogleTagManager() {
       return;
     }
 
-    // Check if user has consented to cookies
-    const cookieConsent = localStorage.getItem('cookie-consent');
-    if (cookieConsent !== 'accepted') {
-      console.log('ℹ️ GTM disabled - waiting for cookie consent');
-      return;
-    }
+    // Analytics are always enabled (no cookie consent banner)
+    console.log('ℹ️ Initializing GTM...');
 
     // Initialize dataLayer
     window.dataLayer = window.dataLayer || [];
@@ -65,10 +61,6 @@ export function GoogleTagManager() {
   // Track page views on route changes
   useEffect(() => {
     if (!GTM_CONTAINER_ID || !window.dataLayer) return;
-
-    // Check cookie consent
-    const cookieConsent = localStorage.getItem('cookie-consent');
-    if (cookieConsent !== 'accepted') return;
 
     // Push page view to dataLayer
     window.dataLayer.push({

@@ -19,12 +19,8 @@ export function GoogleAnalytics() {
       return;
     }
 
-    // Check if user has consented to cookies
-    const cookieConsent = localStorage.getItem('cookie-consent');
-    if (cookieConsent !== 'accepted') {
-      console.log('ℹ️ GA4 disabled - waiting for cookie consent');
-      return;
-    }
+    // Analytics are always enabled (no cookie consent banner)
+    console.log('ℹ️ Initializing GA4...');
 
     // Initialize dataLayer
     window.dataLayer = window.dataLayer || [];
@@ -60,10 +56,6 @@ export function GoogleAnalytics() {
   // Track page views on route changes
   useEffect(() => {
     if (!GA4_MEASUREMENT_ID || typeof window.gtag !== 'function') return;
-
-    // Check cookie consent
-    const cookieConsent = localStorage.getItem('cookie-consent');
-    if (cookieConsent !== 'accepted') return;
 
     // Send pageview event
     window.gtag('config', GA4_MEASUREMENT_ID, {
