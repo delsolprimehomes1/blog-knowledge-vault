@@ -131,7 +131,7 @@ serve(async (req) => {
     const { 
       content, 
       headline, 
-      language = 'es', 
+      language = 'en', 
       requireGovernmentSource = false,
       funnelStage = 'MOFU' // New parameter with default
     } = await req.json();
@@ -148,16 +148,6 @@ serve(async (req) => {
       languageName: string;
       exampleDomain: string;
     }> = {
-      es: {
-        instruction: 'Find 3-5 authoritative sources from TOP PRIORITY domains only',
-        sources: [
-          'Government (.gob.es): boe.es, agenciatributaria.es, juntadeandalucia.es',
-          'News: surinenglish.com, euroweeklynews.com',
-          'Tourism: visitcostadelsol.com, malagaturismo.com, andalucia.org'
-        ],
-        languageName: 'Spanish',
-        exampleDomain: 'https://surinenglish.com/...'
-      },
       en: {
         instruction: 'Find 3-5 authoritative sources from TOP PRIORITY domains only',
         sources: [
@@ -180,7 +170,7 @@ serve(async (req) => {
       }
     };
 
-    const config = languageConfig[language] || languageConfig.es;
+    const config = languageConfig[language] || languageConfig.en;
 
     const governmentRequirement = requireGovernmentSource 
       ? `\n\nMANDATORY: At least ONE source MUST be from an official government domain. This is non-negotiable and CRITICAL for article validation.`

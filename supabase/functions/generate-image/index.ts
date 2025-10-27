@@ -20,7 +20,7 @@ interface FalResult {
 // Helper function to infer property type from headline
 const inferPropertyType = (headline: string): string => {
   const text = headline.toLowerCase();
-  if (text.includes('villa')) return 'luxury Spanish villa';
+  if (text.includes('villa')) return 'luxury Mediterranean villa';
   if (text.includes('apartment') || text.includes('flat')) return 'modern apartment';
   if (text.includes('penthouse')) return 'penthouse with terrace';
   if (text.includes('townhouse')) return 'townhouse';
@@ -110,7 +110,7 @@ const generateContextualImagePrompt = (
   const timeOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening'][Math.floor(Math.random() * 4)];
   
   // Architectural style variety
-  const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Spanish colonial'];
+  const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Andalusian classic'];
   const archStyle = archStyles[Math.floor(Math.random() * archStyles.length)];
   
   // Market analysis articles
@@ -139,7 +139,7 @@ const generateContextualImagePrompt = (
   // Lifestyle articles
   if (topic === 'lifestyle') {
     return `Authentic lifestyle photography in ${location}, Costa del Sol: 
-      International expats enjoying local Spanish life, 
+      International expats enjoying local Mediterranean life, 
       outdoor market or plaza scene, palm trees, 
       café culture, community interaction, 
       NO properties visible, focus on PEOPLE and CULTURE, 
@@ -182,7 +182,7 @@ const generateContextualImagePrompt = (
   // Legal/process articles
   if (topic === 'process-legal') {
     return `Professional legal consultation in ${location} law office: 
-      Spanish property lawyer meeting with international clients, 
+      International property lawyer meeting with international clients, 
       legal documents for Costa del Sol real estate on desk, 
       professional office setting, contracts and paperwork, 
       ${timeOfDay} office lighting, trust and expertise conveyed, 
@@ -222,9 +222,9 @@ const generateContextualImagePrompt = (
   
   // Default: varied general property imagery
   const defaultVariations = [
-    `${archStyle} ${propertyType} interior in ${location}, Costa del Sol: Spacious living room with ${timeOfDay} natural light, contemporary furnishings, high-end finishes, terrace access visible, Spanish design elements, NOT pool-centric, focus on LIVING spaces, ${baseQuality}`,
+    `${archStyle} ${propertyType} interior in ${location}, Costa del Sol: Spacious living room with ${timeOfDay} natural light, contemporary furnishings, high-end finishes, terrace access visible, Mediterranean design elements, NOT pool-centric, focus on LIVING spaces, ${baseQuality}`,
     `Coastal lifestyle in ${location}, Costa del Sol: Beach promenade with palm trees, people walking, Mediterranean sea, ${timeOfDay}, NOT infinity pools, ${baseQuality}`,
-    `${location} town center: Charming Spanish plaza, traditional architecture, outdoor dining, local atmosphere, ${timeOfDay}, NO villas, ${baseQuality}`
+    `${location} town center: Charming Mediterranean plaza, traditional architecture, outdoor dining, local atmosphere, ${timeOfDay}, NO villas, ${baseQuality}`
   ];
   return defaultVariations[Math.floor(Math.random() * defaultVariations.length)];
 };

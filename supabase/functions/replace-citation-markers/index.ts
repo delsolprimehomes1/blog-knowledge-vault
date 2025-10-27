@@ -243,7 +243,6 @@ async function findCitationForClaim(
   
   const languageInstructions: Record<string, string> = {
     'en': 'Find English-language sources only (.com, .org, .uk, .gov)',
-    'es': 'Find Spanish-language sources only (.es, .gob.es, Spanish sites)',
     'de': 'Find German-language sources only (.de, German sites)',
     'nl': 'Find Dutch-language sources only (.nl, Dutch sites)',
     'fr': 'Find French-language sources only (.fr, French sites)',
@@ -385,7 +384,6 @@ Return ONLY this JSON (no markdown, no explanation):
 
 function checkUrlLanguage(url: string, language: string): boolean {
   const languageTLDs: Record<string, string[]> = {
-    'es': ['.es', '.gob.es', 'spain', 'españa'],
     'en': ['.com', '.org', '.gov', '.uk'],
     'de': ['.de'],
     'nl': ['.nl'],

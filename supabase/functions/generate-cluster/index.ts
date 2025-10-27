@@ -657,7 +657,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       // 7. FEATURED IMAGE (using existing generate-image function with enhanced prompt)
       const inferPropertyType = (contentAngle: string, headline: string) => {
         const text = (contentAngle + ' ' + headline).toLowerCase();
-        if (text.includes('villa')) return 'luxury Spanish villa';
+        if (text.includes('villa')) return 'luxury Mediterranean villa';
         if (text.includes('apartment') || text.includes('flat')) return 'modern apartment';
         if (text.includes('penthouse')) return 'penthouse with terrace';
         if (text.includes('townhouse')) return 'townhouse';
@@ -750,7 +750,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         const timeOfDay = timesOfDay[articleIndex % timesOfDay.length];
         
         // Architectural style variety (also deterministic)
-        const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Spanish colonial', 'Andalusian classic', 'sleek modernist'];
+        const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Andalusian classic', 'sleek modernist'];
         const archStyle = archStyles[articleIndex % archStyles.length];
         
         // ========== TOFU (Top of Funnel) - Inspirational & Lifestyle ==========
@@ -782,7 +782,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
           // Lifestyle articles
           if (topic === 'lifestyle') {
             return `Authentic lifestyle photography in ${location}, Costa del Sol: 
-              International expats enjoying local Spanish life, 
+              International expats enjoying local Mediterranean life, 
               outdoor market or plaza scene, palm trees, 
               café culture, community interaction, 
               NO properties visible, focus on PEOPLE and CULTURE, 
@@ -816,7 +816,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
           const tofuVariations = [
             `Coastal lifestyle in ${location}, Costa del Sol: Beach promenade with palm trees, people walking, Mediterranean sea, ${timeOfDay}, ${perspective}, NOT infinity pools, ${baseQuality}`,
             `Mountain view from ${location}, Costa del Sol: Sierra Blanca mountains, hiking trails, nature and outdoor lifestyle, ${timeOfDay}, ${perspective}, NOT luxury properties, ${baseQuality}`,
-            `${location} town center: Charming Spanish plaza, traditional architecture, outdoor dining, local atmosphere, ${timeOfDay}, ${perspective}, NO villas, ${baseQuality}`
+            `${location} town center: Charming Mediterranean plaza, traditional architecture, outdoor dining, local atmosphere, ${timeOfDay}, ${perspective}, NO villas, ${baseQuality}`
           ];
           return tofuVariations[articleIndex % tofuVariations.length];
         }
@@ -879,7 +879,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
           return `${archStyle} ${propertyType} interior in ${location}, Costa del Sol: 
             Spacious living room with ${timeOfDay} natural light, 
             contemporary furnishings, high-end finishes, 
-            terrace access visible, Spanish design elements, ${perspective}, 
+            terrace access visible, Mediterranean design elements, ${perspective}, 
             NOT pool-centric, focus on LIVING spaces, 
             ${baseQuality}`;
         }
@@ -890,7 +890,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
           // Legal/process articles
           if (topic === 'process-legal') {
             return `Professional legal consultation in ${location} law office: 
-              Spanish property lawyer meeting with international clients, 
+              International property lawyer meeting with international clients, 
               legal documents for Costa del Sol real estate on desk, 
               professional office setting, contracts and paperwork, 
               ${timeOfDay} office lighting, ${perspective}, trust and expertise conveyed, 

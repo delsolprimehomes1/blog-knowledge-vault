@@ -9,11 +9,11 @@ const corsHeaders = {
 function inferPropertyType(headline: string): string {
   const lower = headline.toLowerCase();
   
-  if (lower.includes('villa') || lower.includes('detached')) return 'luxury Spanish villa';
+  if (lower.includes('villa') || lower.includes('detached')) return 'luxury Mediterranean villa';
   if (lower.includes('apartment') || lower.includes('flat')) return 'modern apartment';
   if (lower.includes('penthouse')) return 'penthouse';
   if (lower.includes('townhouse')) return 'townhouse';
-  if (lower.includes('finca') || lower.includes('cortijo')) return 'traditional Spanish finca';
+  if (lower.includes('finca') || lower.includes('cortijo')) return 'traditional Andalusian finca';
   if (lower.includes('golf')) return 'golf property';
   if (lower.includes('beachfront') || lower.includes('beach')) return 'beachfront property';
   

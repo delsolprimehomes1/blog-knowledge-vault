@@ -332,7 +332,6 @@ export async function testPhase6(): Promise<TestResult[]> {
   const results: TestResult[] = [];
 
   const testTranslations = {
-    'es': 'articulo-de-prueba',
     'de': 'test-artikel',
     'fr': 'article-de-test'
   };

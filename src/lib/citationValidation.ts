@@ -153,7 +153,6 @@ function checkLanguageMismatch(
   language: string
 ): { count: number; mismatches: string[] } {
   const languageTLDs: Record<string, string[]> = {
-    'es': ['.es', '.gob.es', 'spain', 'españa'],
     'en': ['.com', '.org', '.gov', '.uk'],
     'de': ['.de'],
     'nl': ['.nl'],

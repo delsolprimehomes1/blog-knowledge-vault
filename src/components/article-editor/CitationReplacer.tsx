@@ -45,14 +45,11 @@ export const CitationReplacer = ({
 
   const sourceTypeOptions = [
     { value: '.gov', label: 'Government (.gov)', description: 'US government sources' },
-    { value: '.gob.es', label: 'Spanish Government (.gob.es)', description: 'Official Spanish government' },
     { value: '.edu', label: 'Educational (.edu)', description: 'Universities and research' },
     { value: '.org', label: 'Organizations (.org)', description: 'Non-profit organizations' },
     { value: '.int', label: 'International (.int)', description: 'International organizations' },
     { value: 'europa.eu', label: 'European Union', description: 'EU official sources' },
     { value: '.ac.uk', label: 'UK Academic (.ac.uk)', description: 'UK universities' },
-    { value: 'ine.es', label: 'Spanish Statistics (INE)', description: 'Instituto Nacional de Estadística' },
-    { value: 'bde.es', label: 'Bank of Spain', description: 'Banco de España' },
   ];
 
   const toggleSourceType = (value: string) => {

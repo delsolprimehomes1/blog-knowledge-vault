@@ -195,7 +195,6 @@ const BlogArticle = () => {
   // Language to hreflang mapping
   const langToHreflang: Record<string, string> = {
     en: 'en-GB',
-    es: 'es-ES',
     de: 'de-DE',
     nl: 'nl-NL',
     fr: 'fr-FR',

@@ -22,7 +22,7 @@ export const ExternalCitationsSection = ({
   errors,
   articleContent = "",
   headline = "",
-  language = "es",
+  language = "en",
 }: ExternalCitationsSectionProps) => {
   const addCitation = () => {
     onCitationsChange([...citations, { text: "", url: "", source: "" }]);

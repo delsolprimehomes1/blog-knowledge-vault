@@ -16,7 +16,6 @@ interface FilterBarProps {
 const LANGUAGES = [
   { code: "all", flag: "🌍", name: "All Languages" },
   { code: "en", flag: "🇬🇧", name: "English" },
-  { code: "es", flag: "🇪🇸", name: "Spanish" },
   { code: "de", flag: "🇩🇪", name: "German" },
   { code: "nl", flag: "🇳🇱", name: "Dutch" },
   { code: "fr", flag: "🇫🇷", name: "French" },

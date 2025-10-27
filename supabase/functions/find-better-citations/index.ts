@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const { 
       articleTopic,
-      articleLanguage = 'es',
+      articleLanguage = 'en',
       articleContent,
       currentCitations = [],
       focusArea,

@@ -30,7 +30,7 @@ export const ExternalLinkFinder = ({
   headline,
   currentCitations,
   onCitationsChange,
-  language = 'es'
+  language = 'en'
 }: ExternalLinkFinderProps) => {
   const [isSearching, setIsSearching] = useState(false);
   const [foundLinks, setFoundLinks] = useState<FoundCitation[]>([]);

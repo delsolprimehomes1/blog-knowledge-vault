@@ -25,7 +25,6 @@ interface ArticleCardProps {
 
 const LANGUAGE_FLAGS: Record<string, string> = {
   en: "🇬🇧",
-  es: "🇪🇸",
   de: "🇩🇪",
   nl: "🇳🇱",
   fr: "🇫🇷",

@@ -40,17 +40,6 @@ const TRANSLATIONS = {
     areaQ: "Which area interests you most?",
     confirmation: "✅ Thank you! Our team will contact you within 24 hours to schedule your viewing. You'll receive a confirmation email shortly.",
   },
-  es: {
-    greeting: "👋 ¡Hola! Estoy aquí para ayudarte a encontrar tu propiedad de ensueño en Costa del Sol.\n\n¿En qué te puedo ayudar?",
-    scheduleViewing: "📅 Programar una visita",
-    discussFinancing: "💰 Discutir financiación",
-    learnAbout: "📍 Conocer sobre zonas",
-    askQuestion: "❓ Hacer una pregunta",
-    propertyTypeQ: "¡Genial! Permíteme recopilar algunos detalles.\n\n¿Cuál es tu tipo de propiedad preferido?",
-    budgetQ: "¿Cuál es tu rango de presupuesto?",
-    areaQ: "¿Qué zona te interesa más?",
-    confirmation: "✅ ¡Gracias! Nuestro equipo se pondrá en contacto contigo en 24 horas para programar tu visita. Recibirás un correo de confirmación pronto.",
-  },
 };
 
 export const useChatbot = (articleSlug: string, language: string): ChatbotHook => {

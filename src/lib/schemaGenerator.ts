@@ -40,7 +40,7 @@ const ORGANIZATION_SCHEMA = {
   "contactPoint": {
     "@type": "ContactPoint",
     "contactType": "Customer Service",
-    "availableLanguage": ["en", "es", "de", "nl", "fr", "pl", "sv", "da", "hu"],
+    "availableLanguage": ["en", "de", "nl", "fr", "pl", "sv", "da", "hu"],
     "telephone": "+34-613-578-416",
     "email": "info@delsolprimehomes.com"
   },
@@ -310,7 +310,7 @@ export function generateLocalBusinessSchema(baseUrl: string = "https://delsolpri
       "contactType": "Customer Service",
       "telephone": "+34-613-578-416",
       "email": "info@delsolprimehomes.com",
-      "availableLanguage": ["en", "es", "de", "nl", "fr", "pl", "sv", "da", "hu"]
+      "availableLanguage": ["en", "de", "nl", "fr", "pl", "sv", "da", "hu"]
     },
     "sameAs": [
       baseUrl

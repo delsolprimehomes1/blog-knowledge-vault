@@ -81,11 +81,6 @@ export function extractInternalLinks(content: string): string[] {
 export function detectLanguageFromUrl(url: string): string | null {
   const lowerUrl = url.toLowerCase();
   
-  // Spanish domains
-  if (lowerUrl.includes('.es') || lowerUrl.includes('.gob.es')) {
-    return 'es';
-  }
-  
   // English domains
   if (lowerUrl.includes('.gov') || lowerUrl.includes('.gov.uk') || 
       lowerUrl.includes('.edu') || lowerUrl.includes('.ac.uk')) {

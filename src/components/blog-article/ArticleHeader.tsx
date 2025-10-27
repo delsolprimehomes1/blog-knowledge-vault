@@ -15,7 +15,6 @@ interface ArticleHeaderProps {
 
 const LANGUAGE_FLAGS: Record<string, { flag: string; name: string }> = {
   en: { flag: "🇬🇧", name: "English" },
-  es: { flag: "🇪🇸", name: "Spanish" },
   de: { flag: "🇩🇪", name: "German" },
   nl: { flag: "🇳🇱", name: "Dutch" },
   fr: { flag: "🇫🇷", name: "French" },

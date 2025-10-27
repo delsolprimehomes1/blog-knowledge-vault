@@ -177,7 +177,7 @@ const TermsOfService = () => {
                       <span className="font-semibold text-foreground">Lawful Use Only</span>
                     </AccordionTrigger>
                     <AccordionContent className="text-muted-foreground space-y-2 pb-4">
-                      <p>You may not use our Services for any illegal purposes, including but not limited to money laundering, fraud, or tax evasion. All property transactions must comply with Spanish and EU laws.</p>
+                      <p>You may not use our Services for any illegal purposes, including but not limited to money laundering, fraud, or tax evasion. All property transactions must comply with local and EU laws.</p>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -223,11 +223,11 @@ const TermsOfService = () => {
                 <div className="space-y-3 mt-4">
                   <div className="bg-muted/30 p-4 rounded-lg">
                     <p className="font-semibold text-foreground mb-2">Legal Advice</p>
-                    <p className="text-sm">We strongly recommend consulting with a qualified Spanish property lawyer (abogado) before making any property purchase.</p>
+                    <p className="text-sm">We strongly recommend consulting with a qualified local property lawyer (abogado) before making any property purchase.</p>
                   </div>
                   <div className="bg-muted/30 p-4 rounded-lg">
                     <p className="font-semibold text-foreground mb-2">Financial Advice</p>
-                    <p className="text-sm">For mortgage advice and financial planning, please consult with licensed financial advisors familiar with Spanish regulations.</p>
+                    <p className="text-sm">For mortgage advice and financial planning, please consult with licensed financial advisors familiar with local regulations.</p>
                   </div>
                   <div className="bg-muted/30 p-4 rounded-lg">
                     <p className="font-semibold text-foreground mb-2">Tax Advice</p>
@@ -241,7 +241,7 @@ const TermsOfService = () => {
 
               <Section id="intellectual" icon={FileText} title="Intellectual Property Rights" number={6}>
                 <p>
-                  All content on the DelSol Prime Homes website, including text, images, logos, graphics, videos, and software, is the property of DelSol Prime Homes or its content suppliers and is protected by Spanish and international copyright laws.
+                  All content on the DelSol Prime Homes website, including text, images, logos, graphics, videos, and software, is the property of DelSol Prime Homes or its content suppliers and is protected by international copyright laws.
                 </p>
                 <div className="space-y-3 mt-4">
                   <p><strong className="text-foreground">Permitted Use:</strong> You may view and download content for personal, non-commercial use only.</p>
@@ -266,7 +266,7 @@ const TermsOfService = () => {
                 <div className="bg-red-500/10 border-l-4 border-red-500 p-4 rounded">
                   <p className="text-sm font-semibold text-foreground mb-2">Important Legal Notice</p>
                   <p className="text-sm text-foreground">
-                    To the maximum extent permitted by Spanish law, DelSol Prime Homes shall not be liable for any direct, indirect, incidental, consequential, or punitive damages arising from your use of our Services.
+                    To the maximum extent permitted by applicable law, DelSol Prime Homes shall not be liable for any direct, indirect, incidental, consequential, or punitive damages arising from your use of our Services.
                   </p>
                 </div>
                 <div className="space-y-3 mt-4">

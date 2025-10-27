@@ -224,8 +224,7 @@ export const BetterCitationFinder = ({
         {!isSearching && citations.length === 0 && (
           <Alert>
             <AlertDescription>
-              Click "Find Better Citations" to discover authoritative {articleLanguage === 'es' ? 'Spanish' : 'English'} 
-              {' '}sources for this article using AI.
+              Click "Find Better Citations" to discover authoritative sources for this article using AI.
             </AlertDescription>
           </Alert>
         )}

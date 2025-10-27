@@ -27,7 +27,7 @@ serve(async (req) => {
       originalUrl, 
       articleHeadline, 
       articleContent, 
-      articleLanguage = 'es',
+      articleLanguage = 'en',
       context 
     } = await req.json();
 
@@ -39,13 +39,12 @@ serve(async (req) => {
     console.log(`Finding better alternatives for: ${originalUrl}`);
 
     const languageConfig: Record<string, { name: string; domains: string[] }> = {
-      es: { name: 'Spanish', domains: ['.gob.es', '.es'] },
       en: { name: 'English', domains: ['.gov', '.gov.uk', '.edu'] },
       nl: { name: 'Dutch', domains: ['.nl', '.overheid.nl'] },
       de: { name: 'German', domains: ['.de', '.gov.de'] },
     };
 
-    const config = languageConfig[articleLanguage] || languageConfig.es;
+    const config = languageConfig[articleLanguage] || languageConfig.en;
 
     const prompt = `Find 3-5 HIGH-QUALITY alternative sources to replace this broken or irrelevant link.
 
