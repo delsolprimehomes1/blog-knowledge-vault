@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/utils/analytics";
+import { toast } from "sonner";
 import logo from "@/assets/logo-new.png";
 
 export const Navbar = () => {
@@ -25,10 +26,13 @@ export const Navbar = () => {
     e?.stopPropagation();
     
     try {
+      toast.loading("Preparing your download...", { id: "pdf-download" });
+      
       // Fetch the PDF as a blob
       const response = await fetch('/buyers-guide.pdf');
       if (!response.ok) {
         console.error('PDF file not found');
+        toast.error("Download failed. Please try again.", { id: "pdf-download" });
         return;
       }
       
@@ -43,9 +47,18 @@ export const Navbar = () => {
       document.body.appendChild(link);
       link.click();
       
+      // Fallback: open in new tab if download doesn't work (e.g., in preview)
+      setTimeout(() => {
+        if (document.contains(link)) {
+          window.open(url, '_blank');
+        }
+      }, 100);
+      
       // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+      
+      toast.success("Download started!", { id: "pdf-download" });
 
       trackEvent("download", {
         file_name: "buyers-guide",
@@ -53,6 +66,7 @@ export const Navbar = () => {
       });
     } catch (error) {
       console.error('Download failed:', error);
+      toast.error("Download failed. Please try again.", { id: "pdf-download" });
     }
   };
 
