@@ -334,19 +334,29 @@ const ArticleEditor = () => {
     onSuccess: (_, publishStatus) => {
       queryClient.invalidateQueries({ queryKey: ["articles"] });
       const message = publishStatus === 'published' 
-        ? "✅ Article published successfully! All changes including images have been saved." 
-        : "✅ Article saved as draft. All changes including images have been saved.";
-      toast.success(message, { duration: 3000 });
+        ? "✅ Article published successfully! All changes have been saved." 
+        : "✅ Article saved as draft. All changes have been saved.";
       
-      // Delay navigation to let user see the success message
-      setTimeout(() => {
-        navigate("/admin/articles");
-      }, 1500);
+      toast.success(message, { 
+        duration: 6000,
+        action: {
+          label: "View Articles",
+          onClick: () => navigate("/admin/articles")
+        }
+      });
     },
     onError: (error: any) => {
       if (error.message === "Validation failed") {
-        const firstError = Object.values(errors)[0] as string;
-        toast.error(firstError || "Please check all required fields", { duration: 5000 });
+        const errorList = Object.entries(errors)
+          .map(([field, msg]) => `• ${msg}`)
+          .join('\n');
+        toast.error(
+          `Cannot save article. Please fix:\n\n${errorList}`, 
+          { 
+            duration: 8000,
+            style: { whiteSpace: 'pre-line' }
+          }
+        );
       } else if (error.message === "Featured image required for publishing") {
         // Already shown via toast in the mutation function
       } else {
