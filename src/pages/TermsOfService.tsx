@@ -1,3 +1,4 @@
+import React from "react";
 import { Scale, FileText, AlertTriangle, Users, Shield, Globe, CheckCircle, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -6,6 +7,10 @@ import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 
 const TermsOfService = () => {
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
   const sections = [
     { id: "acceptance", label: "Acceptance of Terms" },
     { id: "services", label: "Description of Services" },

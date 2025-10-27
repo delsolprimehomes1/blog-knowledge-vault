@@ -1,3 +1,4 @@
+import React from "react";
 import { Shield, Lock, Eye, Users, Globe, Cookie, FileText, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -6,6 +7,10 @@ import { BlogFooter } from "@/components/blog-article/BlogFooter";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 
 const PrivacyPolicy = () => {
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
   const sections = [
     { id: "introduction", label: "Introduction" },
     { id: "information-collection", label: "Information We Collect" },
