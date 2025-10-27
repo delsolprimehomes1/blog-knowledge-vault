@@ -6,59 +6,239 @@
  */
 
 export const APPROVED_DOMAINS = {
+  climate_weather: [
+    'wikipedia.org',
+    'weather-and-climate.com',
+    'climasyviajes.com',
+    'weatherspark.com',
+    'aemet.es',
+    'wmo.int',
+    'climatestotravel.com',
+    'ncdc.noaa.gov',
+    'es.weatherspark.com'
+  ],
+  government_official: [
+    'boe.es',
+    'agenciatributaria.es',
+    'exteriores.gob.es',
+    'juntadeandalucia.es',
+    'gov.uk',
+    'gov.ie',
+    'cnmc.es',
+    'ine.es',
+    'catastro.gob.es',
+    'e-justice.europa.eu',
+    'extranjeria.administracionespublicas.gob.es',
+    'mjusticia.gob.es'
+  ],
+  tourism_culture: [
+    'spain.info',
+    'andalucia.org',
+    'visitcostadelsol.com',
+    'cuevadenerja.es',
+    'aqualand.es',
+    'bioparcfuengirola.es',
+    'selwomarina.es',
+    'castillomonumentocolomares.com',
+    'mariposariodebenalmadena.com',
+    'rmcr.org',
+    'stupabenalmadena.org',
+    'aena.es',
+    'malaga.com',
+    'turismo.benalmadena.es',
+    'turismo.estepona.es',
+    'turismo.fuengirola.es',
+    'turismo.malaga.eu',
+    'blog.visitcostadelsol.com',
+    'europasur.es',
+    'guidetomalaga.com',
+    'worldtravelguide.net',
+    'spainvisa.eu',
+    'malagaturismo.com',
+    'festivaldemalaga.com',
+    'museosdemalaga.com',
+    'andalucia.com',
+    'rutasdelsol.es'
+  ],
   news_media: [
-    'surinenglish.com', 'euroweeklynews.com', 'theolivepress.es',
-    'essentialmagazine.com', 'societymarbella.com', 'homeandlifestyle.es',
-    'webexpressguide.com', 'thespanisheye.com', 'andaluciatoday.com',
-    'thelocal.es', 'spainenglish.com', 'expatica.com', 'inspain.news',
-    'eyeonspain.com', 'thinkspain.com', 'lachispa.net'
+    'surinenglish.com',
+    'euroweeklynews.com',
+    'theolivepress.es',
+    'essentialmagazine.com',
+    'societymarbella.com',
+    'homeandlifestyle.es',
+    'webexpressguide.com',
+    'thespanisheye.com',
+    'andaluciatoday.com',
+    'thelocal.es',
+    'spainenglish.com',
+    'expatica.com',
+    'inspain.news',
+    'eyeonspain.com',
+    'thinkspain.com',
+    'lachispa.net'
   ],
-  government: [
-    'boe.es', 'agenciatributaria.es', 'exteriores.gob.es', 'registradores.org',
-    'notariado.org', 'juntadeandalucia.es', 'spain.info', 'andalucia.org',
-    'visitcostadelsol.com', 'gov.uk', 'dfa.ie', 'gov.ie', 'cnmc.es',
-    'ine.es', 'catastro.gob.es', 'e-justice.europa.eu'
-  ],
-  legal: [
-    'abogadoespanol.com', 'legalservicesinspain.com', 'costaluzlawyers.es',
-    'spanishsolutions.net', 'lexidy.com'
-  ],
-  travel_tourism: [
-    'tastingspain.es', 'rutasdelvino.es', 'sherry.wine', 'vinomalaga.com',
-    'dopronda.es', 'michelin.com', 'guidetomalaga.com', 'worldtravelguide.net',
-    'spainvisa.eu', 'malagaturismo.com', 'festivaldemalaga.com',
-    'museosdemalaga.com', 'andalucia.com', 'rutasdelsol.es'
-  ],
-  finance: [
-    'bde.es', 'caa.co.uk', 'fred.stlouisfed.org', 'ecb.europa.eu',
-    'imf.org', 'numbeo.com'
-  ],
-  transportation: [
-    'aena.es', 'renfe.com', 'alsa.es', 'britishairways.com', 'aerlingus.com',
-    'iberia.com', 'ryanair.com', 'easyjet.com', 'jet2.com', 'vueling.com', 'tui.co.uk'
-  ],
-  education: [
-    'nabss.org', 'ibo.org', 'britishcouncil.es', 'alohacollege.com', 'sis.ac'
+  legal_professional: [
+    'abogadoespanol.com',
+    'legalservicesinspain.com',
+    'costaluzlawyers.es',
+    'spanishsolutions.net',
+    'lexidy.com',
+    'registradores.org',
+    'notariado.org',
+    'cec-spain.es',
+    'negociosabogados.com',
+    'nuevoleon.net',
+    'malagasolicitors.es'
   ],
   healthcare: [
-    'helicopterossanitarios.com', 'quironsalud.es', 'vithas.es', 'hospiten.com'
+    'sspa.juntadeandalucia.es',
+    'quironsalud.es',
+    'vithas.es',
+    'hospiten.com',
+    'helicopterossanitarios.com',
+    'medimar.com',
+    'nhs.uk',
+    'panoramamarbella.com',
+    'sanitas.com',
+    'citizensinformation.ie',
+    'juntadeandalucia.es',
+    'cofaes.es',
+    'andalucia.com'
+  ],
+  education: [
+    'nabss.org',
+    'ibo.org',
+    'britishcouncil.es',
+    'alohacollege.com',
+    'sis.ac',
+    'international-schools-database.com',
+    'uma.es',
+    'miuc.org',
+    'baleario.com',
+    'udc.es',
+    'spain.info',
+    'campusdelasol.uma.es',
+    'eoimalaga.com',
+    'ihmarbella.com',
+    'cit.es',
+    'escuelaeuropea.es',
+    'colegioatalaya.com'
+  ],
+  nature_outdoor: [
+    'caminodelrey.info',
+    'transandalus.com',
+    'strava.com',
+    'komoot.com',
+    'malagacyclingclub.com',
+    'coastalpath.net',
+    'bicicletasdelsol.com',
+    'cyclespain.net',
+    'outdooractive.com',
+    'diverland.es',
+    'senderismomalaga.com',
+    'telefericobenalmadena.com',
+    'actividadesmalaga.com',
+    'duomoturismo.com'
+  ],
+  gastronomy: [
+    'tastingspain.es',
+    'rutasdelvino.es',
+    'sherry.wine',
+    'vinomalaga.com',
+    'dopronda.es',
+    'michelin.com',
+    'alorenademalaga.com',
+    'atarazanasmarket.es',
+    'tasteatlas.com',
+    'gastronomiamalaga.com',
+    'lamelonera.com',
+    'slowfoodmalaga.com'
+  ],
+  sports_recreation: [
+    'padelfederacion.es',
+    'marbellaguide.com',
+    'worldpadeltour.com',
+    'clubpadelexterio.org',
+    'haciendadelalamo.com',
+    'padelclick.com',
+    'padelenred.com',
+    'benahavispadelacademy.com',
+    'vivagym.es',
+    'basic-fit.com',
+    'synergym.es',
+    'yogamarbella.com',
+    'yogaforlife.es',
+    'clubelcandado.com',
+    'puenteromano.com',
+    'reservadelhigueronresort.com'
+  ],
+  expat_resources: [
+    'expatarrivals.com',
+    'internations.org',
+    'britoninspain.com',
+    'spainexpat.com',
+    'renewspain.com',
+    'schengenvisainfo.com'
+  ],
+  finance: [
+    'bde.es',
+    'caa.co.uk',
+    'fred.stlouisfed.org',
+    'ecb.europa.eu',
+    'imf.org',
+    'numbeo.com'
+  ],
+  transportation: [
+    'aena.es',
+    'renfe.com',
+    'alsa.es',
+    'britishairways.com',
+    'aerlingus.com',
+    'iberia.com',
+    'ryanair.com',
+    'easyjet.com',
+    'jet2.com',
+    'vueling.com',
+    'tui.co.uk'
   ],
   telecom: [
-    'movistar.es', 'vodafone.es', 'orange.es', 'masmovil.com'
+    'movistar.es',
+    'vodafone.es',
+    'orange.es',
+    'masmovil.com'
   ],
-  local_govt: [
-    'marbella.es', 'fuengirola.es', 'torremolinos.es', 'benalmadena.es',
-    'mijas.es', 'estepona.es', 'manilva.es', 'casares.es',
-    'sanpedroalcantara.es', 'sotogrande.es'
+  local_government: [
+    'marbella.es',
+    'fuengirola.es',
+    'torremolinos.es',
+    'benalmadena.es',
+    'mijas.es',
+    'estepona.es',
+    'manilva.es',
+    'casares.es',
+    'sanpedroalcantara.es',
+    'sotogrande.es'
   ],
   shopping: [
-    'miramarcc.com', 'plazamayor.es', 'la-canada.com', 'elcorteingles.es',
-    'decathlon.es', 'ikea.com', 'leroymerlin.es'
+    'miramarcc.com',
+    'plazamayor.es',
+    'la-canada.com',
+    'elcorteingles.es',
+    'decathlon.es',
+    'ikea.com',
+    'leroymerlin.es'
   ],
-  sports_wellness: [
-    'vivagym.es', 'basic-fit.com', 'synergym.es', 'yogamarbella.com',
-    'yogaforlife.es', 'clubelcandado.com', 'puenteromano.com',
-    'reservadelhigueronresort.com'
+  sustainability: [
+    'agenciaandaluzadelaenergia.es',
+    'energy.ec.europa.eu',
+    'renewableenergyworld.com',
+    'wwf.es',
+    'benalmadena.es',
+    'malaga.eu',
+    'programmemaBiosfera.es',
+    'climateportugal.com',
+    'educasol.org'
   ]
 };
 

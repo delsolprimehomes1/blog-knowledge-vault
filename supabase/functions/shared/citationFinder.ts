@@ -71,7 +71,7 @@ async function selectPriorityDomains(language: string, focusArea?: string): Prom
   
   // 1. Always include top government sources (highest E-E-A-T authority)
   priorities.push(
-    ...APPROVED_DOMAINS.government.slice(0, 8) // Top 8 government sites
+    ...APPROVED_DOMAINS.government_official.slice(0, 8) // Top 8 government sites
   );
   
   // 2. Add regional/topic-specific news sources
@@ -90,7 +90,7 @@ async function selectPriorityDomains(language: string, focusArea?: string): Prom
   }
   
   // 3. Add legal sources (critical for property content)
-  priorities.push(...APPROVED_DOMAINS.legal.slice(0, 3));
+  priorities.push(...APPROVED_DOMAINS.legal_professional.slice(0, 3));
   
   // 4. Fill remaining slots with finance/economy sources
   const remaining = 20 - priorities.length;

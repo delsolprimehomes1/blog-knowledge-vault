@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { findBetterCitations, verifyCitations } from "../shared/citationFinder.ts";
+import { findCitationsWithCascade, verifyCitations } from "../shared/batchedCitationFinder.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,12 +32,12 @@ serve(async (req) => {
 
     console.log(`Finding better citations for: "${articleTopic}" (${articleLanguage})`);
 
-    // Find citations with Perplexity
-    const citations = await findBetterCitations(
+    // Find citations with cascading batch system
+    const citations = await findCitationsWithCascade(
       articleTopic,
       articleLanguage,
       articleContent,
-      currentCitations,
+      8, // Target 8 citations
       perplexityApiKey,
       focusArea
     );

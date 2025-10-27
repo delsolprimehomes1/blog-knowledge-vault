@@ -59,6 +59,7 @@ export const COMPETITOR_DOMAINS = [
   'panorama.es',
   'mpvillareal.com',
   'luxuryrealestate.com',
+  'bcpartners.es',
   
   // Other Regional Competitors
   'savills.es',
