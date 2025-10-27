@@ -26,15 +26,38 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Get user from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header required');
+    }
+
+    // Create a client with the user's token to get their ID
+    const userSupabase = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
+    );
+
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Unauthorized');
+    }
+
     const { preview = false, language = null, category = null, batchSize = 5 } = await req.json();
 
-    // Create job record
+    // Create job record WITH created_by
     const { data: job, error: jobError } = await supabase
       .from('bulk_recitation_jobs')
       .insert({
         status: 'running',
         progress_current: 0,
         progress_total: 0,
+        created_by: user.id,
       })
       .select()
       .single();
