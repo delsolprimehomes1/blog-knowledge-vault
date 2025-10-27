@@ -62,6 +62,47 @@ const languageConfig = {
 };
 
 /**
+ * Select top 20 priority domains based on article context
+ * Respects Perplexity API's 20-domain limit while prioritizing high-authority sources
+ */
+async function selectPriorityDomains(language: string, focusArea?: string): Promise<string[]> {
+  const { APPROVED_DOMAINS } = await import('./approvedDomains.ts');
+  const priorities: string[] = [];
+  
+  // 1. Always include top government sources (highest E-E-A-T authority)
+  priorities.push(
+    ...APPROVED_DOMAINS.government.slice(0, 8) // Top 8 government sites
+  );
+  
+  // 2. Add regional/topic-specific news sources
+  if (focusArea?.toLowerCase().includes('costa del sol') || 
+      focusArea?.toLowerCase().includes('malaga') ||
+      focusArea?.toLowerCase().includes('marbella') ||
+      focusArea?.toLowerCase().includes('andalucia')) {
+    priorities.push(
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es',
+      'malagaturismo.com'
+    );
+  } else {
+    priorities.push(...APPROVED_DOMAINS.news_media.slice(0, 4));
+  }
+  
+  // 3. Add legal sources (critical for property content)
+  priorities.push(...APPROVED_DOMAINS.legal.slice(0, 3));
+  
+  // 4. Fill remaining slots with finance/economy sources
+  const remaining = 20 - priorities.length;
+  if (remaining > 0) {
+    priorities.push(...APPROVED_DOMAINS.finance.slice(0, remaining));
+  }
+  
+  // Remove duplicates and enforce 20-domain limit
+  return [...new Set(priorities)].slice(0, 20);
+}
+
+/**
  * Find better, more authoritative citations for an article
  */
 export async function findBetterCitations(
@@ -84,9 +125,12 @@ export async function findBetterCitations(
     : '';
 
   const siteQuery = generateSiteQuery();
-  const approvedDomains = getAllApprovedDomains();
+  
+  // Select top 20 priority domains (Perplexity API limit)
+  const prioritizedDomains = await selectPriorityDomains(articleLanguage, focusArea);
+  const allApprovedDomains = getAllApprovedDomains();
 
-  console.log(`🔍 Citation search - Using ${approvedDomains.length} approved domains`);
+  console.log(`🔍 Citation search - Using ${prioritizedDomains.length} priority domains (${allApprovedDomains.length} total approved)`);
 
   const prompt = `You are an expert research assistant finding authoritative external sources for a ${config.name} language article.
 
@@ -153,7 +197,7 @@ Return only the JSON array, nothing else.`;
       ],
       temperature: 0.3,
       max_tokens: 3000,
-      search_domain_filter: approvedDomains, // ✅ API-level enforcement
+      search_domain_filter: prioritizedDomains, // Limited to 20 for API compliance
     }),
   });
 
