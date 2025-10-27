@@ -1,3 +1,4 @@
+import React from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +22,10 @@ import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, 
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 
 const BlogArticle = () => {
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
   const { slug } = useParams<{ slug: string }>();
 
   // Check if article is already pre-rendered in static HTML
