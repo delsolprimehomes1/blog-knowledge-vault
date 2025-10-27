@@ -654,7 +654,96 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       console.log(`[Job ${jobId}]   • Citation markers: ${citationCount}`);
       console.log(`[Job ${jobId}]   • H2 sections: ${h2Count}`);
 
-      // 7. FEATURED IMAGE (using existing generate-image function with enhanced prompt)
+      // 7. GENERATE FAQ ENTITIES
+      let faqEntities = null;
+      const shouldGenerateFAQ = plan.funnelStage === 'MOFU' || plan.funnelStage === 'BOFU';
+      
+      if (shouldGenerateFAQ) {
+        await updateProgress(supabase, jobId, 7, `Generating FAQ entities for article ${i + 1}...`, i + 1);
+
+        console.log(`[Job ${jobId}] 📝 Generating FAQ entities for ${plan.funnelStage} article...`);
+
+        const contentPreview = detailedContent
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .split(' ')
+          .slice(0, 1000)
+          .join(' ');
+
+        const faqPrompt = `Based on this article, generate 3-6 FAQ pairs that answer common questions readers would have.
+
+Article Details:
+- Headline: ${plan.headline}
+- Content Angle: ${plan.contentAngle}
+- Language: ${language}
+- Funnel Stage: ${plan.funnelStage}
+- Content Preview: ${contentPreview}
+
+Requirements:
+- Generate 3-6 question-answer pairs
+- Questions should be natural and conversational
+- Answers should be 100-200 words each
+- Include specific details from the article
+- Match the article's language (${language})
+- Focus on what readers at ${plan.funnelStage} stage would ask
+- For MOFU: comparison, process, timing questions
+- For BOFU: specific, actionable, decision-making questions
+
+Return ONLY valid JSON in this format:
+{
+  "faq_entities": [
+    {"question": "...", "answer": "..."}
+  ]
+}`;
+
+        try {
+          const faqResponse = await withTimeout(
+            fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: 'google/gemini-2.5-flash',
+                messages: [
+                  { role: 'system', content: 'You are an expert FAQ generator. Return only valid JSON with faq_entities array.' },
+                  { role: 'user', content: faqPrompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 2000
+              })
+            }),
+            45000,
+            'FAQ generation timeout'
+          );
+
+          if (!faqResponse.ok) {
+            console.warn(`[Job ${jobId}] ⚠️ FAQ generation failed with status ${faqResponse.status}`);
+          } else {
+            const faqData = await faqResponse.json();
+            const faqText = faqData.choices[0]?.message?.content || '';
+            const jsonMatch = faqText.match(/\{[\s\S]*\}/);
+            
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              faqEntities = parsed.faq_entities || [];
+              console.log(`[Job ${jobId}] ✅ Generated ${faqEntities.length} FAQ entities`);
+            }
+          }
+        } catch (error) {
+          console.warn(`[Job ${jobId}] ⚠️ FAQ generation error:`, error instanceof Error ? error.message : 'Unknown error');
+          // Continue without FAQs
+        }
+      } else {
+        console.log(`[Job ${jobId}] ⏭️ Skipping FAQ generation for TOFU article`);
+      }
+
+      // Assign FAQ entities to article
+      article.faq_entities = faqEntities || [];
+
+      // 8. FEATURED IMAGE (using existing generate-image function with enhanced prompt)
       const inferPropertyType = (contentAngle: string, headline: string) => {
         const text = (contentAngle + ' ' + headline).toLowerCase();
         if (text.includes('villa')) return 'luxury Mediterranean villa';

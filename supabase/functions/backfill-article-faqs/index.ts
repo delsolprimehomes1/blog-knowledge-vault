@@ -1,0 +1,194 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface FAQEntity {
+  question: string;
+  answer: string;
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
+
+    // Get articles without FAQs
+    const { data: articles, error: fetchError } = await supabaseClient
+      .from('blog_articles')
+      .select('id, slug, headline, detailed_content, meta_description, language, funnel_stage, status')
+      .eq('status', 'published')
+      .or('faq_entities.is.null,faq_entities.eq.[]');
+
+    if (fetchError) throw fetchError;
+    
+    console.log(`Found ${articles?.length || 0} articles without FAQs`);
+
+    const results = {
+      total: articles?.length || 0,
+      processed: 0,
+      success: 0,
+      failed: 0,
+      errors: [] as string[]
+    };
+
+    if (!articles || articles.length === 0) {
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'No articles need FAQs',
+        results
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Process articles in batches
+    for (const article of articles) {
+      results.processed++;
+      console.log(`[${results.processed}/${results.total}] Generating FAQs for: ${article.headline}`);
+
+      try {
+        // Extract first 1000 words of content for context
+        const contentPreview = article.detailed_content
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .split(' ')
+          .slice(0, 1000)
+          .join(' ');
+
+        const prompt = `Based on this article, generate 3-6 FAQ pairs that answer common questions readers would have.
+
+Article Details:
+- Headline: ${article.headline}
+- Description: ${article.meta_description}
+- Language: ${article.language}
+- Funnel Stage: ${article.funnel_stage}
+- Content Preview: ${contentPreview}
+
+Requirements:
+- Generate 3-6 question-answer pairs
+- Questions should be natural and conversational
+- Answers should be 100-200 words each
+- Include specific details from the article
+- Match the article's language (${article.language})
+- Focus on what readers at ${article.funnel_stage} stage would ask
+- For TOFU: informational, educational questions
+- For MOFU: comparison, process, timing questions  
+- For BOFU: specific, actionable, decision-making questions
+
+Return ONLY valid JSON in this format:
+{
+  "faq_entities": [
+    {"question": "...", "answer": "..."}
+  ]
+}`;
+
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: 'You are an expert FAQ generator. Return only valid JSON with faq_entities array.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 2000
+          })
+        });
+
+        if (!aiResponse.ok) {
+          throw new Error(`AI API error: ${aiResponse.status}`);
+        }
+
+        const aiData = await aiResponse.json();
+        const generatedText = aiData.choices[0]?.message?.content || '';
+        
+        // Parse JSON response
+        const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No valid JSON found in AI response');
+        }
+
+        const parsed = JSON.parse(jsonMatch[0]);
+        const faqEntities: FAQEntity[] = parsed.faq_entities || [];
+
+        // Validate FAQs
+        if (faqEntities.length < 3 || faqEntities.length > 6) {
+          throw new Error(`Invalid FAQ count: ${faqEntities.length}. Expected 3-6.`);
+        }
+
+        for (const faq of faqEntities) {
+          if (!faq.question || !faq.answer) {
+            throw new Error('FAQ missing question or answer');
+          }
+          const wordCount = faq.answer.split(/\s+/).length;
+          if (wordCount < 50 || wordCount > 250) {
+            console.warn(`FAQ answer word count ${wordCount} outside 100-200 range`);
+          }
+        }
+
+        // Update article with FAQs
+        const { error: updateError } = await supabaseClient
+          .from('blog_articles')
+          .update({ faq_entities: faqEntities })
+          .eq('id', article.id);
+
+        if (updateError) throw updateError;
+
+        console.log(`✅ Generated ${faqEntities.length} FAQs for article ${article.slug}`);
+        results.success++;
+
+      } catch (error) {
+        const errorMsg = `Failed for ${article.slug}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error(`❌ ${errorMsg}`);
+        results.failed++;
+        results.errors.push(errorMsg);
+      }
+
+      // Small delay to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    console.log(`\n📊 Final Results:`);
+    console.log(`   Total: ${results.total}`);
+    console.log(`   Success: ${results.success}`);
+    console.log(`   Failed: ${results.failed}`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Processed ${results.processed} articles. ${results.success} successful, ${results.failed} failed.`,
+      results
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Backfill error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+});

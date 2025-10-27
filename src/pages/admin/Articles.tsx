@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Edit, Eye, Trash2, Plus, AlertCircle } from "lucide-react";
+import { Search, Edit, Eye, Trash2, Plus, AlertCircle, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/use-toast";
 
 const Articles = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const Articles = () => {
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [funnelFilter, setFunnelFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isGeneratingFAQs, setIsGeneratingFAQs] = useState(false);
   const itemsPerPage = 20;
 
   const { data: articles, isLoading, error } = useQuery({
@@ -109,6 +111,46 @@ const Articles = () => {
     }
   };
 
+  // Calculate FAQ statistics
+  const faqStats = {
+    total: filteredArticles.length,
+    withFAQs: filteredArticles.filter(a => a.faq_entities && a.faq_entities.length > 0).length,
+    withoutFAQs: filteredArticles.filter(a => !a.faq_entities || a.faq_entities.length === 0).length,
+  };
+
+  const handleGenerateMissingFAQs = async () => {
+    setIsGeneratingFAQs(true);
+    try {
+      toast({
+        title: "Generating FAQs",
+        description: "Starting FAQ generation for articles without FAQs...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('backfill-article-faqs', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "FAQ Generation Complete",
+        description: data.message || "FAQs have been generated successfully",
+      });
+
+      // Refresh the article list
+      window.location.reload();
+    } catch (error) {
+      console.error('FAQ generation error:', error);
+      toast({
+        title: "FAQ Generation Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingFAQs(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -120,11 +162,55 @@ const Articles = () => {
               Manage your blog content ({filteredArticles.length} total)
             </p>
           </div>
-          <Button onClick={() => navigate('/admin/articles/new')} size="lg">
-            <Plus className="mr-2 h-5 w-5" />
-            Create Article
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/admin/articles/new')} size="lg">
+              <Plus className="mr-2 h-5 w-5" />
+              Create Article
+            </Button>
+          </div>
         </div>
+
+        {/* FAQ Statistics Card */}
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              FAQ Coverage Statistics
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Total Articles</p>
+                <p className="text-2xl font-bold">{faqStats.total}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">With FAQs</p>
+                <p className="text-2xl font-bold text-green-600">{faqStats.withFAQs}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Missing FAQs</p>
+                <p className="text-2xl font-bold text-amber-600">{faqStats.withoutFAQs}</p>
+              </div>
+            </div>
+            
+            {faqStats.withoutFAQs > 0 && (
+              <div className="flex items-center justify-between pt-4 border-t">
+                <p className="text-sm text-muted-foreground">
+                  {faqStats.withoutFAQs} article{faqStats.withoutFAQs !== 1 ? 's' : ''} missing FAQs
+                </p>
+                <Button 
+                  onClick={handleGenerateMissingFAQs}
+                  disabled={isGeneratingFAQs}
+                  variant="default"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {isGeneratingFAQs ? "Generating..." : "Generate Missing FAQs"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <Card>

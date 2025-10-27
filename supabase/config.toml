@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.cleanup-unused-citations]
 verify_jwt = false
+
+[functions.backfill-article-faqs]
+verify_jwt = false
