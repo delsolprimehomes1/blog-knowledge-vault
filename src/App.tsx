@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
-import { CookieConsent } from "@/components/CookieConsent";
 import Dashboard from "./pages/admin/Dashboard";
 import Articles from "./pages/admin/Articles";
 import Authors from "./pages/admin/Authors";
@@ -46,7 +45,6 @@ const App = () => (
       <BrowserRouter>
         {/* Analytics tracking - MUST be inside BrowserRouter */}
         <AnalyticsProvider />
-        <CookieConsent />
         
         <Routes>
           <Route path="/" element={<Navigate to="/blog" replace />} />
