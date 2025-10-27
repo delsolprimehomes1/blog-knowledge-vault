@@ -77,20 +77,18 @@ export const BuyersGuideDownload = ({ funnelStage, articleSlug }: BuyersGuideDow
         <Button
           onClick={handleDownload}
           className="
-            flex flex-col items-center gap-3
-            px-4 py-6 rounded-2xl
-            bg-gradient-to-b from-primary via-[hsl(42_58%_50%)] to-primary/90
+            flex flex-row items-center gap-3
+            px-6 py-4 rounded-full
+            bg-gray-900
             text-white font-bold text-sm tracking-wide
-            shadow-xl shadow-primary/30
+            shadow-xl shadow-black/30
             hover:shadow-2xl hover:scale-[1.03]
             transition-all duration-300
           "
           size="lg"
         >
+          <span>Download Guide</span>
           <Download className="w-5 h-5" />
-          <span className="[writing-mode:vertical-rl] rotate-180">
-            Download Guide
-          </span>
         </Button>
       </div>
     </div>
