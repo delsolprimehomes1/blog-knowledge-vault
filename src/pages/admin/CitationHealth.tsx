@@ -25,6 +25,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ChangePreviewModal } from "@/components/admin/ChangePreviewModal";
 import { BulkReplacementDialog } from "@/components/admin/BulkReplacementDialog";
 import { CitationHealthAnalysis } from "@/components/admin/CitationHealthAnalysis";
+import { NonApprovedCitationsPanel } from "@/components/admin/NonApprovedCitationsPanel";
 import { Progress } from "@/components/ui/progress";
 
 interface CitationHealth {
@@ -596,6 +597,7 @@ const CitationHealth = () => {
             <TabsTrigger value="pending">Pending ({replacements?.length || 0})</TabsTrigger>
             <TabsTrigger value="approved">Approved ({approvedReplacements?.length || 0})</TabsTrigger>
             <TabsTrigger value="applied">Applied ({appliedReplacements?.length || 0})</TabsTrigger>
+            <TabsTrigger value="non-approved">Non-Approved Sources</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending">
@@ -657,6 +659,10 @@ const CitationHealth = () => {
                 ))}
               </CardContent></Card>
             ) : <Card><CardContent className="py-12 text-center text-muted-foreground">No applied replacements</CardContent></Card>}
+          </TabsContent>
+
+          <TabsContent value="non-approved">
+            <NonApprovedCitationsPanel />
           </TabsContent>
         </Tabs>
 

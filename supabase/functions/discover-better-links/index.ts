@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { isCompetitor, getCompetitorReason } from "../shared/competitorBlacklist.ts";
 import { calculateAuthorityScore } from "../shared/authorityScoring.ts";
+import { isApprovedDomain } from "../shared/approvedDomains.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,7 +29,8 @@ serve(async (req) => {
       articleHeadline, 
       articleContent, 
       articleLanguage = 'en',
-      context 
+      context,
+      mustBeApproved = false  // New parameter to filter only approved domains
     } = await req.json();
 
     const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY');
@@ -149,23 +151,44 @@ Return only the JSON array, nothing else.`;
 
     // Filter out competitors
     console.log(`\n🔍 Filtering ${suggestions.length} suggestions for competitors...`);
-    const nonCompetitorSuggestions = suggestions.filter(suggestion => {
+    let filteredSuggestions = suggestions.filter(suggestion => {
       if (isCompetitor(suggestion.suggestedUrl)) {
         console.log(`❌ BLOCKED (Competitor): ${suggestion.suggestedUrl} - ${getCompetitorReason(suggestion.suggestedUrl)}`);
         return false;
       }
-      console.log(`✅ Passed: ${suggestion.suggestedUrl}`);
+      console.log(`✅ Passed competitor check: ${suggestion.suggestedUrl}`);
       return true;
     });
 
-    if (nonCompetitorSuggestions.length === 0) {
+    if (filteredSuggestions.length === 0) {
       throw new Error('All suggested sources were competitors. Please try different search terms.');
     }
 
-    console.log(`✅ ${nonCompetitorSuggestions.length}/${suggestions.length} suggestions passed competitor filter`);
+    console.log(`✅ ${filteredSuggestions.length}/${suggestions.length} suggestions passed competitor filter`);
+
+    // Additional filtering for approved domains if requested
+    if (mustBeApproved) {
+      console.log(`\n🔍 Filtering for approved domains only...`);
+      const approvedSuggestions = filteredSuggestions.filter(suggestion => {
+        const approved = isApprovedDomain(suggestion.suggestedUrl);
+        if (!approved) {
+          console.log(`❌ Not approved: ${suggestion.suggestedUrl}`);
+        } else {
+          console.log(`✅ Approved: ${suggestion.suggestedUrl}`);
+        }
+        return approved;
+      });
+
+      if (approvedSuggestions.length === 0) {
+        throw new Error('No approved domain alternatives found. The replacement must come from your approved list of 243 domains.');
+      }
+
+      console.log(`✅ ${approvedSuggestions.length}/${filteredSuggestions.length} suggestions from approved domains`);
+      filteredSuggestions = approvedSuggestions;
+    }
 
     // Score and sort by authority
-    const scoredSuggestions = nonCompetitorSuggestions.map(suggestion => {
+    const scoredSuggestions = filteredSuggestions.map(suggestion => {
       const scores = calculateAuthorityScore({
         url: suggestion.suggestedUrl,
         sourceName: suggestion.sourceName,
