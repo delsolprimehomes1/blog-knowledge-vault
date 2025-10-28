@@ -64,18 +64,103 @@ async function retryWithBackoff<T>(
   throw new Error(`Max retries exceeded for ${operationName}`);
 }
 
-// Safe JSON parsing to prevent "Unexpected end of JSON input" errors
-async function safeJsonParse(response: Response, context: string): Promise<any> {
+// Sanitize JSON response to fix common issues
+function sanitizeJsonResponse(text: string): string {
+  // Remove any BOM or zero-width characters
+  let sanitized = text.replace(/^\uFEFF/, '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+  
+  // Fix unescaped newlines in strings
+  sanitized = sanitized.replace(/([^\\])\n/g, '$1\\n');
+  
+  // Fix unescaped quotes in strings (basic attempt)
+  // This is tricky because we need to distinguish between JSON structure quotes and content quotes
+  
+  // Remove trailing commas before closing brackets/braces
+  sanitized = sanitized.replace(/,(\s*[}\]])/g, '$1');
+  
+  return sanitized;
+}
+
+// Safe JSON parsing with detailed error logging
+async function safeJsonParse(response: Response, context: string, jobId?: string): Promise<any> {
   try {
     const text = await response.text();
+    
     if (!text || text.trim() === '') {
       throw new Error(`Empty response body in ${context}`);
     }
-    return JSON.parse(text);
+    
+    const trimmed = text.trim();
+    
+    // Validate basic JSON structure
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      console.error(`[${jobId || 'unknown'}] Invalid JSON start in ${context}. First 200 chars:`, trimmed.substring(0, 200));
+      throw new Error(`Response doesn't start with { or [ in ${context}`);
+    }
+    
+    if (!trimmed.endsWith('}') && !trimmed.endsWith(']')) {
+      console.error(`[${jobId || 'unknown'}] Invalid JSON end in ${context}. Last 200 chars:`, trimmed.substring(trimmed.length - 200));
+      throw new Error(`Response doesn't end with } or ] in ${context} - may be truncated`);
+    }
+    
+    // Try parsing original first
+    try {
+      return JSON.parse(trimmed);
+    } catch (parseError) {
+      // Log the problematic JSON
+      console.error(`[${jobId || 'unknown'}] JSON parse error in ${context}:`, parseError);
+      console.error(`[${jobId || 'unknown'}] First 500 chars of response:`, trimmed.substring(0, 500));
+      console.error(`[${jobId || 'unknown'}] Last 200 chars of response:`, trimmed.substring(trimmed.length - 200));
+      
+      // Try sanitizing and parsing again
+      console.log(`[${jobId || 'unknown'}] Attempting to sanitize JSON...`);
+      const sanitized = sanitizeJsonResponse(trimmed);
+      
+      try {
+        return JSON.parse(sanitized);
+      } catch (sanitizeError) {
+        console.error(`[${jobId || 'unknown'}] Sanitization also failed:`, sanitizeError);
+        throw parseError; // Throw original error
+      }
+    }
   } catch (error) {
-    console.error(`JSON parsing failed in ${context}:`, error);
+    console.error(`[${jobId || 'unknown'}] JSON parsing failed in ${context}:`, error);
     throw new Error(`Failed to parse JSON in ${context}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+// Retry wrapper specifically for API calls with JSON responses
+async function retryApiCall<T>(
+  apiCallFn: () => Promise<Response>,
+  context: string,
+  jobId: string,
+  maxRetries: number = 2
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        const delay = 2000 * Math.pow(2, attempt - 1); // 2s, 4s
+        console.log(`[Job ${jobId}] Retry ${attempt}/${maxRetries} for ${context} after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      const response = await apiCallFn();
+      const data = await safeJsonParse(response, context, jobId);
+      return data;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`[Job ${jobId}] Attempt ${attempt + 1}/${maxRetries + 1} failed for ${context}:`, lastError.message);
+      
+      // If it's not a JSON parsing error, don't retry
+      if (!lastError.message.includes('JSON') && !lastError.message.includes('parse')) {
+        throw lastError;
+      }
+    }
+  }
+  
+  throw lastError || new Error(`Failed after ${maxRetries + 1} attempts: ${context}`);
 }
 
 // Content quality validation - Ensures articles meet minimum standards
@@ -306,10 +391,10 @@ Return ONLY valid JSON:
     // Send heartbeat after major operation
     await sendHeartbeat(supabase, jobId);
 
-    const structureData = await safeJsonParse(structureResponse, 'article structure generation');
+    const structureData = await safeJsonParse(structureResponse, 'article structure generation', jobId);
     const structureText = structureData.choices[0].message.content;
 
-    console.log('Raw AI response:', structureText); // Debug logging
+    console.log(`[Job ${jobId}] Raw AI response received, parsing structure...`);
 
     let articleStructures;
     try {
@@ -321,8 +406,8 @@ Return ONLY valid JSON:
         throw new Error('AI did not return valid article structures');
       }
     } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      console.error('Response text:', structureText);
+      console.error(`[Job ${jobId}] Failed to parse AI response:`, parseError);
+      console.error(`[Job ${jobId}] Response text:`, structureText);
       const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
       throw new Error(`Invalid AI response format: ${errorMessage}`);
     }
@@ -369,26 +454,34 @@ Return ONLY the category name exactly as shown above. No explanation, no JSON, j
       let finalCategory;
       
       try {
-        const categoryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
+        const categoryData: any = await retryApiCall(
+          async () => {
+            const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'google/gemini-2.5-flash',
+                max_tokens: 256,
+                messages: [{ role: 'user', content: categoryPrompt }],
+              }),
+            });
+            
+            if (!response.ok) {
+              if (response.status === 429 || response.status === 402) {
+                throw new Error(`Lovable AI error: ${response.status}`);
+              }
+            }
+            
+            return response;
           },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            max_tokens: 256,
-            messages: [{ role: 'user', content: categoryPrompt }],
-          }),
-        });
-
-        if (!categoryResponse.ok) {
-          if (categoryResponse.status === 429 || categoryResponse.status === 402) {
-            throw new Error(`Lovable AI error: ${categoryResponse.status}`);
-          }
-        }
-
-        const categoryData = await safeJsonParse(categoryResponse, 'category selection');
+          'category selection',
+          jobId,
+          2
+        );
+        
         const aiSelectedCategory = categoryData.choices[0].message.content.trim();
         
         // Validate AI response against database categories
@@ -452,24 +545,32 @@ Return ONLY valid JSON:
   "description": "Description with benefits and CTA (max 160 chars)"
 }`;
 
-      const seoResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
+      const seoData: any = await retryApiCall(
+        async () => {
+          const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              max_tokens: 512,
+              messages: [{ role: 'user', content: seoPrompt }],
+            }),
+          });
+
+          if (!response.ok && (response.status === 429 || response.status === 402)) {
+            throw new Error(`Lovable AI error: ${response.status}`);
+          }
+          
+          return response;
         },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          max_tokens: 512,
-          messages: [{ role: 'user', content: seoPrompt }],
-        }),
-      });
-
-      if (!seoResponse.ok && (seoResponse.status === 429 || seoResponse.status === 402)) {
-        throw new Error(`Lovable AI error: ${seoResponse.status}`);
-      }
-
-      const seoData = await safeJsonParse(seoResponse, 'SEO meta generation');
+        'SEO meta generation',
+        jobId,
+        2
+      );
+      
       const seoText = seoData.choices[0].message.content;
       const seoMeta = JSON.parse(seoText.replace(/```json\n?|\n?```/g, ''));
       
@@ -497,24 +598,32 @@ Example format:
 
 Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
 
-      const speakableResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
+      const speakableData: any = await retryApiCall(
+        async () => {
+          const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              max_tokens: 256,
+              messages: [{ role: 'user', content: speakablePrompt }],
+            }),
+          });
+
+          if (!response.ok && (response.status === 429 || response.status === 402)) {
+            throw new Error(`Lovable AI error: ${response.status}`);
+          }
+          
+          return response;
         },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          max_tokens: 256,
-          messages: [{ role: 'user', content: speakablePrompt }],
-        }),
-      });
-
-      if (!speakableResponse.ok && (speakableResponse.status === 429 || speakableResponse.status === 402)) {
-        throw new Error(`Lovable AI error: ${speakableResponse.status}`);
-      }
-
-      const speakableData = await safeJsonParse(speakableResponse, 'speakable answer generation');
+        'speakable answer generation',
+        jobId,
+        2
+      );
+      
       article.speakable_answer = speakableData.choices[0].message.content.trim();
 
       // 6. DETAILED CONTENT (1500-2500 words)
@@ -604,54 +713,59 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         timestamp: new Date().toISOString()
       });
 
-      const contentResponse = await withHeartbeat(
-        supabase,
+      const contentData: any = await retryApiCall(
+        async () => {
+          const response = await withHeartbeat(
+            supabase,
+            jobId,
+            withTimeout(
+              fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${LOVABLE_API_KEY!}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(aiRequestBody),
+              }),
+              120000, // 2 minutes
+              `Gemini Flash timeout after 2 minutes for article ${i + 1}`
+            )
+          );
+
+          console.log(`[Job ${jobId}] ✅ Lovable AI responded for article ${i + 1}:`, {
+            status: response.status,
+            statusText: response.statusText,
+            contentType: response.headers.get('content-type'),
+            timestamp: new Date().toISOString()
+          });
+
+          if (!response.ok) {
+            if (response.status === 429) {
+              throw new Error('Lovable AI rate limit exceeded. Please wait and try again.');
+            }
+            if (response.status === 402) {
+              throw new Error('Lovable AI credits depleted. Please add credits in workspace settings.');
+            }
+            
+            const responseClone = response.clone();
+            let errorText = 'Unknown error';
+            try {
+              errorText = await responseClone.text();
+            } catch (e) {
+              console.error(`[Job ${jobId}] Could not read error response:`, e);
+            }
+            
+            console.error(`[Job ${jobId}] Content generation failed for article ${i + 1}:`, response.status, errorText);
+            throw new Error(`Content generation failed: ${response.status} - ${errorText}`);
+          }
+
+          return response;
+        },
+        `content generation for article ${i + 1}`,
         jobId,
-        withTimeout(
-          fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY!}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(aiRequestBody),
-          }),
-          120000, // 2 minutes - Flash completes in 1-2 min
-          `Gemini Flash timeout after 2 minutes for article ${i + 1}`
-        )
+        2
       );
-
-      console.log(`[Job ${jobId}] ✅ Lovable AI responded for article ${i + 1}:`, {
-        status: contentResponse.status,
-        statusText: contentResponse.statusText,
-        contentType: contentResponse.headers.get('content-type'),
-        timestamp: new Date().toISOString()
-      });
-
-      // Clone response to allow multiple reads if needed
-      const responseClone = contentResponse.clone();
-
-      if (!contentResponse.ok) {
-        if (contentResponse.status === 429) {
-          throw new Error('Lovable AI rate limit exceeded. Please wait and try again.');
-        }
-        if (contentResponse.status === 402) {
-          throw new Error('Lovable AI credits depleted. Please add credits in workspace settings.');
-        }
-        
-        // Get error text from cloned response to prevent double-consumption
-        let errorText = 'Unknown error';
-        try {
-          errorText = await responseClone.text();
-        } catch (e) {
-          console.error(`[Job ${jobId}] Could not read error response:`, e);
-        }
-        
-        console.error(`[Job ${jobId}] Content generation failed for article ${i + 1}:`, contentResponse.status, errorText);
-        throw new Error(`Content generation failed: ${contentResponse.status} - ${errorText}`);
-      }
-
-      const contentData = await safeJsonParse(contentResponse, `content generation for article ${i + 1}`);
+      
       if (!contentData.choices?.[0]?.message?.content) {
         console.error(`[Job ${jobId}] Invalid content response for article ${i + 1}:`, contentData);
         throw new Error('Invalid content generation response');
@@ -724,39 +838,48 @@ Return ONLY valid JSON in this format:
 }`;
 
         try {
-          const faqResponse = await withTimeout(
-            fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                model: 'google/gemini-2.5-flash',
-                messages: [
-                  { role: 'system', content: 'You are an expert FAQ generator. Return only valid JSON with faq_entities array.' },
-                  { role: 'user', content: faqPrompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 2000
-              })
-            }),
-            45000,
-            'FAQ generation timeout'
-          );
+          const faqData: any = await retryApiCall(
+            async () => {
+              const response = await withTimeout(
+                fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    model: 'google/gemini-2.5-flash',
+                    messages: [
+                      { role: 'system', content: 'You are an expert FAQ generator. Return only valid JSON with faq_entities array.' },
+                      { role: 'user', content: faqPrompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2000
+                  })
+                }),
+                45000,
+                'FAQ generation timeout'
+              );
 
-          if (!faqResponse.ok) {
-            console.warn(`[Job ${jobId}] ⚠️ FAQ generation failed with status ${faqResponse.status}`);
-          } else {
-            const faqData = await safeJsonParse(faqResponse, 'FAQ generation');
-            const faqText = faqData.choices[0]?.message?.content || '';
-            const jsonMatch = faqText.match(/\{[\s\S]*\}/);
-            
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0]);
-              faqEntities = parsed.faq_entities || [];
-              console.log(`[Job ${jobId}] ✅ Generated ${faqEntities.length} FAQ entities`);
-            }
+              if (!response.ok) {
+                console.warn(`[Job ${jobId}] ⚠️ FAQ generation failed with status ${response.status}`);
+                throw new Error(`FAQ API error: ${response.status}`);
+              }
+              
+              return response;
+            },
+            'FAQ generation',
+            jobId,
+            2
+          );
+          
+          const faqText = faqData.choices[0]?.message?.content || '';
+          const jsonMatch = faqText.match(/\{[\s\S]*\}/);
+          
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            faqEntities = parsed.faq_entities || [];
+            console.log(`[Job ${jobId}] ✅ Generated ${faqEntities.length} FAQ entities`);
           }
         } catch (error) {
           console.warn(`[Job ${jobId}] ⚠️ FAQ generation error:`, error instanceof Error ? error.message : 'Unknown error');
@@ -1175,24 +1298,32 @@ Requirements:
 
 Return only the alt text, no quotes, no JSON.`;
 
-          const altResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
+          const altData: any = await retryApiCall(
+            async () => {
+              const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash',
+                  max_tokens: 256,
+                  messages: [{ role: 'user', content: altPrompt }],
+                }),
+              });
+
+              if (!response.ok && (response.status === 429 || response.status === 402)) {
+                throw new Error(`Lovable AI error: ${response.status}`);
+              }
+              
+              return response;
             },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              max_tokens: 256,
-              messages: [{ role: 'user', content: altPrompt }],
-            }),
-          });
-
-          if (!altResponse.ok && (altResponse.status === 429 || altResponse.status === 402)) {
-            throw new Error(`Lovable AI error: ${altResponse.status}`);
-          }
-
-          const altData = await safeJsonParse(altResponse, 'alt text generation');
+            'alt text generation',
+            jobId,
+            2
+          );
+          
           featuredImageAlt = altData.choices[0].message.content.trim();
           
           console.log(`✅ Contextual image generated:
@@ -1288,24 +1419,32 @@ Return ONLY valid JSON:
   "confidence": 90
 }`;
 
-          const authorResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
+          const authorData: any = await retryApiCall(
+            async () => {
+              const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash',
+                  max_tokens: 512,
+                  messages: [{ role: 'user', content: authorPrompt }],
+                }),
+              });
+
+              if (!response.ok && (response.status === 429 || response.status === 402)) {
+                throw new Error(`Lovable AI error: ${response.status}`);
+              }
+              
+              return response;
             },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              max_tokens: 512,
-              messages: [{ role: 'user', content: authorPrompt }],
-            }),
-          });
-
-          if (!authorResponse.ok && (authorResponse.status === 429 || authorResponse.status === 402)) {
-            throw new Error(`Lovable AI error: ${authorResponse.status}`);
-          }
-
-          const authorData = await safeJsonParse(authorResponse, 'author selection');
+            'author selection',
+            jobId,
+            2
+          );
+          
           const authorText = authorData.choices[0].message.content;
           const authorSuggestion = JSON.parse(authorText.replace(/```json\n?|\n?```/g, ''));
 
@@ -1466,28 +1605,36 @@ Return ONLY valid JSON:
 }`;
 
         try {
-          const faqResponse = await withTimeout(
-            fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'google/gemini-2.5-flash',
-                max_tokens: 2048,
-                messages: [{ role: 'user', content: faqPrompt }],
-              }),
-            }),
-            45000,
-            'FAQ generation timeout after 45 seconds'
+          const faqData: any = await retryApiCall(
+            async () => {
+              const response = await withTimeout(
+                fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    model: 'google/gemini-2.5-flash',
+                    max_tokens: 2048,
+                    messages: [{ role: 'user', content: faqPrompt }],
+                  }),
+                }),
+                45000,
+                'FAQ generation timeout after 45 seconds'
+              );
+
+              if (!response.ok && (response.status === 429 || response.status === 402)) {
+                throw new Error(`Lovable AI error: ${response.status}`);
+              }
+              
+              return response;
+            },
+            'FAQ generation for final articles',
+            jobId,
+            2
           );
-
-          if (!faqResponse.ok && (faqResponse.status === 429 || faqResponse.status === 402)) {
-            throw new Error(`Lovable AI error: ${faqResponse.status}`);
-          }
-
-          const faqData = await safeJsonParse(faqResponse, 'FAQ generation for final articles');
+          
           const faqText = faqData.choices[0].message.content;
           const faqResult = JSON.parse(faqText.replace(/```json\n?|\n?```/g, ''));
           article.faq_entities = faqResult.faqs;
