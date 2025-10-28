@@ -97,16 +97,22 @@ Return ONLY JSON: { "featuredImageAlt": "..." }`;
         break;
 
       case 'speakable':
-        prompt = `Regenerate the speakable answer (voice assistant response) for:
-Headline: ${articleData.headline}
-Current answer: ${articleData.speakable_answer}
+        prompt = `Write a 40-60 word speakable answer for this article in ${articleData.language}:
+
+Question: ${articleData.headline}
 Language: ${articleData.language}
 
 Requirements:
-- Conversational, natural tone
-- 50-80 words
-- Directly answers the main question
-- Includes key information
+- Write ENTIRELY in ${articleData.language} language
+- Conversational tone (use "you" and "your")
+- Present tense, active voice
+- Self-contained (no pronouns referring to previous context)
+- Actionable (tell reader what to DO)
+- No jargon
+- Exactly 40-60 words
+
+Example format:
+"To [action], you can [step 1], [step 2], and [step 3]. The process typically takes [timeframe] and [key benefit]. [Additional helpful detail]."
 
 Return ONLY JSON: { "speakableAnswer": "..." }`;
         break;

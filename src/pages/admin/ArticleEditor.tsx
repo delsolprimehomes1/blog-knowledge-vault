@@ -15,7 +15,7 @@ import { LazyRichTextEditor } from "@/components/LazyRichTextEditor";
 import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { DiagramGenerator } from "@/components/DiagramGenerator";
 import { toast } from "sonner";
-import { AlertCircle, Upload, Save, Eye, Loader2 } from "lucide-react";
+import { AlertCircle, Upload, Save, Eye, Loader2, RefreshCw } from "lucide-react";
 import { 
   generateSlug, 
   countWords, 
@@ -79,6 +79,7 @@ const ArticleEditor = () => {
 
   const [imageUploading, setImageUploading] = useState(false);
   const [isImageGenerating, setIsImageGenerating] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Fetch categories
@@ -236,6 +237,54 @@ const ArticleEditor = () => {
       toast.info("No auto-fixable issues found", {
         duration: 3000
       });
+    }
+  };
+
+  // Regenerate speakable answer
+  const handleRegenerateSpeakable = async () => {
+    if (!headline || !language) {
+      toast.error("Cannot regenerate: headline and language are required");
+      return;
+    }
+
+    try {
+      setIsRegenerating(true);
+      toast.info("Regenerating speakable answer...");
+
+      const { data, error } = await supabase.functions.invoke("regenerate-section", {
+        body: {
+          articleData: {
+            headline,
+            speakable_answer: speakableAnswer,
+            language,
+          },
+          section: "speakable",
+          clusterTopic: category || headline,
+        },
+      });
+
+      if (error) {
+        console.error("Regeneration error:", error);
+        throw error;
+      }
+
+      if (data?.updates?.speakable_answer) {
+        setSpeakableAnswer(data.updates.speakable_answer);
+        toast.success(`✨ Speakable answer regenerated in ${language.toUpperCase()}!`, {
+          duration: 4000,
+          description: "Remember to save your changes to update the article."
+        });
+      } else {
+        throw new Error("No speakable answer returned");
+      }
+    } catch (error: any) {
+      console.error("Failed to regenerate speakable answer:", error);
+      toast.error(
+        error.message || "Failed to regenerate speakable answer. Please try again.",
+        { duration: 5000 }
+      );
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -647,7 +696,38 @@ const ArticleEditor = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="speakableAnswer">Speakable Answer (40-60 words optimal) *</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="speakableAnswer">Speakable Answer (40-60 words optimal) *</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleRegenerateSpeakable}
+                        disabled={isRegenerating || !headline || !language}
+                        className="h-8"
+                      >
+                        {isRegenerating ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Regenerating...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Regenerate
+                          </>
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>AI will regenerate this answer in {language.toUpperCase()}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Textarea
                 id="speakableAnswer"
                 value={speakableAnswer}
