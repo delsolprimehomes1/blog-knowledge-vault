@@ -104,11 +104,13 @@ serve(async (req) => {
   }
 
   try {
-    const { headline, articleContent, diagramType } = await req.json();
+    const { headline, articleContent, diagramType, language = 'en' } = await req.json();
 
     if (!headline || !diagramType) {
       throw new Error('Missing required parameters: headline and diagramType');
     }
+
+    console.log('Generating diagram with language:', language);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -158,12 +160,13 @@ serve(async (req) => {
     const location = inferLocation(headline);
     const propertyType = inferPropertyType(headline);
     
+    const languageInstruction = language !== 'en' ? ` IN ${language.toUpperCase()} LANGUAGE` : '';
     const metadataPrompt = `Given this article headline: "${headline}"
 And this diagram type: "${diagramType}"
 And this location context: "${location}"
 And this property type: "${propertyType}"
 
-Generate SEO-optimized metadata for the diagram image in JSON format:
+Generate SEO-optimized metadata${languageInstruction} for the diagram image in JSON format:
 
 1. ALT TEXT (50-125 characters): Brief, keyword-rich description for screen readers and SEO
    - Include: diagram type, topic, location
@@ -196,10 +199,10 @@ Return ONLY valid JSON in this exact format:
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            {
-              role: "system",
-              content: "You are an SEO and accessibility expert. Generate concise, keyword-rich metadata for real estate diagrams. Return valid JSON only, no markdown or extra text."
-            },
+          {
+            role: "system",
+            content: `You are an SEO and accessibility expert. Generate concise, keyword-rich metadata for real estate diagrams${languageInstruction}. Return valid JSON only, no markdown or extra text.`
+          },
             {
               role: "user",
               content: metadataPrompt

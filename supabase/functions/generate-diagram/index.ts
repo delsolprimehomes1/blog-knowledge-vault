@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { content, headline, type } = await req.json();
+    const { content, headline, type, language = 'en' } = await req.json();
     
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
@@ -24,7 +24,8 @@ serve(async (req) => {
       throw new Error('Content parameter is required and must be a string');
     }
 
-    const prompt = `Analyze this real estate article and create a ${type} diagram in Mermaid syntax.
+    const languageInstruction = language !== 'en' ? ` IN ${language.toUpperCase()} LANGUAGE` : '';
+    const prompt = `Analyze this real estate article and create a ${type} diagram in Mermaid syntax${languageInstruction}.
 
 Article: "${headline}"
 Content: ${content.substring(0, 2000)}
@@ -58,7 +59,7 @@ Description: This diagram shows the process flow.`;
         messages: [
           {
             role: 'system',
-            content: 'You are a diagram expert. Generate valid Mermaid syntax for visualizations. Always wrap Mermaid code in ```mermaid blocks and provide a description.'
+            content: `You are a diagram expert. Generate valid Mermaid syntax for visualizations${languageInstruction}. Always wrap Mermaid code in \`\`\`mermaid blocks and provide a description.`
           },
           {
             role: 'user',

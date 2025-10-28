@@ -1132,7 +1132,7 @@ Return ONLY valid JSON in this format:
           const funnelIntent = plan.funnelStage === 'TOFU' ? 'awareness/lifestyle' : plan.funnelStage === 'MOFU' ? 'consideration/comparison' : 'decision/action';
           const funnelStyle = plan.funnelStage === 'TOFU' ? 'inspiring lifestyle' : plan.funnelStage === 'MOFU' ? 'detailed comparison' : 'professional consultation';
           
-          const altPrompt = `Create SEO-optimized alt text for this image:
+          const altPrompt = `Create SEO-optimized alt text IN ${language.toUpperCase()} LANGUAGE for this image:
 
 Article: ${plan.headline}
 Funnel Stage: ${plan.funnelStage} (${funnelIntent})
@@ -1204,6 +1204,7 @@ Return only the alt text, no quotes, no JSON.`;
               body: {
                 articleContent: article.detailed_content,
                 headline: plan.headline,
+                language: language,
               },
             }),
             60000,
