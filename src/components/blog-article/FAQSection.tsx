@@ -1,12 +1,19 @@
 import { FAQEntity } from "@/types/blog";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 interface FAQSectionProps {
   faqEntities: FAQEntity[];
 }
 
 export const FAQSection = ({ faqEntities }: FAQSectionProps) => {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
   if (!faqEntities || faqEntities.length === 0) return null;
+
+  const toggleFAQ = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
 
   return (
     <section 
@@ -18,31 +25,49 @@ export const FAQSection = ({ faqEntities }: FAQSectionProps) => {
         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
           <HelpCircle className="h-5 w-5 text-primary" />
         </div>
-        <h2 className="text-2xl md:text-3xl font-bold">Frequently Asked Question</h2>
+        <h2 className="text-2xl md:text-3xl font-bold">
+          Frequently Asked Questions
+        </h2>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {faqEntities.map((faq, index) => (
           <div 
             key={index}
             itemScope 
             itemProp="mainEntity" 
             itemType="https://schema.org/Question"
-            className="bg-background rounded-xl p-6 border border-border/50 shadow-sm"
+            className="bg-background rounded-xl border border-border/50 shadow-sm overflow-hidden transition-all"
           >
-            <h3 
-              className="faq-question text-lg md:text-xl font-semibold mb-4 text-foreground"
-              itemProp="name"
+            <button
+              onClick={() => toggleFAQ(index)}
+              className="w-full text-left p-6 flex items-center justify-between gap-4 hover:bg-muted/50 transition-colors"
+              aria-expanded={openIndex === index}
             >
-              {faq.question}
-            </h3>
+              <h3 
+                className="faq-question text-lg md:text-xl font-semibold text-foreground flex-1"
+                itemProp="name"
+              >
+                {faq.question}
+              </h3>
+              <ChevronDown 
+                className={`h-5 w-5 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${
+                  openIndex === index ? 'transform rotate-180' : ''
+                }`}
+              />
+            </button>
+            
             <div 
-              className="faq-answer prose prose-lg max-w-none text-muted-foreground leading-relaxed"
+              className={`faq-answer overflow-hidden transition-all duration-300 ease-in-out ${
+                openIndex === index ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
               itemScope 
               itemProp="acceptedAnswer" 
               itemType="https://schema.org/Answer"
             >
-              <p itemProp="text">{faq.answer}</p>
+              <div className="px-6 pb-6 prose prose-lg max-w-none text-muted-foreground leading-relaxed">
+                <p itemProp="text">{faq.answer}</p>
+              </div>
             </div>
           </div>
         ))}

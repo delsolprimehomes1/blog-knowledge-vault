@@ -837,9 +837,9 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       console.log(`[Job ${jobId}]   • Citation markers: ${citationCount}`);
       console.log(`[Job ${jobId}]   • H2 sections: ${h2Count}`);
 
-      // 7. GENERATE FAQ ENTITIES
+      // 7. GENERATE FAQ ENTITIES (for ALL funnel stages)
       let faqEntities = null;
-      const shouldGenerateFAQ = plan.funnelStage === 'MOFU' || plan.funnelStage === 'BOFU';
+      const shouldGenerateFAQ = true; // Generate FAQs for TOFU, MOFU, and BOFU
       
       if (shouldGenerateFAQ) {
         await updateProgress(supabase, jobId, 7, `Generating FAQ entities for article ${i + 1}...`, i + 1);
@@ -854,28 +854,34 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
           .slice(0, 1000)
           .join(' ');
 
-        const faqPrompt = `Based on this article, generate 3-6 FAQ pairs that answer common questions readers would have.
+        const faqPrompt = `Generate 3-5 frequently asked questions and detailed answers for this article:
 
-Article Details:
-- Headline: ${plan.headline}
-- Content Angle: ${plan.contentAngle}
-- Language: ${language}
-- Funnel Stage: ${plan.funnelStage}
-- Content Preview: ${contentPreview}
+Headline: ${plan.headline}
+Topic: ${topic}
+Funnel Stage: ${plan.funnelStage}
+Language: ${language}
+
+Content Summary:
+${contentPreview}
 
 Requirements:
-- Generate 3-6 question-answer pairs
-- Questions should be natural and conversational
-- Answers should be 100-200 words each
-- Include specific details from the article
+- Generate EXACTLY 3-5 questions (aim for 4-5 if possible)
+- Questions must be directly related to the article's specific topic
+- Answers should be 50-100 words each
 - Match the article's language (${language})
-- Focus on what readers at ${plan.funnelStage} stage would ask
-- For MOFU: comparison, process, timing questions
-- For BOFU: specific, actionable, decision-making questions
+- Focus on what readers at ${plan.funnelStage} stage would ask:
+  * TOFU: General awareness, "What is...", "Why does...", educational questions
+  * MOFU: Comparison, process, timing, "How to...", evaluation questions
+  * BOFU: Specific, actionable, decision-making, "Where to...", conversion questions
+- Use natural, conversational question phrasing
+- Ensure answers are accurate and helpful
 
 Return ONLY valid JSON in this format:
 {
   "faq_entities": [
+    {"question": "...", "answer": "..."},
+    {"question": "...", "answer": "..."},
+    {"question": "...", "answer": "..."},
     {"question": "...", "answer": "..."}
   ]
 }`;
@@ -897,7 +903,7 @@ Return ONLY valid JSON in this format:
                       { role: 'user', content: faqPrompt }
                     ],
                     temperature: 0.7,
-                    max_tokens: 2000
+                    max_tokens: 3000
                   })
                 }),
                 90000, // 90 seconds
@@ -929,8 +935,6 @@ Return ONLY valid JSON in this format:
           console.warn(`[Job ${jobId}] ⚠️ FAQ generation error:`, error instanceof Error ? error.message : 'Unknown error');
           // Continue without FAQs
         }
-      } else {
-        console.log(`[Job ${jobId}] ⏭️ Skipping FAQ generation for TOFU article`);
       }
 
       // Assign FAQ entities to article
