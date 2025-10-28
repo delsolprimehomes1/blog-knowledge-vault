@@ -420,10 +420,14 @@ Return ONLY valid JSON:
     let articleStructures;
     try {
       const parsed = JSON.parse(structureText.replace(/```json\n?|\n?```/g, ''));
-      // Handle both flat and nested responses
-      articleStructures = parsed.articles || parsed.contentCluster?.articles || [];
+      // Handle multiple possible field name variations
+      articleStructures = parsed.articles || 
+                         parsed.contentCluster?.articles || 
+                         parsed.contentClusterArticles || 
+                         [];
       
       if (!Array.isArray(articleStructures) || articleStructures.length === 0) {
+        console.error(`[Job ${jobId}] No article structures found. Parsed keys:`, Object.keys(parsed));
         throw new Error('AI did not return valid article structures');
       }
     } catch (parseError) {
