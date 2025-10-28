@@ -64,6 +64,20 @@ async function retryWithBackoff<T>(
   throw new Error(`Max retries exceeded for ${operationName}`);
 }
 
+// Safe JSON parsing to prevent "Unexpected end of JSON input" errors
+async function safeJsonParse(response: Response, context: string): Promise<any> {
+  try {
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      throw new Error(`Empty response body in ${context}`);
+    }
+    return JSON.parse(text);
+  } catch (error) {
+    console.error(`JSON parsing failed in ${context}:`, error);
+    throw new Error(`Failed to parse JSON in ${context}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 // Content quality validation - Ensures articles meet minimum standards
 function validateContentQuality(article: any, plan: any): {
   isValid: boolean;
@@ -292,7 +306,7 @@ Return ONLY valid JSON:
     // Send heartbeat after major operation
     await sendHeartbeat(supabase, jobId);
 
-    const structureData = await structureResponse.json();
+    const structureData = await safeJsonParse(structureResponse, 'article structure generation');
     const structureText = structureData.choices[0].message.content;
 
     console.log('Raw AI response:', structureText); // Debug logging
@@ -374,7 +388,7 @@ Return ONLY the category name exactly as shown above. No explanation, no JSON, j
           }
         }
 
-        const categoryData = await categoryResponse.json();
+        const categoryData = await safeJsonParse(categoryResponse, 'category selection');
         const aiSelectedCategory = categoryData.choices[0].message.content.trim();
         
         // Validate AI response against database categories
@@ -455,7 +469,7 @@ Return ONLY valid JSON:
         throw new Error(`Lovable AI error: ${seoResponse.status}`);
       }
 
-      const seoData = await seoResponse.json();
+      const seoData = await safeJsonParse(seoResponse, 'SEO meta generation');
       const seoText = seoData.choices[0].message.content;
       const seoMeta = JSON.parse(seoText.replace(/```json\n?|\n?```/g, ''));
       
@@ -500,7 +514,7 @@ Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
         throw new Error(`Lovable AI error: ${speakableResponse.status}`);
       }
 
-      const speakableData = await speakableResponse.json();
+      const speakableData = await safeJsonParse(speakableResponse, 'speakable answer generation');
       article.speakable_answer = speakableData.choices[0].message.content.trim();
 
       // 6. DETAILED CONTENT (1500-2500 words)
@@ -610,8 +624,12 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       console.log(`[Job ${jobId}] ✅ Lovable AI responded for article ${i + 1}:`, {
         status: contentResponse.status,
         statusText: contentResponse.statusText,
+        contentType: contentResponse.headers.get('content-type'),
         timestamp: new Date().toISOString()
       });
+
+      // Clone response to allow multiple reads if needed
+      const responseClone = contentResponse.clone();
 
       if (!contentResponse.ok) {
         if (contentResponse.status === 429) {
@@ -620,12 +638,20 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
         if (contentResponse.status === 402) {
           throw new Error('Lovable AI credits depleted. Please add credits in workspace settings.');
         }
-        const errorText = await contentResponse.text();
+        
+        // Get error text from cloned response to prevent double-consumption
+        let errorText = 'Unknown error';
+        try {
+          errorText = await responseClone.text();
+        } catch (e) {
+          console.error(`[Job ${jobId}] Could not read error response:`, e);
+        }
+        
         console.error(`[Job ${jobId}] Content generation failed for article ${i + 1}:`, contentResponse.status, errorText);
-        throw new Error(`Content generation failed: ${contentResponse.status}`);
+        throw new Error(`Content generation failed: ${contentResponse.status} - ${errorText}`);
       }
 
-      const contentData = await contentResponse.json();
+      const contentData = await safeJsonParse(contentResponse, `content generation for article ${i + 1}`);
       if (!contentData.choices?.[0]?.message?.content) {
         console.error(`[Job ${jobId}] Invalid content response for article ${i + 1}:`, contentData);
         throw new Error('Invalid content generation response');
@@ -722,7 +748,7 @@ Return ONLY valid JSON in this format:
           if (!faqResponse.ok) {
             console.warn(`[Job ${jobId}] ⚠️ FAQ generation failed with status ${faqResponse.status}`);
           } else {
-            const faqData = await faqResponse.json();
+            const faqData = await safeJsonParse(faqResponse, 'FAQ generation');
             const faqText = faqData.choices[0]?.message?.content || '';
             const jsonMatch = faqText.match(/\{[\s\S]*\}/);
             
@@ -1166,7 +1192,7 @@ Return only the alt text, no quotes, no JSON.`;
             throw new Error(`Lovable AI error: ${altResponse.status}`);
           }
 
-          const altData = await altResponse.json();
+          const altData = await safeJsonParse(altResponse, 'alt text generation');
           featuredImageAlt = altData.choices[0].message.content.trim();
           
           console.log(`✅ Contextual image generated:
@@ -1279,7 +1305,7 @@ Return ONLY valid JSON:
             throw new Error(`Lovable AI error: ${authorResponse.status}`);
           }
 
-          const authorData = await authorResponse.json();
+          const authorData = await safeJsonParse(authorResponse, 'author selection');
           const authorText = authorData.choices[0].message.content;
           const authorSuggestion = JSON.parse(authorText.replace(/```json\n?|\n?```/g, ''));
 
@@ -1461,7 +1487,7 @@ Return ONLY valid JSON:
             throw new Error(`Lovable AI error: ${faqResponse.status}`);
           }
 
-          const faqData = await faqResponse.json();
+          const faqData = await safeJsonParse(faqResponse, 'FAQ generation for final articles');
           const faqText = faqData.choices[0].message.content;
           const faqResult = JSON.parse(faqText.replace(/```json\n?|\n?```/g, ''));
           article.faq_entities = faqResult.faqs;
