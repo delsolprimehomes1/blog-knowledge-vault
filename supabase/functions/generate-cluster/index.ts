@@ -616,13 +616,14 @@ Return ONLY valid JSON:
       article.canonical_url = null;
 
       // 5. SPEAKABLE ANSWER (40-60 words)
-      const speakablePrompt = `Write a 40-60 word speakable answer for this article:
+      const speakablePrompt = `Write a 40-60 word speakable answer for this article in ${language}:
 
 Question: ${plan.headline}
 Target Keyword: ${plan.targetKeyword}
 Content Focus: ${plan.contentAngle}
 
 Requirements:
+- Write ENTIRELY in ${language} language
 - Conversational tone (use "you" and "your")
 - Present tense, active voice
 - Self-contained (no pronouns referring to previous context)
@@ -633,7 +634,7 @@ Requirements:
 Example format:
 "To [action], you can [step 1], [step 2], and [step 3]. The process typically takes [timeframe] and [key benefit]. [Additional helpful detail]."
 
-Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
+Return ONLY the speakable text in ${language}, no JSON, no formatting, no quotes.`;
 
       const speakableData: any = await retryApiCall(
         async () => {
