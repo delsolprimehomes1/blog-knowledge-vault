@@ -44,6 +44,7 @@ interface ArticleReviewCardProps {
   onRemoveCitation: (index: number) => void;
   onRemoveInternalLink: (index: number) => void;
   isRegenerating?: boolean;
+  slugValidation?: Map<string, boolean>;
 }
 
 export const ArticleReviewCard = ({
@@ -56,6 +57,7 @@ export const ArticleReviewCard = ({
   onRemoveCitation,
   onRemoveInternalLink,
   isRegenerating = false,
+  slugValidation,
 }: ArticleReviewCardProps) => {
   const [expandedContent, setExpandedContent] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
@@ -165,10 +167,16 @@ export const ArticleReviewCard = ({
               <Input 
                 value={article.slug || ''}
                 onChange={(e) => onEdit({ slug: e.target.value })}
+                className={article.slug && !slugValidation?.get(article.slug) ? 'border-destructive' : ''}
               />
               <p className="text-xs text-muted-foreground">
                 https://delsolprimehomes.com/blog/{article.slug || 'your-slug'}
               </p>
+              {article.slug && !slugValidation?.get(article.slug) && (
+                <p className="text-xs text-destructive">
+                  ⚠️ This slug already exists. Please change it to make it unique.
+                </p>
+              )}
             </div>
 
             {/* Meta Title */}

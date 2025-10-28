@@ -331,6 +331,57 @@ async function getCompletedArticles(supabase: any, jobId: string): Promise<any[]
   }
 }
 
+// Generate unique slug by checking database and appending counter if needed
+async function generateUniqueSlug(
+  supabase: any, 
+  baseHeadline: string, 
+  jobId: string
+): Promise<string> {
+  // Generate base slug from headline
+  const baseSlug = baseHeadline
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  
+  // Check if base slug exists
+  const { data: existing } = await supabase
+    .from('blog_articles')
+    .select('slug')
+    .eq('slug', baseSlug)
+    .maybeSingle();
+  
+  if (!existing) {
+    console.log(`[Job ${jobId}] ✅ Slug available: "${baseSlug}"`);
+    return baseSlug; // Base slug is available
+  }
+  
+  // Base slug exists, find next available counter
+  console.log(`[Job ${jobId}] ⚠️ Slug collision detected: "${baseSlug}"`);
+  
+  const { data: similarSlugs } = await supabase
+    .from('blog_articles')
+    .select('slug')
+    .like('slug', `${baseSlug}%`)
+    .order('slug');
+  
+  // Find the highest counter
+  let maxCounter = 0;
+  const pattern = new RegExp(`^${baseSlug}-(\\d+)$`);
+  
+  similarSlugs?.forEach((row: any) => {
+    const match = row.slug.match(pattern);
+    if (match) {
+      maxCounter = Math.max(maxCounter, parseInt(match[1]));
+    }
+  });
+  
+  // Return next available slug with counter
+  const uniqueSlug = `${baseSlug}-${maxCounter + 1}`;
+  console.log(`[Job ${jobId}] 🔄 Slug resolution: "${baseSlug}" → "${uniqueSlug}"`);
+  
+  return uniqueSlug;
+}
+
 // Main generation function (runs in background)
 async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string, findInternalLinks: boolean = true) {
   const OVERALL_TIMEOUT = 20 * 60 * 1000; // 20 minutes max for entire generation
@@ -535,11 +586,8 @@ Return ONLY valid JSON:
       // 1. HEADLINE
       article.headline = plan.headline;
 
-      // 2. SLUG
-      article.slug = plan.headline
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
+      // 2. SLUG (with uniqueness check)
+      article.slug = await generateUniqueSlug(supabase, plan.headline, jobId);
 
       // 3. CATEGORY (AI-based selection from exact database categories)
       const validCategoryNames = (categories || []).map(c => c.name);

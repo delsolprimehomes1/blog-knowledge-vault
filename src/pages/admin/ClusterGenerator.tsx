@@ -435,18 +435,58 @@ const ClusterGenerator = () => {
     }
   };
 
+  // Pre-save validation: Check for duplicate slugs
+  const validateSlugsBeforeSave = async (articles: Partial<BlogArticle>[]) => {
+    const slugsToCheck = articles.map(a => a.slug).filter(Boolean);
+    
+    const { data: existingSlugs } = await supabase
+      .from('blog_articles')
+      .select('slug, headline')
+      .in('slug', slugsToCheck);
+    
+    if (existingSlugs && existingSlugs.length > 0) {
+      const conflicts = existingSlugs.map(e => ({
+        slug: e.slug,
+        existingHeadline: e.headline,
+        newHeadline: articles.find(a => a.slug === e.slug)?.headline
+      }));
+      
+      return {
+        isValid: false,
+        conflicts
+      };
+    }
+    
+    return { isValid: true, conflicts: [] };
+  };
+
   const handleSaveAll = async () => {
     try {
       console.log('Saving', generatedArticles.length, 'articles to database...');
       
-      // Step 1: Get current user
+      // Step 1: Validate slugs before saving
+      const validation = await validateSlugsBeforeSave(generatedArticles);
+      
+      if (!validation.isValid) {
+        const conflictList = validation.conflicts
+          .map(c => `  • "${c.slug}" conflicts with existing article "${c.existingHeadline}"`)
+          .join('\n');
+        
+        toast.error(
+          `Cannot save: Slug conflicts detected\n${conflictList}`,
+          { duration: 10000 }
+        );
+        return;
+      }
+      
+      // Step 2: Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         toast.error('You must be logged in to save articles');
         return;
       }
       
-      // Step 2: Validate author IDs
+      // Step 3: Validate author IDs
       const articlesWithInvalidAuthors = generatedArticles.filter(a => !a.author_id);
       if (articlesWithInvalidAuthors.length > 0) {
         console.warn(`Found ${articlesWithInvalidAuthors.length} articles with missing author_id`);
@@ -562,7 +602,22 @@ const ClusterGenerator = () => {
   };
 
   const handlePublishAll = async () => {
-    // STEP 1: Validate links before publishing
+    // STEP 1: Validate slugs before publishing
+    const slugValidation = await validateSlugsBeforeSave(generatedArticles);
+    
+    if (!slugValidation.isValid) {
+      const conflictList = slugValidation.conflicts
+        .map(c => `  • "${c.slug}" conflicts with existing article "${c.existingHeadline}"`)
+        .join('\n');
+      
+      toast.error(
+        `Cannot publish: Slug conflicts detected\n${conflictList}`,
+        { duration: 10000 }
+      );
+      return;
+    }
+    
+    // STEP 2: Validate links before publishing
     const results = validateAllArticles(generatedArticles);
     const allValid = Array.from(results.values()).every(r => r.isValid);
 
@@ -575,14 +630,14 @@ const ClusterGenerator = () => {
     try {
       console.log('Publishing', generatedArticles.length, 'articles...');
       
-      // Step 2: Get current user
+      // Step 3: Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         toast.error('You must be logged in to publish articles');
         return;
       }
       
-      // Step 2: Validate author IDs
+      // Step 4: Validate author IDs
       const articlesWithInvalidAuthors = generatedArticles.filter(a => !a.author_id);
       if (articlesWithInvalidAuthors.length > 0) {
         console.warn(`Found ${articlesWithInvalidAuthors.length} articles with missing author_id`);

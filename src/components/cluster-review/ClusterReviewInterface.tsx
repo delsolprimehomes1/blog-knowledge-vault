@@ -38,13 +38,43 @@ export const ClusterReviewInterface = ({
   const [isFixingCitations, setIsFixingCitations] = useState(false);
   const [validationResults, setValidationResults] = useState<Map<string, LinkValidationResult>>(new Map());
   const [isFixingLinks, setIsFixingLinks] = useState(false);
+  const [slugValidation, setSlugValidation] = useState<Map<string, boolean>>(new Map());
 
   const currentArticle = articles[activeTab];
+
+  // Real-time slug checker
+  const checkSlugAvailability = async (slug: string) => {
+    if (!slug) return true;
+    
+    const { data } = await supabase
+      .from('blog_articles')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+    
+    const isAvailable = !data;
+    setSlugValidation(prev => new Map(prev).set(slug, isAvailable));
+    
+    return isAvailable;
+  };
 
   // Validate links whenever articles change
   useEffect(() => {
     const results = validateAllArticles(articles);
     setValidationResults(results);
+  }, [articles]);
+
+  // Debounced slug validation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      articles.forEach((article) => {
+        if (article.slug) {
+          checkSlugAvailability(article.slug);
+        }
+      });
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, [articles]);
 
   // Count articles needing citations
@@ -415,6 +445,21 @@ export const ClusterReviewInterface = ({
       </ScrollArea>
 
       {/* Article Review Card */}
+      {currentArticle.slug && !slugValidation.get(currentArticle.slug) && (
+        <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <h3 className="font-semibold text-destructive mb-1">Duplicate Slug Detected</h3>
+              <p className="text-sm text-muted-foreground">
+                The slug "<code className="bg-muted px-1 py-0.5 rounded">{currentArticle.slug}</code>" already exists in the database. 
+                Please edit it in the Basic Info section below to make it unique before saving.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <ArticleReviewCard
         article={currentArticle}
         allArticles={allArticles}
@@ -435,6 +480,7 @@ export const ClusterReviewInterface = ({
           updateArticle(activeTab, { internal_links: newLinks as any });
         }}
         isRegenerating={isRegenerating}
+        slugValidation={slugValidation}
       />
 
       {/* Bulk Actions */}
