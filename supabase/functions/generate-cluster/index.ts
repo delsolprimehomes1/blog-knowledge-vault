@@ -265,7 +265,7 @@ async function withHeartbeat<T>(
 }
 
 // Main generation function (runs in background)
-async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
+async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string, findInternalLinks: boolean = true) {
   const OVERALL_TIMEOUT = 20 * 60 * 1000; // 20 minutes max for entire generation
   const startTime = Date.now();
   
@@ -1735,93 +1735,102 @@ Return ONLY valid JSON:
 
     // STEP 3: Find internal links between cluster articles
     
-    for (let i = 0; i < articles.length; i++) {
-      try {
-        const article = articles[i];
-        
-        // Pass other articles as available articles (excluding current)
-        const otherArticles = articles
-          .filter((a: any, idx: number) => idx !== i)
-          .map((a: any) => ({
-            id: `temp-${a.slug}`,
-            slug: a.slug,
-            headline: a.headline,
-            speakable_answer: a.speakable_answer,
-            category: a.category,
-            funnel_stage: a.funnel_stage,
-            language: a.language,
-          }));
+    if (findInternalLinks) {
+      console.log(`[Job ${jobId}] --- Step 8: Finding internal links ---`);
+      await updateProgress(supabase, jobId, 8, 'Finding internal links...');
+      
+      for (let i = 0; i < articles.length; i++) {
+        try {
+          const article = articles[i];
+          
+          // Pass other articles as available articles (excluding current)
+          const otherArticles = articles
+            .filter((a: any, idx: number) => idx !== i)
+            .map((a: any) => ({
+              id: `temp-${a.slug}`,
+              slug: a.slug,
+              headline: a.headline,
+              speakable_answer: a.speakable_answer,
+              category: a.category,
+              funnel_stage: a.funnel_stage,
+              language: a.language,
+            }));
 
-        console.log(`[Job ${jobId}] Finding internal links for article ${i+1}/${articles.length}: "${article.headline}" (${article.language})`);
-        console.log(`[Job ${jobId}] Available articles for linking: ${otherArticles.length} articles, all in ${article.language}`);
+          console.log(`[Job ${jobId}] Finding internal links for article ${i+1}/${articles.length}: "${article.headline}" (${article.language})`);
+          console.log(`[Job ${jobId}] Available articles for linking: ${otherArticles.length} articles, all in ${article.language}`);
 
-        const linksResponse = await withTimeout(
-          supabase.functions.invoke('find-internal-links', {
-            body: {
-              content: article.detailed_content,
-              headline: article.headline,
-              currentArticleId: `temp-${article.slug}`,
-              language: article.language,
-              funnelStage: article.funnel_stage,
-              availableArticles: otherArticles,
-            },
-          }),
-          60000,  // 60 seconds timeout
-          `Internal links generation timeout for article ${i+1} "${article.headline}"`,
-          jobId
-        );
+          const linksResponse = await withTimeout(
+            supabase.functions.invoke('find-internal-links', {
+              body: {
+                content: article.detailed_content,
+                headline: article.headline,
+                currentArticleId: `temp-${article.slug}`,
+                language: article.language,
+                funnelStage: article.funnel_stage,
+                availableArticles: otherArticles,
+              },
+            }),
+            60000,  // 60 seconds timeout
+            `Internal links generation timeout for article ${i+1} "${article.headline}"`,
+            jobId
+          );
 
-        if (linksResponse.error) {
-          console.error(`[Job ${jobId}] Internal links error for article ${i+1}:`, linksResponse.error);
-        }
-
-        if (linksResponse.data?.links && linksResponse.data.links.length > 0) {
-          console.log(`[Job ${jobId}] Found ${linksResponse.data.links.length} internal links for "${article.headline}"`);
-          if (linksResponse.data.links.length > 0) {
-            console.log(`[Job ${jobId}] Sample link: "${linksResponse.data.links[0].text}" -> ${linksResponse.data.links[0].title}`);
+          if (linksResponse.error) {
+            console.error(`[Job ${jobId}] Internal links error for article ${i+1}:`, linksResponse.error);
           }
-          const links = linksResponse.data.links;
-          
-          // Insert links into content
-          let updatedContent = article.detailed_content;
-          
-          for (const link of links) {
-            if (link.insertAfterHeading) {
-              const headingRegex = new RegExp(
-                `<h2[^>]*>\\s*${link.insertAfterHeading}\\s*</h2>`,
-                'i'
-              );
-              
-              const match = updatedContent.match(headingRegex);
-              if (match && match.index !== undefined) {
-                const headingIndex = match.index + match[0].length;
-                const afterHeading = updatedContent.substring(headingIndex);
-                const nextParagraphMatch = afterHeading.match(/<p>/);
+
+          if (linksResponse.data?.links && linksResponse.data.links.length > 0) {
+            console.log(`[Job ${jobId}] Found ${linksResponse.data.links.length} internal links for "${article.headline}"`);
+            if (linksResponse.data.links.length > 0) {
+              console.log(`[Job ${jobId}] Sample link: "${linksResponse.data.links[0].text}" -> ${linksResponse.data.links[0].title}`);
+            }
+            const links = linksResponse.data.links;
+            
+            // Insert links into content
+            let updatedContent = article.detailed_content;
+            
+            for (const link of links) {
+              if (link.insertAfterHeading) {
+                const headingRegex = new RegExp(
+                  `<h2[^>]*>\\s*${link.insertAfterHeading}\\s*</h2>`,
+                  'i'
+                );
                 
-                if (nextParagraphMatch && nextParagraphMatch.index !== undefined) {
-                  const insertPoint = headingIndex + nextParagraphMatch.index + 3;
+                const match = updatedContent.match(headingRegex);
+                if (match && match.index !== undefined) {
+                  const headingIndex = match.index + match[0].length;
+                  const afterHeading = updatedContent.substring(headingIndex);
+                  const nextParagraphMatch = afterHeading.match(/<p>/);
                   
-                  const linkHtml = `For more details, check out our guide on <a href="${link.url}" title="${link.title}">${link.text}</a>. `;
-                  
-                  updatedContent = updatedContent.substring(0, insertPoint) + 
-                                 linkHtml + 
-                                 updatedContent.substring(insertPoint);
+                  if (nextParagraphMatch && nextParagraphMatch.index !== undefined) {
+                    const insertPoint = headingIndex + nextParagraphMatch.index + 3;
+                    
+                    const linkHtml = `For more details, check out our guide on <a href="${link.url}" title="${link.title}">${link.text}</a>. `;
+                    
+                    updatedContent = updatedContent.substring(0, insertPoint) + 
+                                   linkHtml + 
+                                   updatedContent.substring(insertPoint);
+                  }
                 }
               }
             }
+            
+            article.detailed_content = updatedContent;
+            article.internal_links = links.map((l: any) => ({
+              text: l.text,
+              url: l.url,
+              title: l.title,
+            }));
           }
-          
-          article.detailed_content = updatedContent;
-          article.internal_links = links.map((l: any) => ({
-            text: l.text,
-            url: l.url,
-            title: l.title,
-          }));
+        } catch (error) {
+          console.error(`Internal links failed for article ${i + 1}:`, error);
         }
-      } catch (error) {
-        console.error(`Internal links failed for article ${i + 1}:`, error);
       }
+    } else {
+      console.log(`[Job ${jobId}] ⏭️ Skipping internal links (user opted out)`);
+      await updateProgress(supabase, jobId, 8, 'Skipping internal links...');
     }
+
 
     checkTimeout(); // Check after internal links
     // STEP 4: Link articles in funnel progression
@@ -1926,7 +1935,7 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, language, targetAudience, primaryKeyword } = await req.json();
+    const { topic, language, targetAudience, primaryKeyword, findInternalLinks = true } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -1974,7 +1983,7 @@ serve(async (req) => {
     EdgeRuntime.waitUntil(
       (async () => {
         try {
-          await generateCluster(job.id, topic, language, targetAudience, primaryKeyword);
+          await generateCluster(job.id, topic, language, targetAudience, primaryKeyword, findInternalLinks);
         } catch (error) {
           console.error(`[Job ${job.id}] 🚨 FATAL ERROR - generateCluster crashed:`, {
             errorType: error?.constructor?.name,

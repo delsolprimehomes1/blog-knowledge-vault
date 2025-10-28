@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, Check, Loader2 } from "lucide-react";
@@ -54,6 +55,7 @@ const ClusterGenerator = () => {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [generationStartTime, setGenerationStartTime] = useState<number>(0);
   const [lastBackendUpdate, setLastBackendUpdate] = useState<Date | null>(null);
+  const [findInternalLinks, setFindInternalLinks] = useState(true);
 
   // Check for saved backup on mount
   useEffect(() => {
@@ -350,7 +352,7 @@ const ClusterGenerator = () => {
       { id: 'mofu2', name: 'Creating MOFU Article 2', message: 'Generating content...', status: 'pending' },
       { id: 'bofu', name: 'Creating BOFU Article', message: 'Generating content...', status: 'pending' },
       { id: 'images', name: 'Generating images', message: 'Creating visuals for all articles', status: 'pending' },
-      { id: 'internal', name: 'Finding internal links', message: 'Connecting articles across cluster', status: 'pending' },
+      ...(findInternalLinks ? [{ id: 'internal', name: 'Finding internal links', message: 'Connecting articles across cluster', status: 'pending' as StepStatus }] : []),
       { id: 'external', name: 'Finding external sources', message: 'Researching authoritative citations', status: 'pending' },
       { id: 'linking', name: 'Linking funnel progression', message: 'Creating conversion pathways', status: 'pending' },
     ];
@@ -363,7 +365,7 @@ const ClusterGenerator = () => {
       
       // Step 1: Start generation (returns immediately with job ID)
       const { data, error } = await supabase.functions.invoke('generate-cluster', {
-        body: { topic, language, targetAudience, primaryKeyword }
+        body: { topic, language, targetAudience, primaryKeyword, findInternalLinks }
       });
 
       if (error) {
@@ -824,6 +826,20 @@ const ClusterGenerator = () => {
                   onChange={(e) => setPrimaryKeyword(e.target.value)}
                   className="text-base"
                 />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="findInternalLinks"
+                  checked={findInternalLinks}
+                  onCheckedChange={(checked) => setFindInternalLinks(!!checked)}
+                />
+                <Label
+                  htmlFor="findInternalLinks"
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Find internal links automatically (recommended if you have existing {languageOptions.find(l => l.value === language)?.name || language} articles)
+                </Label>
               </div>
 
               <Button
