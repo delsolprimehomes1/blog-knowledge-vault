@@ -1,6 +1,7 @@
 import { AdminLayout } from "@/components/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MasterPromptEditor } from "@/components/admin/MasterPromptEditor";
+import { BulkExperienceUpdater } from "@/components/admin/BulkExperienceUpdater";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings as SettingsIcon } from "lucide-react";
 
@@ -23,7 +24,10 @@ const Settings = () => {
           </TabsList>
           
           <TabsContent value="content" className="mt-6">
-            <MasterPromptEditor />
+            <div className="space-y-6">
+              <MasterPromptEditor />
+              <BulkExperienceUpdater />
+            </div>
           </TabsContent>
           
           <TabsContent value="general" className="mt-6">
