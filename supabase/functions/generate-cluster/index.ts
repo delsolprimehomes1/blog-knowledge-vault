@@ -36,10 +36,19 @@ async function sendHeartbeat(supabase: any, jobId: string) {
 async function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  errorMessage: string
+  errorMessage: string,
+  jobId?: string
 ): Promise<T> {
+  const startTime = Date.now();
   const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    setTimeout(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const errorMsg = `${errorMessage} (timed out after ${elapsed}s, limit was ${Math.floor(timeoutMs / 1000)}s)`;
+      if (jobId) {
+        console.error(`[Job ${jobId}] ⏱️ TIMEOUT: ${errorMsg}`);
+      }
+      reject(new Error(errorMsg));
+    }, timeoutMs)
   );
   return Promise.race([promise, timeout]);
 }
@@ -241,7 +250,7 @@ async function withHeartbeat<T>(
   supabase: any,
   jobId: string,
   promise: Promise<T>,
-  intervalMs: number = 30000
+  intervalMs: number = 15000
 ): Promise<T> {
   const heartbeatInterval = setInterval(async () => {
     console.log(`[Job ${jobId}] 💓 Heartbeat - operation still in progress...`);
@@ -257,6 +266,16 @@ async function withHeartbeat<T>(
 
 // Main generation function (runs in background)
 async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string) {
+  const OVERALL_TIMEOUT = 20 * 60 * 1000; // 20 minutes max for entire generation
+  const startTime = Date.now();
+  
+  const checkTimeout = () => {
+    const elapsed = Date.now() - startTime;
+    if (elapsed > OVERALL_TIMEOUT) {
+      throw new Error(`Overall generation timeout after ${Math.floor(elapsed / 1000)}s (max 20 minutes)`);
+    }
+  };
+  
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -265,6 +284,8 @@ async function generateCluster(jobId: string, topic: string, language: string, t
   try {
     console.log(`[Job ${jobId}] Starting generation for:`, { topic, language, targetAudience, primaryKeyword });
     await updateProgress(supabase, jobId, 0, 'Starting generation...');
+    
+    checkTimeout(); // Check before starting
 
     // Validate LOVABLE_API_KEY before starting
     console.log(`[Job ${jobId}] 🔐 Validating LOVABLE_API_KEY...`);
@@ -413,6 +434,8 @@ Return ONLY valid JSON:
     }
 
     console.log(`[Job ${jobId}] Generated structure for`, articleStructures.length, 'articles');
+    
+    checkTimeout(); // Check after structure generation
 
     // STEP 2: Generate each article with detailed sections
     const articles = [];
@@ -456,18 +479,23 @@ Return ONLY the category name exactly as shown above. No explanation, no JSON, j
       try {
         const categoryData: any = await retryApiCall(
           async () => {
-            const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'google/gemini-2.5-flash',
-                max_tokens: 256,
-                messages: [{ role: 'user', content: categoryPrompt }],
+            const response = await withTimeout(
+              fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash',
+                  max_tokens: 256,
+                  messages: [{ role: 'user', content: categoryPrompt }],
+                }),
               }),
-            });
+              30000, // 30 seconds - simple classification
+              `Category selection timeout for article ${i+1}`,
+              jobId
+            );
             
             if (!response.ok) {
               if (response.status === 429 || response.status === 402) {
@@ -547,18 +575,23 @@ Return ONLY valid JSON:
 
       const seoData: any = await retryApiCall(
         async () => {
-          const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              max_tokens: 512,
-              messages: [{ role: 'user', content: seoPrompt }],
+          const response = await withTimeout(
+            fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'google/gemini-2.5-flash',
+                max_tokens: 512,
+                messages: [{ role: 'user', content: seoPrompt }],
+              }),
             }),
-          });
+            60000, // 60 seconds
+            `SEO meta generation timeout for article ${i+1}`,
+            jobId
+          );
 
           if (!response.ok && (response.status === 429 || response.status === 402)) {
             throw new Error(`Lovable AI error: ${response.status}`);
@@ -600,18 +633,23 @@ Return ONLY the speakable text, no JSON, no formatting, no quotes.`;
 
       const speakableData: any = await retryApiCall(
         async () => {
-          const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              max_tokens: 256,
-              messages: [{ role: 'user', content: speakablePrompt }],
+          const response = await withTimeout(
+            fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'google/gemini-2.5-flash',
+                max_tokens: 256,
+                messages: [{ role: 'user', content: speakablePrompt }],
+              }),
             }),
-          });
+            60000, // 60 seconds
+            `Speakable answer generation timeout for article ${i+1}`,
+            jobId
+          );
 
           if (!response.ok && (response.status === 429 || response.status === 402)) {
             throw new Error(`Lovable AI error: ${response.status}`);
@@ -727,8 +765,9 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
                 },
                 body: JSON.stringify(aiRequestBody),
               }),
-              120000, // 2 minutes
-              `Gemini Flash timeout after 2 minutes for article ${i + 1}`
+              180000, // 3 minutes - complex content generation
+              `Content generation timeout for article ${i + 1}`,
+              jobId
             )
           );
 
@@ -857,8 +896,9 @@ Return ONLY valid JSON in this format:
                     max_tokens: 2000
                   })
                 }),
-                45000,
-                'FAQ generation timeout'
+                90000, // 90 seconds
+                `FAQ generation timeout for article ${i+1}`,
+                jobId
               );
 
               if (!response.ok) {
@@ -1300,18 +1340,23 @@ Return only the alt text, no quotes, no JSON.`;
 
           const altData: any = await retryApiCall(
             async () => {
-              const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  model: 'google/gemini-2.5-flash',
-                  max_tokens: 256,
-                  messages: [{ role: 'user', content: altPrompt }],
+              const response = await withTimeout(
+                fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    model: 'google/gemini-2.5-flash',
+                    max_tokens: 256,
+                    messages: [{ role: 'user', content: altPrompt }],
+                  }),
                 }),
-              });
+                45000, // 45 seconds - simple task
+                `Alt text generation timeout for article ${i+1}`,
+                jobId
+              );
 
               if (!response.ok && (response.status === 429 || response.status === 402)) {
                 throw new Error(`Lovable AI error: ${response.status}`);
@@ -1364,8 +1409,9 @@ Return only the alt text, no quotes, no JSON.`;
                 language: language,
               },
             }),
-            60000,
-            'Diagram generation timeout after 60 seconds'
+            120000, // 2 minutes - complex Mermaid + image generation
+            `Diagram generation timeout for article ${i+1}`,
+            jobId
           );
 
           if (diagramResponse.data?.mermaidCode) {
@@ -1421,18 +1467,23 @@ Return ONLY valid JSON:
 
           const authorData: any = await retryApiCall(
             async () => {
-              const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  model: 'google/gemini-2.5-flash',
-                  max_tokens: 512,
-                  messages: [{ role: 'user', content: authorPrompt }],
+              const response = await withTimeout(
+                fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    model: 'google/gemini-2.5-flash',
+                    max_tokens: 512,
+                    messages: [{ role: 'user', content: authorPrompt }],
+                  }),
                 }),
-              });
+                30000, // 30 seconds - simple classification
+                `Author selection timeout for article ${i+1}`,
+                jobId
+              );
 
               if (!response.ok && (response.status === 429 || response.status === 402)) {
                 throw new Error(`Lovable AI error: ${response.status}`);
@@ -1484,8 +1535,9 @@ Return ONLY valid JSON:
             3,
             2000
           ),
-          120000,
-          'External citations lookup timeout after 2 minutes'
+          150000, // 2.5 minutes - external API call
+          `External citations lookup timeout for article ${i+1}`,
+          jobId
         );
 
         if (citationsResponse.data?.citations && citationsResponse.data.citations.length > 0) {
@@ -1555,8 +1607,9 @@ Return ONLY valid JSON:
                 category: plan.category || 'Buying Guides'
               }
             }),
-            90000,
-            'Citation marker replacement timeout after 90 seconds'
+            120000, // 2 minutes - external API call
+            `Citation marker replacement timeout for article ${i+1}`,
+            jobId
           );
 
           if (replacementResponse.data?.success && replacementResponse.data.replacedCount > 0) {
@@ -1620,8 +1673,9 @@ Return ONLY valid JSON:
                     messages: [{ role: 'user', content: faqPrompt }],
                   }),
                 }),
-                45000,
-                'FAQ generation timeout after 45 seconds'
+                90000, // 90 seconds
+                `FAQ generation timeout for article ${i+1}`,
+                jobId
               );
 
               if (!response.ok && (response.status === 429 || response.status === 402)) {
@@ -1671,8 +1725,11 @@ Return ONLY valid JSON:
 
       articles.push(article);
       console.log(`Article ${i + 1} complete:`, article.headline, `(${wordCount} words, quality: ${qualityCheck.score}/100)`);
+      
+      checkTimeout(); // Check after each article
     }
 
+    checkTimeout(); // Check before internal links
     await updateProgress(supabase, jobId, 8, 'Finding internal links...');
     console.log(`[Job ${jobId}] All articles generated, now finding internal links...`);
 
@@ -1761,6 +1818,7 @@ Return ONLY valid JSON:
       }
     }
 
+    checkTimeout(); // Check after internal links
     // STEP 4: Link articles in funnel progression
     const tofuArticles = articles.filter((a: any) => a.funnel_stage === 'TOFU');
     const mofuArticles = articles.filter((a: any) => a.funnel_stage === 'MOFU');
@@ -1813,11 +1871,15 @@ Return ONLY valid JSON:
 
     await updateProgress(supabase, jobId, 10, 'Setting related articles...');
     console.log(`[Job ${jobId}] Funnel linking complete`);
+    
+    checkTimeout(); // Check after funnel linking
 
     // STEP 5: Set related articles - Already set in CTA logic above
 
     await updateProgress(supabase, jobId, 11, 'Completed!');
     console.log(`[Job ${jobId}] Generation complete!`);
+    
+    checkTimeout(); // Final check before save
 
     // Save final articles to job record
     await supabase
