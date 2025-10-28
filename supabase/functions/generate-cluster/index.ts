@@ -264,6 +264,73 @@ async function withHeartbeat<T>(
   }
 }
 
+// Save individual article to database immediately (checkpointing)
+async function saveArticleToDatabase(
+  supabase: any,
+  jobId: string,
+  article: any,
+  articleIndex: number
+): Promise<string> {
+  try {
+    console.log(`[Job ${jobId}] 💾 Saving article ${articleIndex + 1} to database: ${article.headline}`);
+    
+    // Check if article already exists
+    const { data: existing } = await supabase
+      .from('blog_articles')
+      .select('id')
+      .eq('cluster_id', jobId)
+      .eq('slug', article.slug)
+      .maybeSingle();
+    
+    if (existing) {
+      console.log(`[Job ${jobId}] ⚠️ Article "${article.headline}" already exists (ID: ${existing.id}), skipping insert`);
+      return existing.id;
+    }
+    
+    const { data: inserted, error } = await supabase
+      .from('blog_articles')
+      .insert({
+        ...article,
+        cluster_id: jobId,
+        status: 'draft',
+        cta_article_ids: [],
+        related_article_ids: [],
+        cluster_number: articleIndex + 1
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error(`[Job ${jobId}] ❌ Failed to save article ${articleIndex + 1}:`, error);
+      throw error;
+    }
+    
+    console.log(`[Job ${jobId}] ✅ Article ${articleIndex + 1} saved successfully (ID: ${inserted.id})`);
+    return inserted.id;
+  } catch (error) {
+    console.error(`[Job ${jobId}] 💥 Error saving article:`, error);
+    throw error;
+  }
+}
+
+// Get already completed articles for resume capability
+async function getCompletedArticles(supabase: any, jobId: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('blog_articles')
+      .select('*')
+      .eq('cluster_id', jobId)
+      .order('cluster_number', { ascending: true });
+    
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error(`Error fetching completed articles:`, error);
+    return [];
+  }
+}
+
 // Main generation function (runs in background)
 async function generateCluster(jobId: string, topic: string, language: string, targetAudience: string, primaryKeyword: string, findInternalLinks: boolean = true) {
   const OVERALL_TIMEOUT = 20 * 60 * 1000; // 20 minutes max for entire generation
@@ -441,10 +508,20 @@ Return ONLY valid JSON:
     
     checkTimeout(); // Check after structure generation
 
-    // STEP 2: Generate each article with detailed sections
-    const articles = [];
+    // Check for already-completed articles (resume capability)
+    const existingArticles = await getCompletedArticles(supabase, jobId);
+    const startIndex = existingArticles.length;
+    
+    if (startIndex > 0) {
+      console.log(`[Job ${jobId}] 🔄 RESUMING: Found ${startIndex} existing articles, continuing from article ${startIndex + 1}`);
+      await updateProgress(supabase, jobId, 2 + startIndex, `Resuming from article ${startIndex + 1}...`, startIndex + 1);
+    }
 
-    for (let i = 0; i < articleStructures.length; i++) {
+    // STEP 2: Generate each article with detailed sections
+    const articles = [...existingArticles]; // Start with existing articles
+    const savedArticleIds: string[] = existingArticles.map(a => a.id);
+
+    for (let i = startIndex; i < articleStructures.length; i++) {
       await updateProgress(supabase, jobId, 2 + i, `Generating article ${i + 1} of ${articleStructures.length}...`, i + 1);
       const plan = articleStructures[i];
       const article: any = {
@@ -838,7 +915,7 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       console.log(`[Job ${jobId}]   • Citation markers: ${citationCount}`);
       console.log(`[Job ${jobId}]   • H2 sections: ${h2Count}`);
 
-      // 7. GENERATE FAQ ENTITIES (for ALL funnel stages)
+      // 7. GENERATE FAQ ENTITIES (for ALL funnel stages) - WITH HEARTBEAT
       let faqEntities = null;
       const shouldGenerateFAQ = true; // Generate FAQs for TOFU, MOFU, and BOFU
       
@@ -888,40 +965,46 @@ Return ONLY valid JSON in this format:
 }`;
 
         try {
-          const faqData: any = await retryApiCall(
-            async () => {
-              const response = await withTimeout(
-                fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    model: 'google/gemini-2.5-flash',
-                    messages: [
-                      { role: 'system', content: 'You are an expert FAQ generator. Return only valid JSON with faq_entities array.' },
-                      { role: 'user', content: faqPrompt }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 3000
-                  })
-                }),
-                90000, // 90 seconds
-                `FAQ generation timeout for article ${i+1}`,
-                jobId
-              );
-
-              if (!response.ok) {
-                console.warn(`[Job ${jobId}] ⚠️ FAQ generation failed with status ${response.status}`);
-                throw new Error(`FAQ API error: ${response.status}`);
-              }
-              
-              return response;
-            },
-            'FAQ generation',
+          // CRITICAL: Wrap FAQ generation with heartbeat to prevent timeout detection
+          const faqData: any = await withHeartbeat(
+            supabase,
             jobId,
-            2
+            retryApiCall(
+              async () => {
+                const response = await withTimeout(
+                  fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      model: 'google/gemini-2.5-flash',
+                      messages: [
+                        { role: 'system', content: 'You are an expert FAQ generator. Return only valid JSON with faq_entities array.' },
+                        { role: 'user', content: faqPrompt }
+                      ],
+                      temperature: 0.7,
+                      max_tokens: 3000
+                    })
+                  }),
+                  90000, // 90 seconds
+                  `FAQ generation timeout for article ${i+1}`,
+                  jobId
+                );
+
+                if (!response.ok) {
+                  console.warn(`[Job ${jobId}] ⚠️ FAQ generation failed with status ${response.status}`);
+                  throw new Error(`FAQ API error: ${response.status}`);
+                }
+                
+                return response;
+              },
+              'FAQ generation',
+              jobId,
+              2
+            ),
+            30000 // Send heartbeat every 30 seconds during FAQ generation
           );
           
           const faqText = faqData.choices[0]?.message?.content || '';
@@ -933,8 +1016,10 @@ Return ONLY valid JSON in this format:
             console.log(`[Job ${jobId}] ✅ Generated ${faqEntities.length} FAQ entities`);
           }
         } catch (error) {
-          console.warn(`[Job ${jobId}] ⚠️ FAQ generation error:`, error instanceof Error ? error.message : 'Unknown error');
-          // Continue without FAQs
+          console.warn(`[Job ${jobId}] ⚠️ FAQ generation failed after retries:`, error instanceof Error ? error.message : 'Unknown error');
+          console.log(`[Job ${jobId}] 🔄 Continuing without FAQs (graceful degradation)`);
+          // GRACEFUL DEGRADATION: Continue without FAQs rather than crashing entire job
+          faqEntities = [];
         }
       }
 
@@ -1732,6 +1817,35 @@ Return ONLY valid JSON:
       article.cta_article_ids = [];
       article.translations = {};
 
+      // CHECKPOINT: Save article immediately to database
+      try {
+        const articleId = await saveArticleToDatabase(supabase, jobId, article, i);
+        savedArticleIds.push(articleId);
+        article.id = articleId; // Store ID for later reference
+        
+        // Update progress with checkpoint data
+        await supabase
+          .from('cluster_generations')
+          .update({
+            progress: {
+              current_step: 2 + i,
+              total_steps: 11,
+              current_article: i + 1,
+              total_articles: articleStructures.length,
+              message: `Article ${i + 1} saved successfully`,
+              articles_completed: savedArticleIds,
+              last_checkpoint: new Date().toISOString()
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', jobId);
+        
+        console.log(`[Job ${jobId}] ✅ CHECKPOINT: Article ${i + 1}/${articleStructures.length} saved to database`);
+      } catch (saveError) {
+        console.error(`[Job ${jobId}] ❌ Failed to save article ${i + 1}, but continuing:`, saveError);
+        // Continue generation even if save fails - user can retry saving later
+      }
+
       articles.push(article);
       console.log(`Article ${i + 1} complete:`, article.headline, `(${wordCount} words, quality: ${qualityCheck.score}/100)`);
       
@@ -1904,12 +2018,21 @@ Return ONLY valid JSON:
     
     checkTimeout(); // Final check before save
 
-    // Save final articles to job record
+    // Update job record with completed status
     await supabase
       .from('cluster_generations')
       .update({
         status: 'completed',
         articles: articles,
+        progress: {
+          current_step: 11,
+          total_steps: 11,
+          current_article: articles.length,
+          total_articles: articles.length,
+          message: 'Cluster generation completed!',
+          articles_completed: savedArticleIds,
+          last_checkpoint: new Date().toISOString()
+        },
         updated_at: new Date().toISOString()
       })
       .eq('id', jobId);

@@ -140,7 +140,7 @@ const ClusterGenerator = () => {
     toast.success('Backup cleared');
   };
 
-  // Check job status and update UI with timeout detection
+  // Check job status and update UI with timeout detection + resume capability
   const checkJobStatus = async (currentJobId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('check-cluster-status', {
@@ -163,6 +163,12 @@ const ClusterGenerator = () => {
         if (minutesSinceUpdate > 5) {
           console.error(`Job ${currentJobId} appears stuck. Last update: ${minutesSinceUpdate.toFixed(1)} minutes ago`);
           
+          // Check if we have partial articles saved
+          const { data: partialArticles } = await supabase
+            .from('blog_articles')
+            .select('id, headline')
+            .eq('cluster_id', currentJobId);
+          
           if (pollingInterval) {
             clearInterval(pollingInterval);
             setPollingInterval(null);
@@ -172,7 +178,11 @@ const ClusterGenerator = () => {
           setJobId(null);
           localStorage.removeItem('current_job_id');
           
-          toast.error('Generation timed out. The backend may have crashed. Please try again.');
+          if (partialArticles && partialArticles.length > 0) {
+            toast.error(`Generation timed out, but ${partialArticles.length} articles were saved. You can resume from the failed job.`);
+          } else {
+            toast.error('Generation timed out. The backend may have crashed. Please try again.');
+          }
           return;
         }
       }
@@ -217,6 +227,13 @@ const ClusterGenerator = () => {
           setPollingInterval(null);
         }
         
+        // Check if we have partial articles saved
+        const { data: partialArticles } = await supabase
+          .from('blog_articles')
+          .select('id, headline, cluster_number')
+          .eq('cluster_id', currentJobId)
+          .order('cluster_number', { ascending: true });
+        
         setIsGenerating(false);
         setGenerationStartTime(0);
         localStorage.removeItem('current_job_id');
@@ -234,7 +251,11 @@ const ClusterGenerator = () => {
           }
         }
         
-        toast.error(errorMessage);
+        if (partialArticles && partialArticles.length > 0) {
+          toast.error(`${errorMessage}. However, ${partialArticles.length} articles were saved successfully. Check the database for partial results.`);
+        } else {
+          toast.error(errorMessage);
+        }
       }
 
     } catch (error) {
