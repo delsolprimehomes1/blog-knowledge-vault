@@ -1755,16 +1755,21 @@ Return ONLY valid JSON:
         console.log(`[Job ${jobId}] Finding internal links for article ${i+1}/${articles.length}: "${article.headline}" (${article.language})`);
         console.log(`[Job ${jobId}] Available articles for linking: ${otherArticles.length} articles, all in ${article.language}`);
 
-        const linksResponse = await supabase.functions.invoke('find-internal-links', {
-          body: {
-            content: article.detailed_content,
-            headline: article.headline,
-            currentArticleId: `temp-${article.slug}`,
-            language: article.language,
-            funnelStage: article.funnel_stage,
-            availableArticles: otherArticles,
-          },
-        });
+        const linksResponse = await withTimeout(
+          supabase.functions.invoke('find-internal-links', {
+            body: {
+              content: article.detailed_content,
+              headline: article.headline,
+              currentArticleId: `temp-${article.slug}`,
+              language: article.language,
+              funnelStage: article.funnel_stage,
+              availableArticles: otherArticles,
+            },
+          }),
+          60000,  // 60 seconds timeout
+          `Internal links generation timeout for article ${i+1} "${article.headline}"`,
+          jobId
+        );
 
         if (linksResponse.error) {
           console.error(`[Job ${jobId}] Internal links error for article ${i+1}:`, linksResponse.error);
