@@ -198,8 +198,8 @@ export function generateBreadcrumbSchema(
       {
         "@type": "ListItem",
         "position": 3,
-        "name": article.category,
-        "item": `${baseUrl}/blog/category/${(article.category || 'uncategorized').toLowerCase().replace(/\s+/g, '-')}`
+        "name": article.category || 'Uncategorized',
+        "item": `${baseUrl}/blog/category/${(article.category || 'uncategorized').toString().toLowerCase().replace(/\s+/g, '-')}`
       },
       {
         "@type": "ListItem",
