@@ -287,7 +287,7 @@ const BlogArticle = () => {
               internalLinks={article.internal_links as InternalLink[]}
             />
 
-            <SpeakableBox answer={article.speakable_answer} />
+            <SpeakableBox answer={article.speakable_answer} language={article.language} />
 
             <TableOfContents content={article.detailed_content} />
 

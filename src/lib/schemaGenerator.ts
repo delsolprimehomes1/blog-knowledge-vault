@@ -102,6 +102,7 @@ export function generateArticleSchema(
     "@type": "BlogPosting",
     "headline": article.headline,
     "description": article.meta_description,
+    "inLanguage": article.language || "en",
     "image": article.diagram_url 
       ? [
           // Featured image (primary)
@@ -181,13 +182,9 @@ export function generateSpeakableSchema(article: BlogArticle): any {
     "@context": "https://schema.org",
     "@type": "SpeakableSpecification",
     "cssSelector": cssSelectors,
-    "xpath": xpaths
+    "xpath": xpaths,
+    "inLanguage": article.language || "en"
   };
-  
-  // Add FAQ-specific metadata for better AI understanding
-  if (article.faq_entities && article.faq_entities.length > 0) {
-    schema.description = "This page contains an FAQ that directly answers the main question posed in the article title, optimized for voice assistants and AI reading.";
-  }
   
   // Add associated image for voice assistants and AI understanding
   if (article.featured_image_url || article.diagram_url) {
