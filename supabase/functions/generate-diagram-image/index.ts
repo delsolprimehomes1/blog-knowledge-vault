@@ -154,37 +154,128 @@ serve(async (req) => {
 
     console.log('Image generated successfully');
     
-    // Generate description based on diagram type
-    let description = '';
+    // Generate AI-powered metadata for SEO and accessibility
     const location = inferLocation(headline);
+    const propertyType = inferPropertyType(headline);
     
-    switch (diagramType) {
-      case 'flowchart':
-        description = `Flowchart diagram illustrating the process discussed in this article about ${location} real estate`;
-        break;
-      case 'timeline':
-        description = `Timeline infographic showing the sequence of events related to ${location} property market`;
-        break;
-      case 'comparison':
-        description = `Comparison diagram contrasting different aspects discussed in this ${location} real estate article`;
-        break;
-      default:
-        description = `Infographic diagram for ${headline}`;
-    }
+    const metadataPrompt = `Given this article headline: "${headline}"
+And this diagram type: "${diagramType}"
+And this location context: "${location}"
+And this property type: "${propertyType}"
 
-    return new Response(
-      JSON.stringify({
-        imageUrl: imageUrl,
-        description: description,
-        prompt: prompt
-      }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
+Generate SEO-optimized metadata for the diagram image in JSON format:
+
+1. ALT TEXT (50-125 characters): Brief, keyword-rich description for screen readers and SEO
+   - Include: diagram type, topic, location
+   - Example: "Flowchart showing property buying steps in Marbella Costa del Sol"
+
+2. CAPTION (20-80 characters): Short, engaging user-facing label
+   - Example: "Your Step-by-Step Buying Guide"
+
+3. DESCRIPTION (150-250 words): Detailed explanation for AI/LLM understanding and accessibility
+   - Explain what the diagram shows in detail
+   - Mention key steps/elements
+   - Include location and property context
+   - Optimize for voice assistants and AI readers
+   - Make it comprehensive for vision-impaired users
+
+Return ONLY valid JSON in this exact format:
+{
+  "altText": "...",
+  "caption": "...",
+  "description": "..."
+}`;
+
+    try {
+      const metadataResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: "You are an SEO and accessibility expert. Generate concise, keyword-rich metadata for real estate diagrams. Return valid JSON only, no markdown or extra text."
+            },
+            {
+              role: "user",
+              content: metadataPrompt
+            }
+          ]
+        })
+      });
+
+      if (!metadataResponse.ok) {
+        console.error('Metadata generation failed:', metadataResponse.status);
+        throw new Error('Failed to generate metadata');
       }
-    );
+
+      const metadataData = await metadataResponse.json();
+      const metadataContent = metadataData.choices[0].message.content;
+      
+      // Clean up the response - remove markdown code blocks if present
+      const cleanedContent = metadataContent
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+      
+      const metadata = JSON.parse(cleanedContent);
+
+      console.log('Metadata generated successfully:', metadata);
+
+      return new Response(
+        JSON.stringify({
+          imageUrl: imageUrl,
+          altText: metadata.altText,
+          caption: metadata.caption,
+          description: metadata.description,
+          prompt: prompt
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    } catch (metadataError) {
+      console.error('Error generating metadata:', metadataError);
+      
+      // Fallback to basic metadata if AI generation fails
+      let fallbackDescription = '';
+      switch (diagramType) {
+        case 'flowchart':
+          fallbackDescription = `Flowchart diagram illustrating the process discussed in this article about ${location} real estate`;
+          break;
+        case 'timeline':
+          fallbackDescription = `Timeline infographic showing the sequence of events related to ${location} property market`;
+          break;
+        case 'comparison':
+          fallbackDescription = `Comparison diagram contrasting different aspects discussed in this ${location} real estate article`;
+          break;
+        default:
+          fallbackDescription = `Infographic diagram for ${headline}`;
+      }
+
+      return new Response(
+        JSON.stringify({
+          imageUrl: imageUrl,
+          altText: `${diagramType} diagram for ${location} real estate`,
+          caption: `Visual guide for ${location} property`,
+          description: fallbackDescription,
+          prompt: prompt
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
 
   } catch (error) {
     console.error('Error generating diagram:', error);

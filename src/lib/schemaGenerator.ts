@@ -102,14 +102,41 @@ export function generateArticleSchema(
     "@type": "BlogPosting",
     "headline": article.headline,
     "description": article.meta_description,
-    "image": {
-      "@type": "ImageObject",
-      "url": article.featured_image_url,
-      "contentUrl": article.featured_image_url,
-      "caption": article.featured_image_caption || article.headline,
-      "description": article.featured_image_alt || article.meta_description,
-      "representativeOfPage": true
-    },
+    "image": article.diagram_url 
+      ? [
+          // Featured image (primary)
+          {
+            "@type": "ImageObject",
+            "url": article.featured_image_url,
+            "contentUrl": article.featured_image_url,
+            "caption": article.featured_image_caption || article.headline,
+            "description": article.featured_image_alt || article.meta_description,
+            "representativeOfPage": true,
+            "position": 1
+          },
+          // Diagram image (secondary)
+          {
+            "@type": "ImageObject",
+            "url": article.diagram_url,
+            "contentUrl": article.diagram_url,
+            "alternateName": article.diagram_alt || "Infographic diagram",
+            "caption": article.diagram_caption || "Visual guide",
+            "description": article.diagram_description || "Diagram illustrating key concepts",
+            "representativeOfPage": false,
+            "position": 2,
+            "encodingFormat": "image/png",
+            "contentType": "Infographic"
+          }
+        ]
+      : {
+          // Just featured image if no diagram
+          "@type": "ImageObject",
+          "url": article.featured_image_url,
+          "contentUrl": article.featured_image_url,
+          "caption": article.featured_image_caption || article.headline,
+          "description": article.featured_image_alt || article.meta_description,
+          "representativeOfPage": true
+        },
     "datePublished": article.date_published,
     "dateModified": article.date_modified || article.date_published,
     "mainEntityOfPage": {
@@ -163,13 +190,33 @@ export function generateSpeakableSchema(article: BlogArticle): any {
   }
   
   // Add associated image for voice assistants and AI understanding
-  if (article.featured_image_url) {
-    schema.associatedMedia = {
-      "@type": "ImageObject",
-      "url": article.featured_image_url,
-      "description": article.featured_image_alt,
-      "caption": article.featured_image_caption
-    };
+  if (article.featured_image_url || article.diagram_url) {
+    const mediaArray = [];
+    
+    // Featured image
+    if (article.featured_image_url) {
+      mediaArray.push({
+        "@type": "ImageObject",
+        "url": article.featured_image_url,
+        "description": article.featured_image_alt,
+        "caption": article.featured_image_caption,
+        "representativeOfPage": true
+      });
+    }
+    
+    // Diagram image
+    if (article.diagram_url) {
+      mediaArray.push({
+        "@type": "ImageObject",
+        "url": article.diagram_url,
+        "alternateName": article.diagram_alt || "Infographic diagram",
+        "caption": article.diagram_caption || "Visual guide",
+        "description": article.diagram_description || "Diagram illustrating key concepts",
+        "contentType": "Infographic"
+      });
+    }
+    
+    schema.associatedMedia = mediaArray.length === 1 ? mediaArray[0] : mediaArray;
   }
   
   return schema;

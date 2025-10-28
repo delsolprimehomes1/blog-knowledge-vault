@@ -23,6 +23,8 @@ interface ArticleData {
   featured_image_alt: string;
   featured_image_caption?: string;
   diagram_url?: string;
+  diagram_alt?: string;
+  diagram_caption?: string;
   diagram_description?: string;
   date_published?: string;
   date_modified?: string;
@@ -92,11 +94,38 @@ function generateArticleSchema(article: ArticleData) {
     "@id": `https://delsolprimehomes.com/blog/${article.slug}#article`,
     "headline": article.headline,
     "description": article.meta_description,
-    "image": {
-      "@type": "ImageObject",
-      "url": article.featured_image_url,
-      "caption": article.featured_image_caption || article.featured_image_alt
-    },
+    "image": article.diagram_url 
+      ? [
+          // Featured image (primary)
+          {
+            "@type": "ImageObject",
+            "url": article.featured_image_url,
+            "contentUrl": article.featured_image_url,
+            "caption": article.featured_image_caption || article.headline,
+            "description": article.featured_image_alt || article.meta_description,
+            "representativeOfPage": true,
+            "position": 1
+          },
+          // Diagram image (secondary)
+          {
+            "@type": "ImageObject",
+            "url": article.diagram_url,
+            "contentUrl": article.diagram_url,
+            "alternateName": article.diagram_alt || "Infographic diagram",
+            "caption": article.diagram_caption || "Visual guide",
+            "description": article.diagram_description || "Diagram illustrating key concepts",
+            "representativeOfPage": false,
+            "position": 2,
+            "encodingFormat": "image/png",
+            "contentType": "Infographic"
+          }
+        ]
+      : {
+          // Just featured image if no diagram
+          "@type": "ImageObject",
+          "url": article.featured_image_url,
+          "caption": article.featured_image_caption || article.featured_image_alt
+        },
     "datePublished": article.date_published,
     "dateModified": article.date_modified || article.date_published,
     "wordCount": wordCount,
@@ -115,15 +144,43 @@ function generateArticleSchema(article: ArticleData) {
 }
 
 function generateSpeakableSchema(article: ArticleData) {
-  return {
+  const schema: any = {
     "@context": "https://schema.org",
     "@type": "SpeakableSpecification",
-    "cssSelector": [".speakable-answer", ".article-intro"],
-    "associatedMedia": {
-      "@type": "ImageObject",
-      "url": article.featured_image_url
-    }
+    "cssSelector": [".speakable-answer", ".article-intro"]
   };
+  
+  // Add associated media for voice assistants and AI understanding
+  if (article.featured_image_url || article.diagram_url) {
+    const mediaArray = [];
+    
+    // Featured image
+    if (article.featured_image_url) {
+      mediaArray.push({
+        "@type": "ImageObject",
+        "url": article.featured_image_url,
+        "description": article.featured_image_alt,
+        "caption": article.featured_image_caption,
+        "representativeOfPage": true
+      });
+    }
+    
+    // Diagram image
+    if (article.diagram_url) {
+      mediaArray.push({
+        "@type": "ImageObject",
+        "url": article.diagram_url,
+        "alternateName": article.diagram_alt || "Infographic diagram",
+        "caption": article.diagram_caption || "Visual guide",
+        "description": article.diagram_description || "Diagram illustrating key concepts",
+        "contentType": "Infographic"
+      });
+    }
+    
+    schema.associatedMedia = mediaArray.length === 1 ? mediaArray[0] : mediaArray;
+  }
+  
+  return schema;
 }
 
 function generateBreadcrumbSchema(article: ArticleData) {

@@ -64,6 +64,8 @@ const ArticleEditor = () => {
   const [featuredImageAlt, setFeaturedImageAlt] = useState("");
   const [featuredImageCaption, setFeaturedImageCaption] = useState("");
   const [diagramUrl, setDiagramUrl] = useState("");
+  const [diagramAlt, setDiagramAlt] = useState("");
+  const [diagramCaption, setDiagramCaption] = useState("");
   const [diagramDescription, setDiagramDescription] = useState("");
   
   const [authorId, setAuthorId] = useState("");
@@ -168,6 +170,8 @@ const ArticleEditor = () => {
       setFeaturedImageAlt(article.featured_image_alt || "");
       setFeaturedImageCaption(article.featured_image_caption || "");
       setDiagramUrl(article.diagram_url || "");
+      setDiagramAlt(article.diagram_alt || "");
+      setDiagramCaption(article.diagram_caption || "");
       setDiagramDescription(article.diagram_description || "");
       setAuthorId(article.author_id || "");
       setReviewerId(article.reviewer_id || "");
@@ -304,6 +308,8 @@ const ArticleEditor = () => {
         featured_image_alt: featuredImageAlt,
         featured_image_caption: featuredImageCaption || null,
         diagram_url: diagramUrl || null,
+        diagram_alt: diagramAlt || null,
+        diagram_caption: diagramCaption || null,
         diagram_description: diagramDescription || null,
         author_id: authorId || null,
         reviewer_id: reviewerId || null,
@@ -767,9 +773,13 @@ const ArticleEditor = () => {
               articleContent={detailedContent}
               headline={headline}
               currentDiagramUrl={diagramUrl}
+              currentDiagramAlt={diagramAlt}
+              currentDiagramCaption={diagramCaption}
               currentDescription={diagramDescription}
-              onDiagramGenerated={(url, description) => {
+              onDiagramGenerated={(url, altText, caption, description) => {
                 setDiagramUrl(url);
+                setDiagramAlt(altText);
+                setDiagramCaption(caption);
                 setDiagramDescription(description);
               }}
             />

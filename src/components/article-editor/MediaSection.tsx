@@ -16,12 +16,14 @@ interface MediaSectionProps {
   featuredImageAlt: string;
   featuredImageCaption: string;
   diagramUrl: string;
+  diagramAlt: string;
+  diagramCaption: string;
   diagramDescription: string;
   detailedContent: string;
   onImageChange: (url: string, alt: string) => void;
   onImageUpload: (file: File) => Promise<void>;
   onFeaturedImageCaptionChange: (value: string) => void;
-  onDiagramGenerated: (diagramUrl: string, description: string) => void;
+  onDiagramGenerated: (diagramUrl: string, altText: string, caption: string, description: string) => void;
   imageUploading: boolean;
   errors?: Record<string, string>;
 }
@@ -32,6 +34,8 @@ export const MediaSection = ({
   featuredImageAlt,
   featuredImageCaption,
   diagramUrl,
+  diagramAlt,
+  diagramCaption,
   diagramDescription,
   detailedContent,
   onImageChange,
@@ -163,6 +167,8 @@ export const MediaSection = ({
           articleContent={detailedContent}
           headline={headline}
           currentDiagramUrl={diagramUrl}
+          currentDiagramAlt={diagramAlt}
+          currentDiagramCaption={diagramCaption}
           currentDescription={diagramDescription}
           onDiagramGenerated={onDiagramGenerated}
         />

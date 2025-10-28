@@ -137,6 +137,8 @@ export type Database = {
           date_modified: string | null
           date_published: string | null
           detailed_content: string
+          diagram_alt: string | null
+          diagram_caption: string | null
           diagram_description: string | null
           diagram_url: string | null
           external_citations: Json | null
@@ -177,6 +179,8 @@ export type Database = {
           date_modified?: string | null
           date_published?: string | null
           detailed_content: string
+          diagram_alt?: string | null
+          diagram_caption?: string | null
           diagram_description?: string | null
           diagram_url?: string | null
           external_citations?: Json | null
@@ -217,6 +221,8 @@ export type Database = {
           date_modified?: string | null
           date_published?: string | null
           detailed_content?: string
+          diagram_alt?: string | null
+          diagram_caption?: string | null
           diagram_description?: string | null
           diagram_url?: string | null
           external_citations?: Json | null

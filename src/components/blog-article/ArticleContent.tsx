@@ -10,6 +10,8 @@ interface ArticleContentProps {
   featuredImageAlt: string;
   featuredImageCaption?: string;
   diagramUrl?: string;
+  diagramAlt?: string;
+  diagramCaption?: string;
   diagramDescription?: string;
   externalCitations?: ExternalCitation[];
   internalLinks?: InternalLink[];
@@ -21,6 +23,8 @@ export const ArticleContent = ({
   featuredImageAlt,
   featuredImageCaption,
   diagramUrl,
+  diagramAlt,
+  diagramCaption,
   diagramDescription,
   externalCitations = [],
   internalLinks = [],
@@ -134,15 +138,15 @@ export const ArticleContent = ({
           ) : (
             <OptimizedImage
               src={diagramUrl}
-              alt={diagramDescription || "Diagram"}
+              alt={diagramAlt || diagramDescription || "Diagram"}
               width={1200}
               height={800}
               className="w-full rounded-2xl border object-contain shadow-xl"
             />
           )}
-          {diagramDescription && (
+          {diagramCaption && (
             <figcaption className="text-center text-sm md:text-base text-muted-foreground mt-4">
-              {diagramDescription}
+              {diagramCaption}
             </figcaption>
           )}
         </figure>

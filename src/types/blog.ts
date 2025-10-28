@@ -66,6 +66,8 @@ export interface BlogArticle {
   featured_image_alt: string;
   featured_image_caption?: string;
   diagram_url?: string;
+  diagram_alt?: string;
+  diagram_caption?: string;
   diagram_description?: string;
   
   // E-E-A-T Fields

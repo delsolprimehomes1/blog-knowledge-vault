@@ -280,6 +280,8 @@ const BlogArticle = () => {
               featuredImageAlt={article.featured_image_alt}
               featuredImageCaption={article.featured_image_caption || undefined}
               diagramUrl={article.diagram_url || undefined}
+              diagramAlt={article.diagram_alt || undefined}
+              diagramCaption={article.diagram_caption || undefined}
               diagramDescription={article.diagram_description || undefined}
               externalCitations={article.external_citations as ExternalCitation[]}
               internalLinks={article.internal_links as InternalLink[]}

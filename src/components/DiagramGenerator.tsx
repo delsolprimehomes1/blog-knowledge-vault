@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,8 +12,10 @@ interface DiagramGeneratorProps {
   articleContent: string;
   headline: string;
   currentDiagramUrl?: string;
+  currentDiagramAlt?: string;
+  currentDiagramCaption?: string;
   currentDescription?: string;
-  onDiagramGenerated: (diagramUrl: string, description: string) => void;
+  onDiagramGenerated: (diagramUrl: string, altText: string, caption: string, description: string) => void;
 }
 
 type DiagramType = 'flowchart' | 'timeline' | 'comparison';
@@ -28,12 +31,16 @@ export const DiagramGenerator = ({
   articleContent, 
   headline,
   currentDiagramUrl = "",
+  currentDiagramAlt = "",
+  currentDiagramCaption = "",
   currentDescription = "",
   onDiagramGenerated 
 }: DiagramGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [diagramType, setDiagramType] = useState<DiagramType>('flowchart');
   const [diagramImageUrl, setDiagramImageUrl] = useState(currentDiagramUrl);
+  const [altText, setAltText] = useState(currentDiagramAlt);
+  const [caption, setCaption] = useState(currentDiagramCaption);
   const [description, setDescription] = useState(currentDescription);
   const [showPreview, setShowPreview] = useState(!!currentDiagramUrl);
 
@@ -71,9 +78,11 @@ export const DiagramGenerator = ({
 
       if (data?.imageUrl) {
         setDiagramImageUrl(data.imageUrl);
+        setAltText(data.altText || '');
+        setCaption(data.caption || '');
         setDescription(data.description || '');
         setShowPreview(true);
-        toast.success("Beautiful diagram generated successfully!");
+        toast.success("Beautiful diagram with AI-generated metadata created!");
       } else {
         throw new Error('No diagram image received');
       }
@@ -86,17 +95,21 @@ export const DiagramGenerator = ({
   };
 
   const handleSaveDiagram = () => {
-    if (diagramImageUrl && description) {
-      onDiagramGenerated(diagramImageUrl, description);
-      toast.success("Diagram added to article!");
+    if (diagramImageUrl && altText && caption && description) {
+      onDiagramGenerated(diagramImageUrl, altText, caption, description);
+      toast.success("Diagram with full metadata added to article!");
+    } else {
+      toast.error("Please fill in all metadata fields");
     }
   };
 
   const handleClearDiagram = () => {
     setDiagramImageUrl("");
+    setAltText("");
+    setCaption("");
     setDescription("");
     setShowPreview(false);
-    onDiagramGenerated("", "");
+    onDiagramGenerated("", "", "", "");
     toast.info("Diagram cleared");
   };
 
@@ -170,15 +183,48 @@ export const DiagramGenerator = ({
           </div>
 
           <div>
-            <Label htmlFor="diagramDescription">Description (for accessibility)</Label>
+            <Label htmlFor="diagramAlt">Alt Text (SEO & Accessibility)</Label>
+            <Input
+              id="diagramAlt"
+              value={altText}
+              onChange={(e) => setAltText(e.target.value)}
+              placeholder="Brief description for screen readers (50-125 chars)"
+              maxLength={125}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {altText.length}/125 characters - Used for SEO and screen readers
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="diagramCaption">Caption (User-Facing)</Label>
+            <Input
+              id="diagramCaption"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Short label shown under diagram (20-80 chars)"
+              maxLength={80}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {caption.length}/80 characters - Displayed to users
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="diagramDescription">Extended Description (AI/LLM Optimization)</Label>
             <Textarea
               id="diagramDescription"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what the diagram shows"
-              rows={3}
+              placeholder="Detailed explanation for voice assistants and AI readers (150-250 words)"
+              rows={4}
               className="mt-1"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Used for JSON-LD schema and voice assistant optimization
+            </p>
           </div>
 
           <div className="flex gap-2">
