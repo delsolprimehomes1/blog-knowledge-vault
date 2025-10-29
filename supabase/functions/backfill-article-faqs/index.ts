@@ -85,7 +85,7 @@ serve(async (req) => {
           .slice(0, 1000)
           .join(' ');
 
-        const prompt = `Generate exactly 1 FAQ that directly answers the main question in this article's title.
+        const prompt = `Generate 3-5 FAQs that comprehensively cover this article's topic.
 
 Article Details:
 - Headline: ${article.headline}
@@ -95,21 +95,26 @@ Article Details:
 - Content Preview: ${contentPreview}
 
 Requirements:
-- Create 1 question that rephrases the headline as a natural question
-- Provide a comprehensive 150-250 word answer optimized for voice assistants and AI reading
-- Include specific details from the article
+- Create 3-5 natural questions that readers would actually ask
+- First question should directly rephrase the headline
+- Additional questions should cover key subtopics and common concerns
+- Each answer must be 50-75 words: concise, direct, and actionable
+- Answers optimized for voice assistants (short, clear, scannable)
 - Match the article's language (${article.language})
+- Avoid fluff - get straight to the answer
 
 Funnel Stage Guidelines:
 ${article.funnel_stage === 'TOFU' 
-  ? '- TOFU: Focus on "What is..." or "Why..." with educational, awareness-building content that helps readers understand the basics'
+  ? '- TOFU: "What is...", "Why...", "When..." - educational basics'
   : article.funnel_stage === 'MOFU'
-  ? '- MOFU: Focus on "How to..." or "What are the differences..." with detailed process explanations and comparisons'
-  : '- BOFU: Focus on "Should I..." or "How do I start..." with actionable, decision-oriented guidance'}
+  ? '- MOFU: "How to...", "What are the steps...", "What should I consider..." - detailed process'
+  : '- BOFU: "Should I...", "How do I start...", "What are the costs..." - decision-oriented'}
 
 Return ONLY valid JSON in this format:
 {
   "faq_entities": [
+    {"question": "...", "answer": "..."},
+    {"question": "...", "answer": "..."},
     {"question": "...", "answer": "..."}
   ]
 }`;
@@ -148,8 +153,8 @@ Return ONLY valid JSON in this format:
         const faqEntities: FAQEntity[] = parsed.faq_entities || [];
 
         // Validate FAQs
-        if (faqEntities.length !== 1) {
-          throw new Error(`Invalid FAQ count: ${faqEntities.length}. Expected exactly 1.`);
+        if (faqEntities.length < 3 || faqEntities.length > 5) {
+          throw new Error(`Invalid FAQ count: ${faqEntities.length}. Expected 3-5 FAQs.`);
         }
 
         for (const faq of faqEntities) {
@@ -157,8 +162,8 @@ Return ONLY valid JSON in this format:
             throw new Error('FAQ missing question or answer');
           }
           const wordCount = faq.answer.split(/\s+/).length;
-          if (wordCount < 100 || wordCount > 300) {
-            console.warn(`FAQ answer word count ${wordCount} outside 150-250 range`);
+          if (wordCount < 30 || wordCount > 100) {
+            console.warn(`FAQ answer word count ${wordCount} outside 50-75 range`);
           }
         }
 

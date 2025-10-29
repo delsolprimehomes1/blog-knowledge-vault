@@ -43,8 +43,8 @@ export const FAQSection = ({
   };
 
   const addQuestion = () => {
-    if (faqEntities.length < 1) {
-      onFaqEntitiesChange([{ question: "", answer: "" }]);
+    if (faqEntities.length < 5) {
+      onFaqEntitiesChange([...faqEntities, { question: "", answer: "" }]);
     }
   };
 
@@ -138,7 +138,7 @@ export const FAQSection = ({
           <div>
             <CardTitle>FAQ Section (Recommended)</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Add 1 FAQ that directly answers the question in your article title - optimized for AI and voice assistants
+              Add 3-5 FAQs with concise 50-75 word answers - optimized for AI and voice assistants
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -210,22 +210,22 @@ export const FAQSection = ({
               </div>
 
               <div>
-                <Label>Answer * (150-250 words, optimized for AI/voice assistants)</Label>
+                <Label>Answer * (50-75 words, optimized for AI/voice assistants)</Label>
                 <Textarea
                   value={faq.answer}
                   onChange={(e) => updateQuestion(index, "answer", e.target.value)}
-                  placeholder="Provide a comprehensive answer that directly addresses the question in your article title..."
-                  rows={6}
+                  placeholder="Provide a concise, direct answer..."
+                  rows={4}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   {faq.answer.split(/\s+/).filter(w => w).length} words
-                  {faq.answer.split(/\s+/).filter(w => w).length < 150 && " (aim for 150-250 words)"}
+                  {faq.answer.split(/\s+/).filter(w => w).length < 50 && " (aim for 50-75 words)"}
                 </p>
               </div>
             </div>
           ))}
 
-          {faqEntities.length === 0 && (
+          {faqEntities.length < 5 && (
             <Button
               type="button"
               variant="outline"
@@ -233,7 +233,7 @@ export const FAQSection = ({
               className="w-full"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add FAQ
+              Add FAQ {faqEntities.length > 0 && `(${faqEntities.length}/5)`}
             </Button>
           )}
 
@@ -254,7 +254,7 @@ export const FAQSection = ({
           )}
 
           <p className="text-sm text-muted-foreground">
-            {faqEntities.length === 1 ? "1 FAQ added (matches article title)" : "Add 1 FAQ that answers your article title"}
+            {faqEntities.length} FAQ{faqEntities.length !== 1 ? 's' : ''} added (recommended: 3-5 for optimal voice search)
           </p>
         </CardContent>
       )}
