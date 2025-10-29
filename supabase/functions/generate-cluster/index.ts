@@ -1224,6 +1224,117 @@ Return ONLY valid JSON in this format:
       article.faq_entities = faqEntities || [];
 
       // 8. FEATURED IMAGE (using existing generate-image function with enhanced prompt)
+      
+      // Location-specific visual markers for authentic photography
+      const locationVisualMarkers: Record<string, string[]> = {
+        'Marbella': [
+          'Puerto Banús marina visible in distance',
+          'Golden Mile luxury architecture',
+          'Sierra Blanca mountains in background',
+          'La Concha mountain peak visible',
+          'exclusive gated community aesthetic',
+          'high-end contemporary design',
+          'palm-lined promenade',
+          'Marbella Club Hotel style architecture'
+        ],
+        'Estepona': [
+          'traditional whitewashed pueblo architecture',
+          'flower-pot lined cobblestone streets',
+          'colorful murals on white walls',
+          'family-friendly beachfront promenade',
+          'charming old town character',
+          'Plaza de las Flores atmosphere',
+          'traditional Andalusian balconies',
+          'coastal walkway with palm trees'
+        ],
+        'Málaga': [
+          'Málaga Cathedral visible in cityscape',
+          'historic port and modern marina',
+          'urban coastal architecture',
+          'Gibralfaro Castle on hilltop',
+          'contemporary city center buildings',
+          'Plaza de la Merced atmosphere',
+          'modern art district vibes',
+          'cosmopolitan Mediterranean urban setting'
+        ],
+        'Mijas': [
+          'hillside pueblo blanco architecture',
+          'mountain village atmosphere',
+          'panoramic coastal views from elevation',
+          'traditional whitewashed village streets',
+          'Sierra de Mijas mountain backdrop',
+          'rural mountain setting with sea views',
+          'authentic Andalusian mountain character',
+          'terraced hillside development'
+        ],
+        'Benalmádena': [
+          'marina with luxury yachts and boats',
+          'modern waterfront architecture',
+          'family resort atmosphere',
+          'Tivoli World entertainment nearby',
+          'Benalmádena Pueblo traditional quarter',
+          'cable car to Calamorro mountain visible',
+          'beachfront entertainment district',
+          'contemporary coastal residential towers'
+        ],
+        'Costa del Sol': [
+          'Mediterranean coastal architecture',
+          'Sierra de Mijas mountains in distance',
+          'golden beaches with blue flag status',
+          'typical Andalusian white architecture',
+          'subtropical Mediterranean vegetation',
+          'coastal promenade with palm trees',
+          'terraced hillside properties',
+          'year-round sunshine aesthetic'
+        ]
+      };
+
+      // Photorealism enforcement layer
+      const photoRealismSuffix = `
+PHOTOGRAPHIC REQUIREMENTS - MANDATORY:
+- Shot on location in Costa del Sol, Spain
+- Real architectural photography style, NOT AI-generated render
+- Natural lighting from actual Mediterranean sun
+- Documentary realism with authentic imperfections
+- Actual existing property or location, NOT conceptual visualization
+- Professional real estate listing photography quality
+- Geographic authenticity: MUST show recognizable Costa del Sol elements
+- Camera details: shot with Canon EOS R5, 24-70mm lens, f/4
+- NO generic AI-generated features or perfect symmetry
+- NO stock photo aesthetic or overly polished renders
+- Include subtle environmental details: weathering, lived-in spaces, natural wear
+- Authentic Spanish architectural details and local materials`;
+
+      // Get location-specific visual markers
+      const getLocationMarkers = (location: string, seed: number): string => {
+        const markers = locationVisualMarkers[location] || locationVisualMarkers['Costa del Sol'];
+        // Select 2-3 markers for variety without overwhelming the prompt
+        const selectedMarkers = [
+          markers[seed % markers.length],
+          markers[(seed + 1) % markers.length]
+        ];
+        return selectedMarkers.join(', ');
+      };
+
+      // Validate headline-to-image matching requirements
+      const extractHeadlineRequirements = (headline: string): {
+        hasSolar: boolean;
+        hasEco: boolean;
+        propertyType: string | null;
+        location: string;
+        specificFeature: string | null;
+      } => {
+        const text = headline.toLowerCase();
+        
+        return {
+          hasSolar: text.includes('solar'),
+          hasEco: text.match(/\b(eco|green|sustainable|energy-efficient|passive|breeam)\b/) !== null,
+          propertyType: text.match(/\b(villa|apartment|penthouse|townhouse)\b/)?.[0] || null,
+          location: text, // Will be processed by inferLocation
+          specificFeature: text.match(/\b(rooftop|terrace|facade|panel|garden|certification)\b/)?.[0] || null
+        };
+      };
+      
       const inferPropertyType = (contentAngle: string, headline: string) => {
         const text = (contentAngle + ' ' + headline).toLowerCase();
         if (text.includes('villa')) return 'luxury Mediterranean villa';
@@ -1306,7 +1417,12 @@ Return ONLY valid JSON in this format:
         articleIndex: number
       ): string => {
         
-        const baseQuality = 'ultra-realistic, 8k resolution, professional photography, no text, no watermarks';
+        // Extract headline requirements for validation
+        const requirements = extractHeadlineRequirements(headline);
+        
+        // Get location-specific visual markers
+        const uniqueSeed = headline.length + articleIndex;
+        const locationMarkers = getLocationMarkers(location, uniqueSeed);
         
         // UNIQUENESS TRACKING: Vary perspectives based on article index + headline for better randomization
         const perspectives = [
@@ -1317,15 +1433,29 @@ Return ONLY valid JSON in this format:
           'lifestyle-centered framing',
           'architectural detail focus'
         ];
-        const uniqueSeed = headline.length + articleIndex; // Better uniqueness
         const perspective = perspectives[uniqueSeed % perspectives.length];
         
-        // Time variety (deterministic based on article index for consistency)
-        const timesOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening', 'sunset glow', 'early sunrise'];
-        const timeOfDay = timesOfDay[uniqueSeed % timesOfDay.length];
+        // Time variety using photography terminology
+        const lightingConditions = [
+          'morning golden hour at 8am, soft directional light',
+          'midday Mediterranean sun at noon, bright even illumination',
+          'late afternoon at 5pm, warm amber tones',
+          'blue hour at dusk, twilight ambience',
+          'sunset glow at 7pm, golden warm tones',
+          'early sunrise at 6am, cool blue light'
+        ];
+        const lighting = lightingConditions[uniqueSeed % lightingConditions.length];
+        const timeOfDay = lighting; // Alias for backward compatibility
+        const baseQuality = 'ultra-realistic, 8k resolution, professional photography, no text, no watermarks';
         
-        // Architectural style variety (also deterministic)
-        const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Andalusian classic', 'sleek modernist'];
+        // Architectural style variety with specific regional context
+        const archStyles = [
+          'modern minimalist with clean lines',
+          'traditional Andalusian Mediterranean',
+          'contemporary coastal modernist',
+          'classic Costa del Sol style',
+          'sleek luxury modernist'
+        ];
         const archStyle = archStyles[uniqueSeed % archStyles.length];
         
         // ========== TOFU (Top of Funnel) - Inspirational & Lifestyle ==========
@@ -1334,13 +1464,24 @@ Return ONLY valid JSON in this format:
           // Eco/Sustainability articles (INSPIRATIONAL)
           if (topic === 'eco-sustainability') {
             const ecoTofuOptions = [
-              `Modern solar panels on Mediterranean villa rooftop in ${location}, Costa del Sol: Sleek photovoltaic array installation, ${archStyle} architecture, blue sky with scattered clouds, ${timeOfDay}, ${perspective}, rooftop terrace with sustainability features, eco-friendly design, ${baseQuality}`,
-              `Vertical garden green wall on contemporary building facade in ${location}: Lush living wall with native Mediterranean plants, modern eco-architecture, natural climate control, ${timeOfDay}, ${perspective}, people admiring sustainable design, urban greening, ${baseQuality}`,
-              `Wind turbines on Costa del Sol hillside near ${location}: Renewable energy farm with sea view, Sierra de Mijas mountains, white turbines against blue sky, ${timeOfDay}, ${perspective}, sustainable power generation, Mediterranean landscape, ${baseQuality}`,
-              `Modern passive house with floor-to-ceiling windows in ${location}: Energy-efficient ${archStyle} home, natural integration with landscape, solar orientation, thermal mass walls, ${timeOfDay}, ${perspective}, sustainable architecture showcase, eco-conscious design, ${baseQuality}`,
-              `Community garden with Mediterranean architecture in ${location}: Raised beds with vegetables and herbs, neighbors gardening together, traditional Costa del Sol buildings backdrop, ${timeOfDay}, ${perspective}, sustainable urban living, local food production, ${baseQuality}`,
-              `Electric vehicle charging station at modern development in ${location}: EV charger with sleek design, contemporary sustainable complex, solar canopy overhead, ${timeOfDay}, ${perspective}, green transportation infrastructure, eco-mobility, ${baseQuality}`
+              `INSPIRATIONAL SHOT: Solar panels prominently visible on ${propertyType} rooftop in ${location}, Costa del Sol. ${archStyle} architecture, sleek photovoltaic array with blue sky, ${locationMarkers}, ${lighting}, ${perspective}. Sustainability features showcase. ${photoRealismSuffix}`,
+              
+              `ARCHITECTURAL FEATURE: Vertical green wall with lush Mediterranean plants on building facade in ${location}. Living wall system, modern eco-architecture, ${locationMarkers}, ${lighting}, ${perspective}. Urban greening showcase. ${photoRealismSuffix}`,
+              
+              `LANDSCAPE SHOT: Wind turbines on Costa del Sol hillside near ${location}. Renewable energy farm with sea view, white turbines, ${locationMarkers}, ${lighting}, ${perspective}. Sustainable power generation. ${photoRealismSuffix}`,
+              
+              `ARCHITECTURAL SHOWCASE: Modern passive house with floor-to-ceiling windows in ${location}. Energy-efficient ${archStyle} home, ${locationMarkers}, ${lighting}, ${perspective}. Sustainable architecture. ${photoRealismSuffix}`,
+              
+              `COMMUNITY SCENE: Mediterranean garden with raised vegetable beds in ${location}. Neighbors gardening together, ${locationMarkers}, ${lighting}, ${perspective}. Sustainable urban living. ${photoRealismSuffix}`,
+              
+              `GREEN INFRASTRUCTURE: EV charging station at development in ${location}. Modern charger with solar canopy, ${propertyType} visible, ${locationMarkers}, ${lighting}, ${perspective}. Green transportation. ${photoRealismSuffix}`
             ];
+            
+            // If headline specifically mentions solar, ALWAYS use solar image
+            if (requirements.hasSolar) {
+              return ecoTofuOptions[0]; // Force solar panel image
+            }
+            
             return ecoTofuOptions[uniqueSeed % ecoTofuOptions.length];
           }
           
