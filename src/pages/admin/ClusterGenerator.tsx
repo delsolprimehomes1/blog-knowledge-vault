@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +52,8 @@ const ClusterGenerator = () => {
   const [showReview, setShowReview] = useState(false);
   const [hasBackup, setHasBackup] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isReviewModeRef = useRef(false);
   const [generationStartTime, setGenerationStartTime] = useState<number>(0);
   const [lastBackendUpdate, setLastBackendUpdate] = useState<Date | null>(null);
   const [findInternalLinks, setFindInternalLinks] = useState(true);
@@ -169,9 +170,18 @@ const ClusterGenerator = () => {
             .select('id, headline')
             .eq('cluster_id', currentJobId);
           
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            setPollingInterval(null);
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          
+          setIsGenerating(false);
+          setJobId(null);
+          localStorage.removeItem('current_job_id');
+          
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
           }
           
           setIsGenerating(false);
@@ -202,29 +212,36 @@ const ClusterGenerator = () => {
 
       // Handle completion
       if (data.status === 'completed') {
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
+        // Clear interval FIRST, before any state updates
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+          console.log('🛑 Polling stopped - generation complete');
         }
         
         console.log('✅ Generation complete! Articles:', data.articles);
-        setGeneratedArticles(data.articles);
-        setShowReview(true);
+        
+        // Only update articles if not already in review mode
+        if (!isReviewModeRef.current) {
+          setGeneratedArticles(data.articles);
+          setShowReview(true);
+          isReviewModeRef.current = true;
+          toast.success(`Successfully generated ${data.articles.length} articles!`);
+        }
+        
         setIsGenerating(false);
         setGenerationStartTime(0);
         
         // Clear job ID from storage
         localStorage.removeItem('current_job_id');
         setJobId(null);
-        
-        toast.success(`Successfully generated ${data.articles.length} articles!`);
       }
 
       // Handle failure
       if (data.status === 'failed') {
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
         }
         
         // Check if we have partial articles saved
@@ -279,9 +296,9 @@ const ClusterGenerator = () => {
         })
         .eq('id', jobId);
 
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        setPollingInterval(null);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
 
       setIsGenerating(false);
@@ -314,13 +331,13 @@ const ClusterGenerator = () => {
       };
       
       const interval = setInterval(poll, 3000);
-      setPollingInterval(interval);
+      pollingIntervalRef.current = interval;
       
       // After 2 minutes, switch to slower polling
       setTimeout(() => {
-        if (pollingInterval) clearInterval(pollingInterval);
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         const slowInterval = setInterval(poll, 10000);
-        setPollingInterval(slowInterval);
+        pollingIntervalRef.current = slowInterval;
       }, 120000); // 2 minutes
     }
   }, []);
@@ -337,11 +354,12 @@ const ClusterGenerator = () => {
   // Cleanup polling on unmount
   useEffect(() => {
     return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
     };
-  }, [pollingInterval]);
+  }, []);
 
   const handleGenerate = async () => {
     // Validation
@@ -362,6 +380,7 @@ const ClusterGenerator = () => {
     setProgress(0);
     setGenerationStartTime(Date.now());
     setLastBackendUpdate(new Date());
+    isReviewModeRef.current = false; // Reset review mode when starting new generation
     
     // Initialize steps
     const initialSteps: GenerationStep[] = [
@@ -413,13 +432,13 @@ const ClusterGenerator = () => {
 
       // Start with fast polling (3 seconds)
       const interval = setInterval(poll, 3000);
-      setPollingInterval(interval);
+      pollingIntervalRef.current = interval;
 
       // After 2 minutes, switch to slower polling (10 seconds)
       setTimeout(() => {
-        if (pollingInterval) clearInterval(pollingInterval);
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         const slowInterval = setInterval(poll, 10000);
-        setPollingInterval(slowInterval);
+        pollingIntervalRef.current = slowInterval;
       }, 120000); // 2 minutes
 
       // Initial status check
