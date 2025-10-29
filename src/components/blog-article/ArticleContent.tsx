@@ -3,6 +3,7 @@ import { OptimizedImage } from "@/components/OptimizedImage";
 import { MermaidPreview } from "@/components/MermaidPreview";
 import { ExternalCitation, InternalLink } from "@/types/blog";
 import { injectExternalLinks, injectInternalLinks, addCitationMarkers } from "@/lib/linkInjection";
+import { marked } from 'marked';
 
 interface ArticleContentProps {
   content: string;
@@ -53,9 +54,14 @@ export const ArticleContent = ({
     return htmlContent;
   };
 
-  // Process content: sanitize -> internal links -> bold markers -> external links -> citation markers
+  // Process content: sanitize -> markdown conversion -> internal links -> external links -> citation markers
   const processContent = (htmlContent: string) => {
     let processed = sanitizeContent(htmlContent);
+    
+    // Convert markdown to HTML if detected (handles legacy content with asterisks)
+    if (processed.includes('**') || /^\s*\*\s+/m.test(processed)) {
+      processed = marked(processed) as string;
+    }
     
     // SAFETY: Remove any [CITATION_NEEDED] markers that shouldn't be visible
     processed = processed.replace(/\[CITATION_NEEDED:[^\]]*\]/g, '');
@@ -63,7 +69,6 @@ export const ArticleContent = ({
     
     // Process internal link placeholders FIRST (before other transformations)
     processed = injectInternalLinks(processed, internalLinks);
-    processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     processed = injectExternalLinks(processed, externalCitations);
     processed = addCitationMarkers(processed, externalCitations);
     return processed;

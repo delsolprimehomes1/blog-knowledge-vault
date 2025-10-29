@@ -84,9 +84,17 @@ CRITICAL INSTRUCTIONS:
 - Do NOT write "I understand" or "I will follow" - write the actual article
 - Include multiple H2 sections with detailed paragraphs
 - Target 1,500-2,500 words of actual content
-- Use proper HTML formatting with <h2>, <p>, <ul>, <li> tags
 
-Write the article content now:`
+FORMATTING REQUIREMENTS (HTML ONLY - NO MARKDOWN):
+- Use <h2>, <h3> for headings (NOT ## or ###)
+- Use <p> for paragraphs
+- Use <ul> and <li> for bullet lists (NOT * or -)
+- Use <strong> for bold text (NOT ** or __)
+- Use <em> for emphasis (NOT * or _)
+- Use <a href="URL"> for links
+- DO NOT use any markdown syntax whatsoever
+
+Write the article content now in HTML format:`
           }
         ],
         temperature: 0.7,

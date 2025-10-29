@@ -998,13 +998,15 @@ Requirements:
 6. Reference claims that need citations naturally, DO NOT use [CITATION_NEEDED] markers
 7. Write naturally without placeholder markers - internal links will be added automatically by the system
 
-Format as HTML with:
-- <h2> for main sections (5-7 sections)
-- <h3> for subsections
-- <p> for paragraphs
-- <ul> and <li> for lists
-- <strong> for emphasis
-- <table> if comparing data
+FORMATTING REQUIREMENTS (HTML ONLY - NO MARKDOWN):
+- Use <h2> for main sections (5-7 sections)
+- Use <h3> for subsections
+- Use <p> for paragraphs
+- Use <ul> and <li> for bullet lists (NOT * or -)
+- Use <strong> for bold text (NOT ** or __)
+- Use <em> for emphasis (NOT * or _)
+- Use <table> if comparing data
+- DO NOT use any markdown syntax whatsoever (no asterisks, no hash symbols, no underscores for formatting)
 
 External citations will be added automatically by the system.
 
