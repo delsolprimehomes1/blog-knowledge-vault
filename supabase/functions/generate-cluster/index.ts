@@ -1237,6 +1237,11 @@ Return ONLY valid JSON in this format:
       const detectArticleTopic = (headline: string): string => {
         const text = headline.toLowerCase();
         
+        // Eco/Sustainability articles (PRIORITY CHECK FIRST)
+        if (text.match(/\b(eco|green|sustainable|sustainability|carbon neutral|solar|renewable|energy efficient|breeam|leed|environmental|climate|duurzaam|zonne|energie|milieu|groen|energie-effici[eë]nt)\b/)) {
+          return 'eco-sustainability';
+        }
+        
         // Market analysis / trends / forecasts
         if (text.match(/\b(market|trends|forecast|outlook|analysis|statistics|data|report|2025|2026|predictions)\b/)) {
           return 'market-analysis';
@@ -1303,7 +1308,7 @@ Return ONLY valid JSON in this format:
         
         const baseQuality = 'ultra-realistic, 8k resolution, professional photography, no text, no watermarks';
         
-        // UNIQUENESS TRACKING: Vary perspectives based on article index to prevent repetition
+        // UNIQUENESS TRACKING: Vary perspectives based on article index + headline for better randomization
         const perspectives = [
           'wide-angle perspective',
           'intimate close-up details',
@@ -1312,18 +1317,32 @@ Return ONLY valid JSON in this format:
           'lifestyle-centered framing',
           'architectural detail focus'
         ];
-        const perspective = perspectives[articleIndex % perspectives.length];
+        const uniqueSeed = headline.length + articleIndex; // Better uniqueness
+        const perspective = perspectives[uniqueSeed % perspectives.length];
         
         // Time variety (deterministic based on article index for consistency)
         const timesOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening', 'sunset glow', 'early sunrise'];
-        const timeOfDay = timesOfDay[articleIndex % timesOfDay.length];
+        const timeOfDay = timesOfDay[uniqueSeed % timesOfDay.length];
         
         // Architectural style variety (also deterministic)
         const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Andalusian classic', 'sleek modernist'];
-        const archStyle = archStyles[articleIndex % archStyles.length];
+        const archStyle = archStyles[uniqueSeed % archStyles.length];
         
         // ========== TOFU (Top of Funnel) - Inspirational & Lifestyle ==========
         if (funnelStage === 'TOFU') {
+          
+          // Eco/Sustainability articles (INSPIRATIONAL)
+          if (topic === 'eco-sustainability') {
+            const ecoTofuOptions = [
+              `Modern solar panels on Mediterranean villa rooftop in ${location}, Costa del Sol: Sleek photovoltaic array installation, ${archStyle} architecture, blue sky with scattered clouds, ${timeOfDay}, ${perspective}, rooftop terrace with sustainability features, eco-friendly design, ${baseQuality}`,
+              `Vertical garden green wall on contemporary building facade in ${location}: Lush living wall with native Mediterranean plants, modern eco-architecture, natural climate control, ${timeOfDay}, ${perspective}, people admiring sustainable design, urban greening, ${baseQuality}`,
+              `Wind turbines on Costa del Sol hillside near ${location}: Renewable energy farm with sea view, Sierra de Mijas mountains, white turbines against blue sky, ${timeOfDay}, ${perspective}, sustainable power generation, Mediterranean landscape, ${baseQuality}`,
+              `Modern passive house with floor-to-ceiling windows in ${location}: Energy-efficient ${archStyle} home, natural integration with landscape, solar orientation, thermal mass walls, ${timeOfDay}, ${perspective}, sustainable architecture showcase, eco-conscious design, ${baseQuality}`,
+              `Community garden with Mediterranean architecture in ${location}: Raised beds with vegetables and herbs, neighbors gardening together, traditional Costa del Sol buildings backdrop, ${timeOfDay}, ${perspective}, sustainable urban living, local food production, ${baseQuality}`,
+              `Electric vehicle charging station at modern development in ${location}: EV charger with sleek design, contemporary sustainable complex, solar canopy overhead, ${timeOfDay}, ${perspective}, green transportation infrastructure, eco-mobility, ${baseQuality}`
+            ];
+            return ecoTofuOptions[uniqueSeed % ecoTofuOptions.length];
+          }
           
           // Market analysis articles
           if (topic === 'market-analysis') {
@@ -1393,6 +1412,19 @@ Return ONLY valid JSON in this format:
         // ========== MOFU (Middle of Funnel) - Detailed & Comparative ==========
         if (funnelStage === 'MOFU') {
           
+          // Eco/Sustainability articles (DETAILED)
+          if (topic === 'eco-sustainability') {
+            const ecoMofuOptions = [
+              `Cross-section architectural diagram of passive house construction in ${location}: Insulation layers visible, ventilation system with heat recovery, thermal bridge-free design, ${archStyle} exterior, ${timeOfDay}, ${perspective}, technical sustainability features, energy efficiency cutaway, ${baseQuality}`,
+              `BREEAM certification plaque on modern sustainable building in ${location}: Official green building certificate mounted on contemporary ${archStyle} facade, professional photography, ${timeOfDay}, ${perspective}, eco-credentials showcase, verified sustainability, ${baseQuality}`,
+              `Geothermal heat pump installation for Costa del Sol home in ${location}: Ground-source heating system, underground pipes and manifold, modern mechanical room, ${timeOfDay}, ${perspective}, renewable heating technology, energy-efficient HVAC, ${baseQuality}`,
+              `Smart home energy dashboard display in ${location} property: Wall-mounted tablet showing real-time solar production, battery storage levels, energy consumption graphs, ${timeOfDay}, ${perspective}, home automation for sustainability, energy monitoring system, ${baseQuality}`,
+              `Rainwater harvesting system in ${location} Mediterranean home: Large collection tanks, filtration system, drip irrigation for garden, ${archStyle} architecture, ${timeOfDay}, ${perspective}, water conservation infrastructure, sustainable water management, ${baseQuality}`,
+              `Energy-efficient appliances in modern ${location} kitchen: A+++ rated induction cooktop, efficient refrigerator, LED lighting, sleek contemporary design, ${timeOfDay}, ${perspective}, sustainable home features, eco-conscious interior, ${baseQuality}`
+            ];
+            return ecoMofuOptions[uniqueSeed % ecoMofuOptions.length];
+          }
+          
           // Market analysis for MOFU
           if (topic === 'market-analysis') {
             return `Investment analysis scene in ${location} real estate office: 
@@ -1455,6 +1487,19 @@ Return ONLY valid JSON in this format:
         
         // ========== BOFU (Bottom of Funnel) - Professional & Process-Oriented ==========
         if (funnelStage === 'BOFU') {
+          
+          // Eco/Sustainability articles (DECISION-FOCUSED)
+          if (topic === 'eco-sustainability') {
+            const ecoBofuOptions = [
+              `Property signing with energy performance certificates in ${location}: Buyer and agent reviewing EPC documents, A-rated energy certificate visible on desk, professional office setting, ${timeOfDay}, ${perspective}, green property transaction, eco-certification validation, ${baseQuality}`,
+              `Property inspector showing green building certifications in ${location}: Professional inspection report with BREEAM/LEED ratings, sustainability checklist, modern ${archStyle} property, ${timeOfDay}, ${perspective}, eco-credentials verification, certification documents, ${baseQuality}`,
+              `Solar panel warranty and installation documents in ${location}: Manufacturer guarantees, installation certificates, maintenance schedule, professional desk setup, ${timeOfDay}, ${perspective}, renewable energy investment paperwork, solar system documentation, ${baseQuality}`,
+              `Energy audit results and savings projections for ${location} property: Detailed consumption analysis, cost savings graphs, efficiency upgrade recommendations, professional consultation, ${timeOfDay}, ${perspective}, financial benefits of sustainability, energy performance data, ${baseQuality}`,
+              `Green mortgage consultation in ${location} bank office: Financial advisor explaining eco-home loan benefits, calculator with energy savings, sustainable property brochures, ${timeOfDay}, ${perspective}, green financing options, eco-mortgage advantages, ${baseQuality}`,
+              `House keys next to sustainability certificates in ${location}: New home keys on table with energy rating, eco-building certifications, welcome documents, ${timeOfDay}, ${perspective}, sustainable property ownership, green home completion, ${baseQuality}`
+            ];
+            return ecoBofuOptions[uniqueSeed % ecoBofuOptions.length];
+          }
           
           // Legal/process articles
           if (topic === 'process-legal') {

@@ -31,6 +31,11 @@ const inferPropertyType = (headline: string): string => {
 const detectArticleTopic = (headline: string): string => {
   const text = headline.toLowerCase();
   
+  // Eco/Sustainability articles (PRIORITY CHECK FIRST)
+  if (text.match(/\b(eco|green|sustainable|sustainability|carbon neutral|solar|renewable|energy efficient|breeam|leed|environmental|climate|duurzaam|zonne|energie|milieu|groen|energie-effici[eë]nt)\b/)) {
+    return 'eco-sustainability';
+  }
+  
   // Market analysis / trends / forecasts
   if (text.match(/\b(market|trends|forecast|outlook|analysis|statistics|data|report|2025|2026|predictions)\b/)) {
     return 'market-analysis';
@@ -106,12 +111,26 @@ const generateContextualImagePrompt = (
   
   const baseQuality = 'ultra-realistic, 8k resolution, professional photography, no text, no watermarks';
   
-  // Time variety (rotate to avoid repetition)
-  const timeOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening'][Math.floor(Math.random() * 4)];
+  // Time variety (rotate to avoid repetition) - use headline for better randomization
+  const uniqueSeed = headline.length;
+  const timeOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening'][uniqueSeed % 4];
   
   // Architectural style variety
   const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Andalusian classic'];
-  const archStyle = archStyles[Math.floor(Math.random() * archStyles.length)];
+  const archStyle = archStyles[uniqueSeed % archStyles.length];
+  
+  // Eco/Sustainability articles
+  if (topic === 'eco-sustainability') {
+    const ecoOptions = [
+      `Modern solar panels on Mediterranean villa rooftop in ${location}, Costa del Sol: Sleek photovoltaic array installation, ${archStyle} architecture, blue sky with scattered clouds, ${timeOfDay}, rooftop terrace with sustainability features, eco-friendly design, ${baseQuality}`,
+      `Vertical garden green wall on contemporary building facade in ${location}: Lush living wall with native Mediterranean plants, modern eco-architecture, natural climate control, ${timeOfDay}, people admiring sustainable design, urban greening, ${baseQuality}`,
+      `Energy-efficient modern home with floor-to-ceiling windows in ${location}: Passive house design, natural light optimization, solar orientation, thermal mass construction, ${timeOfDay}, sustainable architecture showcase, ${baseQuality}`,
+      `Electric vehicle charging station at modern development in ${location}: EV charger with sleek design, contemporary sustainable complex, solar canopy overhead, ${timeOfDay}, green transportation infrastructure, ${baseQuality}`,
+      `BREEAM certification plaque on sustainable building in ${location}: Official green building certificate, contemporary ${archStyle} facade, professional photography, ${timeOfDay}, eco-credentials showcase, ${baseQuality}`,
+      `Smart home energy dashboard in ${location} property: Wall-mounted display showing solar production, battery storage, energy graphs, ${timeOfDay}, home automation for sustainability, ${baseQuality}`
+    ];
+    return ecoOptions[uniqueSeed % ecoOptions.length];
+  }
   
   // Market analysis articles
   if (topic === 'market-analysis') {
