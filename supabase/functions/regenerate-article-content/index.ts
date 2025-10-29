@@ -22,21 +22,14 @@ Deno.serve(async (req) => {
 
     // Fetch article metadata
     const { data: article, error: articleError } = await supabase
-      .from('articles')
-      .select('headline, meta_description, category_id, funnel_stage, language, author_id')
+      .from('blog_articles')
+      .select('headline, meta_description, category, funnel_stage, language, author_id, slug')
       .eq('id', articleId)
       .single();
 
     if (articleError || !article) {
       throw new Error(`Article not found: ${articleError?.message}`);
     }
-
-    // Fetch category
-    const { data: category } = await supabase
-      .from('categories')
-      .select('name')
-      .eq('id', article.category_id)
-      .single();
 
     // Fetch author
     const { data: author } = await supabase
@@ -58,7 +51,7 @@ Deno.serve(async (req) => {
       .replace(/\[AUTHOR_NAME\]/g, author?.name || 'Hans Beeckman')
       .replace(/\[EXPERIENCE_YEARS\]/g, String(author?.experience_years || 15))
       .replace(/\[SPECIALIZATIONS\]/g, author?.specializations?.join(', ') || 'Costa del Sol property market')
-      .replace(/\[CATEGORY\]/g, category?.name || 'Real Estate')
+      .replace(/\[CATEGORY\]/g, article.category || 'Real Estate')
       .replace(/\[FUNNEL_STAGE\]/g, article.funnel_stage || 'MOFU')
       .replace(/\[LANGUAGE\]/g, article.language || 'en');
 
@@ -138,11 +131,13 @@ Write the article content now:`
     }
 
     // Update article with new content
+    const readTime = Math.ceil(wordCount / 200); // Estimate 200 words per minute
     const { error: updateError } = await supabase
-      .from('articles')
+      .from('blog_articles')
       .update({
         detailed_content: generatedContent,
-        updated_at: new Date().toISOString(),
+        read_time: readTime,
+        date_modified: new Date().toISOString(),
       })
       .eq('id', articleId);
 
