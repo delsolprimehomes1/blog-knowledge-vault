@@ -8,8 +8,10 @@ interface BulkActionsProps {
   onSaveAllAsDrafts: () => Promise<void>;
   onExportCluster: () => void;
   onFixAllCitations?: () => Promise<void>;
+  onAutoFixSlugs?: () => Promise<void>;
   articleCount: number;
   citationsNeeded: number;
+  duplicateSlugsCount?: number;
 }
 
 export const BulkActions = ({
@@ -17,8 +19,10 @@ export const BulkActions = ({
   onSaveAllAsDrafts,
   onExportCluster,
   onFixAllCitations,
+  onAutoFixSlugs,
   articleCount,
   citationsNeeded,
+  duplicateSlugsCount = 0,
 }: BulkActionsProps) => {
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -39,6 +43,20 @@ export const BulkActions = ({
             <span className="font-semibold">{articleCount} articles</span> in this cluster
           </div>
           <div className="flex gap-2">
+            {duplicateSlugsCount > 0 && onAutoFixSlugs && (
+              <Button
+                variant="destructive"
+                onClick={() => handleAction("slugs", onAutoFixSlugs)}
+                disabled={loading !== null}
+              >
+                {loading === "slugs" ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                )}
+                Auto-Fix {duplicateSlugsCount} Duplicate Slug{duplicateSlugsCount !== 1 ? 's' : ''}
+              </Button>
+            )}
             {citationsNeeded > 0 && onFixAllCitations && (
               <Button
                 variant="secondary"

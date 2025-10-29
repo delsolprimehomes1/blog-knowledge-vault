@@ -51,18 +51,25 @@ export const ClusterReviewInterface = ({
     }
   }, []);
 
-  // Real-time slug checker
+  // Real-time slug checker with toast warnings
   const checkSlugAvailability = async (slug: string) => {
     if (!slug) return true;
     
     const { data } = await supabase
       .from('blog_articles')
-      .select('id')
+      .select('slug, headline')
       .eq('slug', slug)
       .maybeSingle();
     
     const isAvailable = !data;
     setSlugValidation(prev => new Map(prev).set(slug, isAvailable));
+    
+    if (!isAvailable && data) {
+      toast.warning(
+        `⚠️ Slug "${slug}" already exists for article "${data.headline}". Please modify it or use Auto-Fix Slugs.`,
+        { duration: 6000 }
+      );
+    }
     
     return isAvailable;
   };
@@ -91,6 +98,9 @@ export const ClusterReviewInterface = ({
     const markerCount = (article.detailed_content?.match(/\[CITATION_NEEDED\]/g) || []).length;
     return count + markerCount;
   }, 0);
+
+  // Count duplicate slugs
+  const duplicateSlugsCount = Array.from(slugValidation.values()).filter(isAvailable => !isAvailable).length;
 
   // Fetch categories
   const { data: categories } = useQuery({
@@ -169,6 +179,11 @@ export const ClusterReviewInterface = ({
     
     // Revalidate after update
     setTimeout(() => validateCategories(), 100);
+    
+    // Check slug if it was updated
+    if (updates.slug) {
+      checkSlugAvailability(updates.slug);
+    }
   };
 
   const handleRegenerateSection = async (section: string) => {
@@ -252,6 +267,48 @@ export const ClusterReviewInterface = ({
       toast.error('Failed to fix citations');
     } finally {
       setIsFixingCitations(false);
+    }
+  };
+
+  // Auto-fix duplicate slugs
+  const handleAutoFixDuplicateSlugs = async () => {
+    try {
+      toast.info('Checking and fixing duplicate slugs...');
+      
+      const timestamp = Date.now().toString().slice(-6);
+      let fixedCount = 0;
+      
+      const fixedArticles = await Promise.all(
+        articles.map(async (article, idx) => {
+          if (!article.slug) return article;
+          
+          const { data } = await supabase
+            .from('blog_articles')
+            .select('slug')
+            .eq('slug', article.slug)
+            .maybeSingle();
+          
+          if (data) {
+            // Slug exists, append suffix
+            fixedCount++;
+            return {
+              ...article,
+              slug: `${article.slug}-${timestamp}-${idx + 1}`
+            };
+          }
+          return article;
+        })
+      );
+      
+      if (fixedCount > 0) {
+        onArticlesChange(fixedArticles);
+        toast.success(`✅ Auto-fixed ${fixedCount} duplicate slug${fixedCount !== 1 ? 's' : ''}!`);
+      } else {
+        toast.success('✅ No duplicate slugs found!');
+      }
+    } catch (error) {
+      console.error('Error auto-fixing slugs:', error);
+      toast.error('Failed to auto-fix slugs');
     }
   };
 
@@ -498,8 +555,10 @@ export const ClusterReviewInterface = ({
         onSaveAllAsDrafts={onSaveAll}
         onExportCluster={onExport}
         onFixAllCitations={citationsNeeded > 0 ? handleFixAllCitations : undefined}
+        onAutoFixSlugs={duplicateSlugsCount > 0 ? handleAutoFixDuplicateSlugs : undefined}
         articleCount={articles.length}
         citationsNeeded={citationsNeeded}
+        duplicateSlugsCount={duplicateSlugsCount}
       />
     </div>
   );
