@@ -17,6 +17,86 @@ interface FalResult {
   images: FalImage[];
 }
 
+// Location-specific visual markers for authentic photography
+const locationVisualMarkers: Record<string, string[]> = {
+  'Marbella': [
+    'Puerto Banús marina visible in distance',
+    'Golden Mile luxury architecture',
+    'Sierra Blanca mountains in background',
+    'La Concha mountain peak visible',
+    'exclusive gated community aesthetic',
+    'high-end contemporary design',
+    'palm-lined promenade',
+    'Marbella Club Hotel style architecture'
+  ],
+  'Estepona': [
+    'traditional whitewashed pueblo architecture',
+    'flower-pot lined cobblestone streets',
+    'colorful murals on white walls',
+    'family-friendly beachfront promenade',
+    'charming old town character',
+    'Plaza de las Flores atmosphere',
+    'traditional Andalusian balconies',
+    'coastal walkway with palm trees'
+  ],
+  'Málaga': [
+    'Málaga Cathedral visible in cityscape',
+    'historic port and modern marina',
+    'urban coastal architecture',
+    'Gibralfaro Castle on hilltop',
+    'contemporary city center buildings',
+    'Plaza de la Merced atmosphere',
+    'modern art district vibes',
+    'cosmopolitan Mediterranean urban setting'
+  ],
+  'Mijas': [
+    'hillside pueblo blanco architecture',
+    'mountain village atmosphere',
+    'panoramic coastal views from elevation',
+    'traditional whitewashed village streets',
+    'Sierra de Mijas mountain backdrop',
+    'rural mountain setting with sea views',
+    'authentic Andalusian mountain character',
+    'terraced hillside development'
+  ],
+  'Benalmádena': [
+    'marina with luxury yachts and boats',
+    'modern waterfront architecture',
+    'family resort atmosphere',
+    'Tivoli World entertainment nearby',
+    'Benalmádena Pueblo traditional quarter',
+    'cable car to Calamorro mountain visible',
+    'beachfront entertainment district',
+    'contemporary coastal residential towers'
+  ],
+  'Costa del Sol': [
+    'Mediterranean coastal architecture',
+    'Sierra de Mijas mountains in distance',
+    'golden beaches with blue flag status',
+    'typical Andalusian white architecture',
+    'subtropical Mediterranean vegetation',
+    'coastal promenade with palm trees',
+    'terraced hillside properties',
+    'year-round sunshine aesthetic'
+  ]
+};
+
+// Photorealism enforcement layer
+const photoRealismSuffix = `
+PHOTOGRAPHIC REQUIREMENTS - MANDATORY:
+- Shot on location in Costa del Sol, Spain
+- Real architectural photography style, NOT AI-generated render
+- Natural lighting from actual Mediterranean sun
+- Documentary realism with authentic imperfections
+- Actual existing property or location, NOT conceptual visualization
+- Professional real estate listing photography quality
+- Geographic authenticity: MUST show recognizable Costa del Sol elements
+- Camera details: shot with Canon EOS R5, 24-70mm lens, f/4
+- NO generic AI-generated features or perfect symmetry
+- NO stock photo aesthetic or overly polished renders
+- Include subtle environmental details: weathering, lived-in spaces, natural wear
+- Authentic Spanish architectural details and local materials`;
+
 // Helper function to infer property type from headline
 const inferPropertyType = (headline: string): string => {
   const text = headline.toLowerCase();
@@ -90,18 +170,52 @@ const detectArticleTopic = (headline: string): string => {
   return 'general-property';
 };
 
-// Helper function to infer location from headline
+// Helper function to infer location from headline with specific landmarks
 const inferLocation = (headline: string): string => {
   const text = headline.toLowerCase();
+  if (text.includes('golden mile')) return 'Marbella'; // Specific Marbella area
+  if (text.includes('puerto ban') || text.includes('puerto banus')) return 'Marbella';
   if (text.includes('marbella')) return 'Marbella';
+  if (text.includes('old town') && text.includes('estepona')) return 'Estepona';
   if (text.includes('estepona')) return 'Estepona';
+  if (text.includes('city center') && (text.includes('malaga') || text.includes('málaga'))) return 'Málaga';
   if (text.includes('malaga') || text.includes('málaga')) return 'Málaga';
   if (text.includes('mijas')) return 'Mijas';
   if (text.includes('benalmádena') || text.includes('benalmadena')) return 'Benalmádena';
   return 'Costa del Sol';
 };
 
-// Generate contextual image prompt based on article topic
+// Get location-specific visual markers
+const getLocationMarkers = (location: string, seed: number): string => {
+  const markers = locationVisualMarkers[location] || locationVisualMarkers['Costa del Sol'];
+  // Select 2-3 markers for variety without overwhelming the prompt
+  const selectedMarkers = [
+    markers[seed % markers.length],
+    markers[(seed + 1) % markers.length]
+  ];
+  return selectedMarkers.join(', ');
+};
+
+// Validate headline-to-image matching requirements
+const extractHeadlineRequirements = (headline: string): {
+  hasSolar: boolean;
+  hasEco: boolean;
+  propertyType: string | null;
+  location: string;
+  specificFeature: string | null;
+} => {
+  const text = headline.toLowerCase();
+  
+  return {
+    hasSolar: text.includes('solar'),
+    hasEco: text.match(/\b(eco|green|sustainable|energy-efficient|passive|breeam)\b/) !== null,
+    propertyType: text.match(/\b(villa|apartment|penthouse|townhouse)\b/)?.[0] || null,
+    location: inferLocation(headline),
+    specificFeature: text.match(/\b(rooftop|terrace|facade|panel|garden|certification)\b/)?.[0] || null
+  };
+};
+
+// Generate contextual image prompt based on article topic with location authenticity
 const generateContextualImagePrompt = (
   headline: string,
   topic: string,
@@ -109,143 +223,114 @@ const generateContextualImagePrompt = (
   location: string
 ): string => {
   
-  const baseQuality = 'ultra-realistic, 8k resolution, professional photography, no text, no watermarks';
+  // Extract headline requirements for validation
+  const requirements = extractHeadlineRequirements(headline);
   
-  // Time variety (rotate to avoid repetition) - use headline for better randomization
+  // Get location-specific visual markers
   const uniqueSeed = headline.length;
-  const timeOfDay = ['morning golden light', 'bright midday sun', 'soft afternoon light', 'blue hour evening'][uniqueSeed % 4];
+  const locationMarkers = getLocationMarkers(location, uniqueSeed);
   
-  // Architectural style variety
-  const archStyles = ['modern minimalist', 'traditional Mediterranean', 'contemporary coastal', 'Andalusian classic'];
+  // Time variety using photography terminology
+  const lightingConditions = [
+    'morning golden hour at 8am, soft directional light',
+    'midday Mediterranean sun at noon, bright even illumination',
+    'late afternoon at 5pm, warm amber tones',
+    'blue hour at dusk, twilight ambience'
+  ];
+  const lighting = lightingConditions[uniqueSeed % lightingConditions.length];
+  
+  // Architectural style variety with specific regional context
+  const archStyles = [
+    'modern minimalist with clean lines',
+    'traditional Andalusian Mediterranean',
+    'contemporary coastal modernist',
+    'classic Costa del Sol style'
+  ];
   const archStyle = archStyles[uniqueSeed % archStyles.length];
   
-  // Eco/Sustainability articles
+  // Eco/Sustainability articles - MUST show actual eco-features
   if (topic === 'eco-sustainability') {
     const ecoOptions = [
-      `Modern solar panels on Mediterranean villa rooftop in ${location}, Costa del Sol: Sleek photovoltaic array installation, ${archStyle} architecture, blue sky with scattered clouds, ${timeOfDay}, rooftop terrace with sustainability features, eco-friendly design, ${baseQuality}`,
-      `Vertical garden green wall on contemporary building facade in ${location}: Lush living wall with native Mediterranean plants, modern eco-architecture, natural climate control, ${timeOfDay}, people admiring sustainable design, urban greening, ${baseQuality}`,
-      `Energy-efficient modern home with floor-to-ceiling windows in ${location}: Passive house design, natural light optimization, solar orientation, thermal mass construction, ${timeOfDay}, sustainable architecture showcase, ${baseQuality}`,
-      `Electric vehicle charging station at modern development in ${location}: EV charger with sleek design, contemporary sustainable complex, solar canopy overhead, ${timeOfDay}, green transportation infrastructure, ${baseQuality}`,
-      `BREEAM certification plaque on sustainable building in ${location}: Official green building certificate, contemporary ${archStyle} facade, professional photography, ${timeOfDay}, eco-credentials showcase, ${baseQuality}`,
-      `Smart home energy dashboard in ${location} property: Wall-mounted display showing solar production, battery storage, energy graphs, ${timeOfDay}, home automation for sustainability, ${baseQuality}`
+      `CLOSE-UP: Solar panels prominently installed on ${propertyType} rooftop in ${location}, Costa del Sol. ${archStyle} architecture beneath, blue photovoltaic array clearly visible with individual cells, ${locationMarkers} visible in background, ${lighting}. Documentary real estate photography showing sustainability features. ${photoRealismSuffix}`,
+      
+      `ARCHITECTURAL DETAIL: Vertical green wall with lush Mediterranean plants on ${propertyType} facade in ${location}. Living wall system with native species, modern eco-architecture, ${locationMarkers}, ${lighting}. Shot with architectural photography approach, natural climate control visible. ${photoRealismSuffix}`,
+      
+      `WIDE SHOT: Energy-efficient passive house ${propertyType} in ${location} with floor-to-ceiling south-facing windows. ${archStyle} design with visible thermal mass walls, solar orientation evident, ${locationMarkers}, ${lighting}. Professional energy-efficient home photography. ${photoRealismSuffix}`,
+      
+      `PROPERTY FEATURE: Electric vehicle charging station at modern sustainable development in ${location}. EV charger with sleek design, solar canopy visible overhead, ${propertyType} in background, ${locationMarkers}, ${lighting}. Real estate listing showing green infrastructure. ${photoRealismSuffix}`,
+      
+      `CERTIFICATION SHOWCASE: BREEAM certification plaque mounted on ${archStyle} ${propertyType} in ${location}. Official green building certificate clearly visible, contemporary facade, ${locationMarkers}, ${lighting}. Documentary photography of eco-credentials. ${photoRealismSuffix}`,
+      
+      `INTERIOR TECH: Smart home energy dashboard on wall in ${location} ${propertyType}. Digital display showing real-time solar production graphs, battery storage levels, energy consumption data, ${archStyle} interior, ${lighting}. Home automation photography for sustainability. ${photoRealismSuffix}`
     ];
+    
+    // If headline specifically mentions solar, ALWAYS use solar image
+    if (requirements.hasSolar) {
+      return ecoOptions[0]; // Force solar panel image
+    }
+    
     return ecoOptions[uniqueSeed % ecoOptions.length];
   }
   
-  // Market analysis articles
+  // Market analysis articles - MUST show business/data scenes
   if (topic === 'market-analysis') {
-    return `Professional business scene in modern ${location} office: 
-      Real estate market analysts reviewing data and trends, 
-      large display screens showing graphs and statistics, 
-      Costa del Sol skyline visible through office windows, 
-      business professionals in meeting, contemporary workspace, 
-      laptops and digital presentations, ${timeOfDay}, 
-      focus on DATA and BUSINESS not properties, 
-      ${baseQuality}`;
+    return `BUSINESS SCENE: Real estate market analysis meeting in modern ${location} office. Professional analysts reviewing market data on large displays, graphs and statistics visible, ${locationMarkers} visible through floor-to-ceiling windows, contemporary workspace with laptops, ${lighting}. Corporate real estate photography, focus on DATA and BUSINESS analysis, NOT properties. Shot in actual Costa del Sol business environment. ${photoRealismSuffix}`;
   }
   
-  // Digital nomad articles
+  // Digital nomad articles - MUST show work lifestyle
   if (topic === 'digital-nomad') {
-    return `Modern coworking lifestyle in ${location}, Costa del Sol: 
-      Young remote workers in bright coworking space, 
-      laptops and coffee, minimalist design, 
-      Mediterranean views from windows, natural plants, 
-      professional yet relaxed atmosphere, diverse professionals, 
-      ${timeOfDay}, NOT luxury villas, focus on WORK lifestyle, 
-      ${baseQuality}`;
+    return `COWORKING LIFESTYLE: Remote workers in bright coworking space in ${location}, Costa del Sol. Young professionals at laptops with coffee, minimalist Scandinavian design, ${locationMarkers} visible from windows, natural plants, collaborative atmosphere, ${lighting}. Documentary photography of digital nomad lifestyle, focus on WORK environment NOT luxury properties. ${photoRealismSuffix}`;
   }
   
-  // Lifestyle articles
+  // Lifestyle articles - MUST show people and culture
   if (topic === 'lifestyle') {
-    return `Authentic lifestyle photography in ${location}, Costa del Sol: 
-      International expats enjoying local Mediterranean life, 
-      outdoor market or plaza scene, palm trees, 
-      café culture, community interaction, 
-      NO properties visible, focus on PEOPLE and CULTURE, 
-      ${timeOfDay}, documentary style, 
-      ${baseQuality}`;
+    return `LIFESTYLE DOCUMENTARY: International expats enjoying authentic Mediterranean life in ${location}. Outdoor market scene with local vendors, café culture, palm trees, ${locationMarkers}, community interaction, ${lighting}. Candid documentary style photography, focus on PEOPLE and LOCAL CULTURE, NO properties visible. Real Costa del Sol daily life. ${photoRealismSuffix}`;
   }
   
-  // Location guide articles
+  // Location guide articles - MUST show area overview
   if (topic === 'location-guide') {
-    return `Aerial drone photography of ${location}, Costa del Sol: 
-      Panoramic town view showing character and layout, 
-      Mediterranean coastline and beaches, 
-      mountains in background, urban planning visible, 
-      ${timeOfDay}, NOT focusing on specific properties, 
-      wide establishing shot of the area, 
-      ${baseQuality}`;
+    return `AERIAL ESTABLISHING SHOT: Drone photography of ${location}, Costa del Sol from 200 meters elevation. Panoramic view showing town character and layout, ${locationMarkers}, Mediterranean coastline and beaches, Sierra de Mijas mountains in background, urban planning visible, ${lighting}. Wide establishing shot of the AREA, NOT focusing on individual properties. Professional aerial real estate photography. ${photoRealismSuffix}`;
   }
   
   // Comparison articles
   if (topic === 'comparison') {
-    return `Conceptual split-screen comparison imagery for ${location}: 
-      Two distinct Costa del Sol locations side by side, 
-      contrasting environments and atmospheres, 
-      beach town vs mountain town, or urban vs rural, 
-      clean graphic composition, ${timeOfDay}, 
-      NOT property interiors, focus on LOCATION character, 
-      ${baseQuality}`;
+    return `COMPARISON VISUAL: Split composition contrasting two Costa del Sol locations. ${location} characteristics on one side, ${locationMarkers} visible, beach town atmosphere vs mountain setting, different architectural styles, ${lighting}. Clean comparative photography showing LOCATION differences, NOT interior property details. ${photoRealismSuffix}`;
   }
   
-  // Buying guide articles
+  // Buying guide articles - MUST show viewing process
   if (topic === 'buying-guide') {
-    return `Property viewing experience in ${location}: 
-      Real estate agent showing ${archStyle} ${propertyType} to international buyers, 
-      clients examining property features, viewing interior spaces, 
-      professional consultation in progress, ${timeOfDay}, 
-      NOT staged perfection, show REAL viewing experience, 
-      ${baseQuality}`;
+    return `PROPERTY VIEWING: Real estate agent conducting property tour in ${location}. International buyers examining ${archStyle} ${propertyType}, viewing interior spaces, ${locationMarkers} visible through windows, professional consultation in progress, ${lighting}. Documentary real estate photography showing REAL viewing experience, NOT perfectly staged interiors. ${photoRealismSuffix}`;
   }
   
-  // Legal/process articles
+  // Legal/process articles - MUST show legal process
   if (topic === 'process-legal') {
-    return `Professional legal consultation in ${location} law office: 
-      International property lawyer meeting with international clients, 
-      legal documents for Costa del Sol real estate on desk, 
-      professional office setting, contracts and paperwork, 
-      ${timeOfDay} office lighting, trust and expertise conveyed, 
-      NOT properties, show LEGAL process, 
-      ${baseQuality}`;
+    return `LEGAL CONSULTATION: Professional property lawyer meeting with international clients in ${location} law office. Costa del Sol real estate contracts and legal documents on desk, NIE paperwork visible, professional office setting, ${lighting}. Trust and expertise conveyed, focus on LEGAL PROCESS not properties. Corporate legal photography. ${photoRealismSuffix}`;
   }
   
-  // Investment articles
+  // Investment articles - MUST show rental potential
   if (topic === 'investment') {
-    return `Investment property showcase in ${location}: 
-      High-yield rental ${propertyType} with modern appeal, 
-      ${archStyle} design, professional staging, 
-      rental-ready condition, ${timeOfDay}, 
-      NOT infinity pools, focus on RENTAL potential features, 
-      ${baseQuality}`;
+    return `INVESTMENT PROPERTY: High-yield rental ${propertyType} in ${location} showing rental appeal. ${archStyle} design with professional staging, modern furnishings, rental-ready condition, ${locationMarkers} visible, ${lighting}. Real estate investment photography, focus on RENTAL FEATURES like modern kitchen, multiple bedrooms, NOT just infinity pools. ${photoRealismSuffix}`;
   }
   
-  // Property management
+  // Property management - MUST show service aspect
   if (topic === 'property-management') {
-    return `Property management service in ${location}: 
-      Professional property manager inspecting ${propertyType}, 
-      maintenance checklist, tenant interaction, 
-      property care and management activities, 
-      ${timeOfDay}, NOT luxury glamour shots, show SERVICE aspect, 
-      ${baseQuality}`;
+    return `PROPERTY MANAGEMENT: Professional property manager conducting inspection of ${propertyType} in ${location}. Manager with maintenance checklist, examining property condition, ${locationMarkers} visible, ${lighting}. Service-focused photography showing property MANAGEMENT activities, NOT luxury glamour shots. ${photoRealismSuffix}`;
   }
   
-  // Property showcase
+  // Property showcase - MUST show interior spaces
   if (topic === 'property-showcase') {
-    return `${archStyle} ${propertyType} detailed tour in ${location}: 
-      Multiple rooms and spaces, architectural details, 
-      living areas and bedrooms, kitchen and bathrooms, 
-      ${timeOfDay} through windows, 
-      NOT only exterior pools, show INTERIOR spaces, 
-      ${baseQuality}`;
+    return `INTERIOR SHOWCASE: ${archStyle} ${propertyType} interior walkthrough in ${location}. Multiple living spaces visible: spacious living room, modern kitchen, master bedroom suite, ${locationMarkers} visible through windows, ${lighting}. Professional interior real estate photography, focus on LIVING SPACES not just exterior pools. ${photoRealismSuffix}`;
   }
   
-  // Default: varied general property imagery
+  // Default: varied general property imagery with location authenticity
   const defaultVariations = [
-    `${archStyle} ${propertyType} interior in ${location}, Costa del Sol: Spacious living room with ${timeOfDay} natural light, contemporary furnishings, high-end finishes, terrace access visible, Mediterranean design elements, NOT pool-centric, focus on LIVING spaces, ${baseQuality}`,
-    `Coastal lifestyle in ${location}, Costa del Sol: Beach promenade with palm trees, people walking, Mediterranean sea, ${timeOfDay}, NOT infinity pools, ${baseQuality}`,
-    `${location} town center: Charming Mediterranean plaza, traditional architecture, outdoor dining, local atmosphere, ${timeOfDay}, NO villas, ${baseQuality}`
+    `INTERIOR LIVING SPACE: ${archStyle} ${propertyType} living room in ${location}, Costa del Sol. Spacious interior with natural light, contemporary furnishings, high-end finishes, ${locationMarkers} visible through terrace doors, ${lighting}. Professional real estate listing photography, focus on INTERIOR LIVING SPACES. ${photoRealismSuffix}`,
+    
+    `COASTAL LIFESTYLE: Beach promenade scene in ${location}, Costa del Sol. People walking along palm-lined walkway, ${locationMarkers}, Mediterranean sea, outdoor café culture, ${lighting}. Lifestyle documentary photography, NO luxury properties visible. ${photoRealismSuffix}`,
+    
+    `TOWN CHARACTER: ${location} town center showing authentic local atmosphere. Charming Mediterranean plaza with traditional architecture, ${locationMarkers}, outdoor dining, local community, ${lighting}. Documentary town photography, NO villa exteriors. ${photoRealismSuffix}`
   ];
-  return defaultVariations[Math.floor(Math.random() * defaultVariations.length)];
+  return defaultVariations[uniqueSeed % defaultVariations.length];
 };
 
 serve(async (req) => {
