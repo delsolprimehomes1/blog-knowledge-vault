@@ -996,7 +996,7 @@ Requirements:
 4. Include real examples from Costa del Sol (Marbella, Estepona, Málaga, Mijas, Benalmádena, etc.)
 5. Natural tone, 8th-grade reading level
 6. Reference claims that need citations naturally, DO NOT use [CITATION_NEEDED] markers
-7. Mark potential internal link opportunities with [INTERNAL_LINK: topic]
+7. Write naturally without placeholder markers - internal links will be added automatically by the system
 
 Format as HTML with:
 - <h2> for main sections (5-7 sections)
@@ -2153,6 +2153,12 @@ Return ONLY valid JSON:
               title: l.title,
             }));
           }
+          
+          // Clean up any remaining [INTERNAL_LINK: ...] placeholders
+          article.detailed_content = article.detailed_content.replace(
+            /\[INTERNAL_LINK:\s*([^\]]+)\]/g,
+            '$1' // Keep just the text, remove the markup
+          );
         } catch (error) {
           console.error(`Internal links failed for article ${i + 1}:`, error);
         }
