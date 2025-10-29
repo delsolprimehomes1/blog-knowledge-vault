@@ -164,11 +164,29 @@ export const ArticleReviewCard = ({
             {/* Slug */}
             <div className="space-y-2">
               <Label>Slug</Label>
-              <Input 
-                value={article.slug || ''}
-                onChange={(e) => onEdit({ slug: e.target.value })}
-                className={article.slug && !slugValidation?.get(article.slug) ? 'border-destructive' : ''}
-              />
+              <div className="flex gap-2">
+                <Input 
+                  value={article.slug || ''}
+                  onChange={(e) => onEdit({ slug: e.target.value })}
+                  className={`flex-1 ${article.slug && !slugValidation?.get(article.slug) ? 'border-destructive' : ''}`}
+                />
+                <Button 
+                  onClick={() => {
+                    const newSlug = (article.headline || '')
+                      .normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .toLowerCase()
+                      .replace(/[^a-z0-9]+/g, '-')
+                      .replace(/^-|-$/g, '');
+                    onEdit({ slug: newSlug });
+                  }}
+                  size="icon"
+                  variant="outline"
+                  title="Regenerate slug from headline"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
                 https://delsolprimehomes.com/blog/{article.slug || 'your-slug'}
               </p>

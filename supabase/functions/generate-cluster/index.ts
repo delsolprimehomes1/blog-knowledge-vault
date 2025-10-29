@@ -337,8 +337,10 @@ async function generateUniqueSlug(
   baseHeadline: string, 
   jobId: string
 ): Promise<string> {
-  // Generate base slug from headline
+  // Generate base slug from headline with proper accent normalization
   const baseSlug = baseHeadline
+    .normalize('NFD') // Decompose accented characters
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritical marks
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
