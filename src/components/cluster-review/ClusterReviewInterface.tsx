@@ -42,6 +42,15 @@ export const ClusterReviewInterface = ({
 
   const currentArticle = articles[activeTab];
 
+  // Ensure no background polling interferes with manual edits
+  useEffect(() => {
+    const savedJobId = localStorage.getItem('current_job_id');
+    if (savedJobId) {
+      console.log('⚠️ Clearing job ID to prevent polling while editing');
+      localStorage.removeItem('current_job_id');
+    }
+  }, []);
+
   // Real-time slug checker
   const checkSlugAvailability = async (slug: string) => {
     if (!slug) return true;

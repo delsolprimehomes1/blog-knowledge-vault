@@ -143,6 +143,16 @@ const ClusterGenerator = () => {
 
   // Check job status and update UI with timeout detection + resume capability
   const checkJobStatus = async (currentJobId: string) => {
+    // CRITICAL: Don't poll if already in review mode
+    if (isReviewModeRef.current) {
+      console.log('⚠️ Already in review mode, stopping polling');
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      return;
+    }
+    
     try {
       const { data, error } = await supabase.functions.invoke('check-cluster-status', {
         body: { jobId: currentJobId }
@@ -212,21 +222,25 @@ const ClusterGenerator = () => {
 
       // Handle completion
       if (data.status === 'completed') {
-        // Clear interval FIRST, before any state updates
+        console.log('✅ Generation complete! Articles:', data.articles);
+        
+        // CRITICAL FIX: Stop polling BEFORE any state updates
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
           console.log('🛑 Polling stopped - generation complete');
         }
         
-        console.log('✅ Generation complete! Articles:', data.articles);
+        // Set review mode flag FIRST
+        isReviewModeRef.current = true;
         
-        // Only update articles if not already in review mode
-        if (!isReviewModeRef.current) {
+        // Only update articles if not already set (preserve manual edits)
+        if (generatedArticles.length === 0) {
           setGeneratedArticles(data.articles);
           setShowReview(true);
-          isReviewModeRef.current = true;
           toast.success(`Successfully generated ${data.articles.length} articles!`);
+        } else {
+          console.log('⚠️ Articles already loaded, skipping update to preserve edits');
         }
         
         setIsGenerating(false);
@@ -235,6 +249,8 @@ const ClusterGenerator = () => {
         // Clear job ID from storage
         localStorage.removeItem('current_job_id');
         setJobId(null);
+        
+        return; // Exit immediately - no more polling
       }
 
       // Handle failure
