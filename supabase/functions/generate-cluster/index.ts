@@ -331,57 +331,92 @@ async function getCompletedArticles(supabase: any, jobId: string): Promise<any[]
   }
 }
 
-// Generate unique slug by checking database and appending counter if needed
-async function generateUniqueSlug(
-  supabase: any, 
-  baseHeadline: string, 
-  jobId: string
+// Atomically generate unique slug and save article (eliminates race conditions)
+async function generateUniqueSlugAndSave(
+  supabase: any,
+  article: any,
+  jobId: string,
+  articleIndex: number,
+  maxRetries: number = 50
 ): Promise<string> {
   // Generate base slug from headline with proper accent normalization
-  const baseSlug = baseHeadline
+  const baseSlug = article.headline
     .normalize('NFD') // Decompose accented characters
     .replace(/[\u0300-\u036f]/g, '') // Remove diacritical marks
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
   
-  // Check if base slug exists
-  const { data: existing } = await supabase
-    .from('blog_articles')
-    .select('slug')
-    .eq('slug', baseSlug)
-    .maybeSingle();
+  console.log(`[Job ${jobId}] 🔐 Attempting atomic slug reservation for: "${baseSlug}"`);
   
-  if (!existing) {
-    console.log(`[Job ${jobId}] ✅ Slug available: "${baseSlug}"`);
-    return baseSlug; // Base slug is available
+  // Try to insert with base slug first, then with counter suffixes
+  for (let counter = 0; counter <= maxRetries; counter++) {
+    const candidateSlug = counter === 0 ? baseSlug : `${baseSlug}-${counter}`;
+    
+    try {
+      // Attempt INSERT with this slug (atomic operation)
+      const { data: inserted, error } = await supabase
+        .from('blog_articles')
+        .insert({
+          ...article,
+          slug: candidateSlug,
+          cluster_id: jobId,
+          status: 'draft',
+          cta_article_ids: [],
+          related_article_ids: [],
+          cluster_number: articleIndex + 1
+        })
+        .select('id')
+        .single();
+      
+      if (error) {
+        // Check if it's a duplicate slug error (unique constraint violation)
+        if (error.code === '23505' && error.message.includes('blog_articles_slug_key')) {
+          console.log(`[Job ${jobId}] ⚠️ Slug collision on attempt ${counter + 1}: "${candidateSlug}" - retrying...`);
+          continue; // Try next counter
+        }
+        
+        // Other error - throw it
+        console.error(`[Job ${jobId}] ❌ Database error on slug "${candidateSlug}":`, error);
+        throw error;
+      }
+      
+      // Success! Slug was unique and article saved
+      console.log(`[Job ${jobId}] ✅ Article saved with slug: "${candidateSlug}" (ID: ${inserted.id})`);
+      return inserted.id;
+      
+    } catch (error) {
+      // Re-throw unexpected errors
+      console.error(`[Job ${jobId}] 💥 Unexpected error during save:`, error);
+      throw error;
+    }
   }
   
-  // Base slug exists, find next available counter
-  console.log(`[Job ${jobId}] ⚠️ Slug collision detected: "${baseSlug}"`);
+  // Fallback: All retries exhausted, use timestamp suffix (guaranteed unique)
+  const timestampSlug = `${baseSlug}-${Date.now()}`;
+  console.warn(`[Job ${jobId}] ⚠️ Max retries exhausted, using timestamp suffix: "${timestampSlug}"`);
   
-  const { data: similarSlugs } = await supabase
+  const { data: fallbackInserted, error: fallbackError } = await supabase
     .from('blog_articles')
-    .select('slug')
-    .like('slug', `${baseSlug}%`)
-    .order('slug');
+    .insert({
+      ...article,
+      slug: timestampSlug,
+      cluster_id: jobId,
+      status: 'draft',
+      cta_article_ids: [],
+      related_article_ids: [],
+      cluster_number: articleIndex + 1
+    })
+    .select('id')
+    .single();
   
-  // Find the highest counter
-  let maxCounter = 0;
-  const pattern = new RegExp(`^${baseSlug}-(\\d+)$`);
+  if (fallbackError) {
+    console.error(`[Job ${jobId}] ❌ Even timestamp fallback failed:`, fallbackError);
+    throw fallbackError;
+  }
   
-  similarSlugs?.forEach((row: any) => {
-    const match = row.slug.match(pattern);
-    if (match) {
-      maxCounter = Math.max(maxCounter, parseInt(match[1]));
-    }
-  });
-  
-  // Return next available slug with counter
-  const uniqueSlug = `${baseSlug}-${maxCounter + 1}`;
-  console.log(`[Job ${jobId}] 🔄 Slug resolution: "${baseSlug}" → "${uniqueSlug}"`);
-  
-  return uniqueSlug;
+  console.log(`[Job ${jobId}] ✅ Fallback save successful (ID: ${fallbackInserted.id})`);
+  return fallbackInserted.id;
 }
 
 // Main generation function (runs in background)
@@ -588,10 +623,7 @@ Return ONLY valid JSON:
       // 1. HEADLINE
       article.headline = plan.headline;
 
-      // 2. SLUG (with uniqueness check)
-      article.slug = await generateUniqueSlug(supabase, plan.headline, jobId);
-
-      // 3. CATEGORY (AI-based selection from exact database categories)
+      // 2. CATEGORY (AI-based selection from exact database categories)
       const validCategoryNames = (categories || []).map(c => c.name);
       
       const categoryPrompt = `Select the most appropriate category for this article from this EXACT list:
@@ -1867,11 +1899,22 @@ Return ONLY valid JSON:
       article.cta_article_ids = [];
       article.translations = {};
 
-      // CHECKPOINT: Save article immediately to database
+      // CHECKPOINT: Atomically save article with unique slug reservation
       try {
-        const articleId = await saveArticleToDatabase(supabase, jobId, article, i);
+        const articleId = await generateUniqueSlugAndSave(supabase, article, jobId, i);
         savedArticleIds.push(articleId);
         article.id = articleId; // Store ID for later reference
+        
+        // Retrieve the actual slug that was used (in case counter was appended)
+        const { data: savedArticle } = await supabase
+          .from('blog_articles')
+          .select('slug')
+          .eq('id', articleId)
+          .single();
+        
+        if (savedArticle) {
+          article.slug = savedArticle.slug; // Update local article with final slug
+        }
         
         // Update progress with checkpoint data
         await supabase
