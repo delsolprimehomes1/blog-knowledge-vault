@@ -340,7 +340,8 @@ async function generateUniqueSlugAndSave(
   maxRetries: number = 50
 ): Promise<string> {
   // Generate base slug from headline with proper accent normalization
-  const baseSlug = article.headline
+  // Use pre-assigned slug if available (from batch deduplication)
+  const baseSlug = article.slug || article.headline
     .normalize('NFD') // Decompose accented characters
     .replace(/[\u0300-\u036f]/g, '') // Remove diacritical marks
     .toLowerCase()
@@ -640,6 +641,42 @@ Return ONLY valid JSON:
       console.log(`[Job ${jobId}] ✅ All ${slugSet.size} proposed slugs are unique`);
     }
     
+    // ✅ FIX: Deduplicate slugs within the batch BEFORE generation
+    console.log(`[Job ${jobId}] 🔧 Pre-processing slugs to ensure uniqueness...`);
+    const usedSlugs = new Set<string>();
+    const slugMap = new Map<number, string>(); // Map article index → final unique slug
+
+    for (let i = 0; i < articleStructures.length; i++) {
+      const headline = articleStructures[i].headline;
+      
+      // Normalize headline to base slug
+      let baseSlug = headline
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      
+      let finalSlug = baseSlug;
+      let counter = 1;
+      
+      // If slug already used in this batch, append counter
+      while (usedSlugs.has(finalSlug)) {
+        finalSlug = `${baseSlug}-${counter}`;
+        counter++;
+        console.log(`[Job ${jobId}] 🔄 Slug collision detected, trying: "${finalSlug}"`);
+      }
+      
+      usedSlugs.add(finalSlug);
+      slugMap.set(i, finalSlug);
+      
+      if (finalSlug !== baseSlug) {
+        console.log(`[Job ${jobId}] ✏️ Modified slug for article ${i + 1}: "${baseSlug}" → "${finalSlug}"`);
+      }
+    }
+
+    console.log(`[Job ${jobId}] ✅ All ${usedSlugs.size} slugs pre-assigned and unique`);
+    
     checkTimeout(); // Check after structure generation
 
     // Check for already-completed articles (resume capability)
@@ -669,7 +706,11 @@ Return ONLY valid JSON:
       // 1. HEADLINE
       article.headline = plan.headline;
 
-      // 2. CATEGORY (AI-based selection from exact database categories)
+      // 2. SLUG (pre-assigned from batch deduplication)
+      article.slug = slugMap.get(i)!; // Use the pre-calculated unique slug
+      console.log(`[Job ${jobId}] Article ${i + 1} using pre-assigned slug: "${article.slug}"`);
+
+      // 3. CATEGORY (AI-based selection from exact database categories)
       const validCategoryNames = (categories || []).map(c => c.name);
       
       const categoryPrompt = `Select the most appropriate category for this article from this EXACT list:
