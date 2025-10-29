@@ -24,6 +24,9 @@ verify_jwt = false
 [functions.regenerate-section]
 verify_jwt = false
 
+[functions.regenerate-article-content]
+verify_jwt = false
+
 [functions.replace-citation-markers]
 verify_jwt = false
 
@@ -61,4 +64,25 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.batch-replace-non-approved]
+verify_jwt = false
+
+[functions.batch-fix-broken-citations]
+verify_jwt = false
+
+[functions.check-bulk-recitation-status]
+verify_jwt = false
+
+[functions.populate-citation-tracking]
+verify_jwt = false
+
+[functions.validate-citation-compliance]
+verify_jwt = false
+
+[functions.monitor-citation-compliance]
+verify_jwt = false
+
+[functions.generate-citation-compliance-report]
+verify_jwt = false
+
+[functions.generate-diagram]
 verify_jwt = false

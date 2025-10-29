@@ -288,6 +288,46 @@ const ArticleEditor = () => {
     }
   };
 
+  // Regenerate detailed content
+  const handleRegenerateContent = async () => {
+    if (!id) {
+      toast.error("Cannot regenerate: article must be saved first");
+      return;
+    }
+
+    try {
+      setIsRegenerating(true);
+      toast.info("Regenerating article content... This may take 30-60 seconds");
+
+      const { data, error } = await supabase.functions.invoke("regenerate-article-content", {
+        body: { articleId: id },
+      });
+
+      if (error) {
+        console.error("Content regeneration error:", error);
+        throw error;
+      }
+
+      if (data?.success && data?.content) {
+        setDetailedContent(data.content);
+        toast.success(`✨ Article content regenerated! (${data.wordCount} words)`, {
+          duration: 5000,
+          description: "Review the content and save to update the article."
+        });
+      } else {
+        throw new Error(data?.error || "No content returned");
+      }
+    } catch (error: any) {
+      console.error("Failed to regenerate content:", error);
+      toast.error(
+        error.message || "Failed to regenerate content. Please try again.",
+        { duration: 5000 }
+      );
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   // Validation
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -750,7 +790,38 @@ const ArticleEditor = () => {
             </div>
 
             <div>
-              <Label>Detailed Content (1500-2500 words target) *</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Detailed Content (1500-2500 words target) *</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleRegenerateContent}
+                        disabled={isRegenerating || !id}
+                        className="h-8"
+                      >
+                        {isRegenerating ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Regenerating...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Regenerate
+                          </>
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>AI will regenerate full article content (requires saved article)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <LazyRichTextEditor
                 content={detailedContent}
                 onChange={setDetailedContent}

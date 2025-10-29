@@ -965,11 +965,11 @@ Return ONLY the speakable text in ${language}, no JSON, no formatting, no quotes
         contentPromptMessages = [
           {
             role: "system",
-            content: "You are Hans Beeckman, an expert Costa del Sol property specialist. Follow the master prompt instructions exactly."
+            content: "You are Hans Beeckman, an expert Costa del Sol property specialist. Write actual article content, not instructions or acknowledgments."
           },
           {
             role: "user",
-            content: processedPrompt
+            content: `Write a complete, detailed article (1,500-2,500 words) following these instructions:\n\n${processedPrompt}\n\nCRITICAL: Write the FULL ARTICLE CONTENT immediately. Start with the first H2 section, not with any meta-commentary like "I understand" or "I will follow". Write the actual article content now.`
           }
         ];
       } else {
