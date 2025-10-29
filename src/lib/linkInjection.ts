@@ -70,6 +70,9 @@ export const injectExternalLinks = (
 
   // Process each citation
   citations.forEach((citation) => {
+    // Skip citations without a source
+    if (!citation.source) return;
+    
     const citationUrl = citation.url;
     const sourceName = citation.source.toLowerCase();
 
