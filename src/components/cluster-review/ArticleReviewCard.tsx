@@ -172,17 +172,29 @@ export const ArticleReviewCard = ({
                 />
                 <Button 
                   onClick={() => {
-                    const newSlug = (article.headline || '')
+                    let baseSlug = (article.headline || '')
                       .normalize('NFD')
                       .replace(/[\u0300-\u036f]/g, '')
                       .toLowerCase()
                       .replace(/[^a-z0-9]+/g, '-')
                       .replace(/^-|-$/g, '');
-                    onEdit({ slug: newSlug });
+                    
+                    // Check uniqueness and append suffix if needed
+                    let finalSlug = baseSlug;
+                    let counter = 1;
+                    
+                    while (slugValidation && !slugValidation.get(finalSlug)) {
+                      finalSlug = `${baseSlug}-${counter}`;
+                      counter++;
+                      // Prevent infinite loop
+                      if (counter > 100) break;
+                    }
+                    
+                    onEdit({ slug: finalSlug });
                   }}
                   size="icon"
                   variant="outline"
-                  title="Regenerate slug from headline"
+                  title="Regenerate unique slug from headline"
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
