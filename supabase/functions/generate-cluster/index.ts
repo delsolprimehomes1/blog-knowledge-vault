@@ -347,6 +347,12 @@ async function generateUniqueSlugAndSave(
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+
+  if (article.slug) {
+    console.log(`[Job ${jobId}] ✅ Using pre-assigned slug: "${article.slug}"`);
+  } else {
+    console.log(`[Job ${jobId}] ⚠️ No pre-assigned slug found, generating from headline`);
+  }
   
   console.log(`[Job ${jobId}] 🔐 Attempting atomic slug reservation for: "${baseSlug}"`);
   
@@ -641,10 +647,26 @@ Return ONLY valid JSON:
       console.log(`[Job ${jobId}] ✅ All ${slugSet.size} proposed slugs are unique`);
     }
     
-    // ✅ FIX: Deduplicate slugs within the batch BEFORE generation
-    console.log(`[Job ${jobId}] 🔧 Pre-processing slugs to ensure uniqueness...`);
-    const usedSlugs = new Set<string>();
-    const slugMap = new Map<number, string>(); // Map article index → final unique slug
+    // ✅ ENHANCED FIX: Check database + deduplicate slugs within batch
+    console.log(`[Job ${jobId}] 🔧 Pre-processing slugs with database check...`);
+
+    // Step 1: Fetch ALL existing slugs from database
+    const { data: existingSlugsData, error: slugsError } = await supabase
+      .from('blog_articles')
+      .select('slug');
+
+    if (slugsError) {
+      console.error(`[Job ${jobId}] ⚠️ Could not fetch existing slugs:`, slugsError);
+    }
+
+    const existingSlugs = new Set<string>(
+      (existingSlugsData || []).map(row => row.slug)
+    );
+    console.log(`[Job ${jobId}] 📊 Found ${existingSlugs.size} existing slugs in database`);
+
+    // Step 2: Build slug map checking BOTH batch + database
+    const usedSlugs = new Set<string>(existingSlugs); // Start with DB slugs
+    const slugMap = new Map<number, string>();
 
     for (let i = 0; i < articleStructures.length; i++) {
       const headline = articleStructures[i].headline;
@@ -660,11 +682,11 @@ Return ONLY valid JSON:
       let finalSlug = baseSlug;
       let counter = 1;
       
-      // If slug already used in this batch, append counter
+      // Check against BOTH in-memory (this batch) AND database
       while (usedSlugs.has(finalSlug)) {
         finalSlug = `${baseSlug}-${counter}`;
         counter++;
-        console.log(`[Job ${jobId}] 🔄 Slug collision detected, trying: "${finalSlug}"`);
+        console.log(`[Job ${jobId}] 🔄 Slug collision detected (batch or DB), trying: "${finalSlug}"`);
       }
       
       usedSlugs.add(finalSlug);
@@ -675,7 +697,13 @@ Return ONLY valid JSON:
       }
     }
 
-    console.log(`[Job ${jobId}] ✅ All ${usedSlugs.size} slugs pre-assigned and unique`);
+    console.log(`[Job ${jobId}] ✅ All ${slugMap.size} slugs pre-assigned and unique (checked against ${existingSlugs.size} existing DB slugs)`);
+    
+    // Deployment verification log
+    console.log(`[Job ${jobId}] 🚀 DEPLOYMENT CHECK: Slug deduplication v2.0 active`);
+    console.log(`[Job ${jobId}] 📋 Final slug assignments:`, 
+      Array.from(slugMap.entries()).map(([idx, slug]) => `${idx + 1}: ${slug}`)
+    );
     
     checkTimeout(); // Check after structure generation
 
