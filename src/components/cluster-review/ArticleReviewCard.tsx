@@ -171,26 +171,51 @@ export const ArticleReviewCard = ({
                   className={`flex-1 ${article.slug && !slugValidation?.get(article.slug) ? 'border-destructive' : ''}`}
                 />
                 <Button 
-                  onClick={() => {
-                    let baseSlug = (article.headline || '')
+                  onClick={async () => {
+                    const baseSlug = (article.headline || '')
                       .normalize('NFD')
                       .replace(/[\u0300-\u036f]/g, '')
                       .toLowerCase()
                       .replace(/[^a-z0-9]+/g, '-')
                       .replace(/^-|-$/g, '');
                     
-                    // Check uniqueness and append suffix if needed
-                    let finalSlug = baseSlug;
-                    let counter = 1;
+                    // Check if base slug is available
+                    const { data: baseCheck } = await supabase
+                      .from('blog_articles')
+                      .select('id')
+                      .eq('slug', baseSlug)
+                      .maybeSingle();
                     
-                    while (slugValidation && !slugValidation.get(finalSlug)) {
-                      finalSlug = `${baseSlug}-${counter}`;
-                      counter++;
-                      // Prevent infinite loop
-                      if (counter > 100) break;
+                    if (!baseCheck) {
+                      // Base slug is available
+                      onEdit({ slug: baseSlug });
+                      return;
                     }
                     
-                    onEdit({ slug: finalSlug });
+                    // Base slug exists, find next available counter
+                    let counter = 1;
+                    let finalSlug = `${baseSlug}-${counter}`;
+                    
+                    while (counter <= 100) {
+                      const { data: counterCheck } = await supabase
+                        .from('blog_articles')
+                        .select('id')
+                        .eq('slug', finalSlug)
+                        .maybeSingle();
+                      
+                      if (!counterCheck) {
+                        // This slug is available
+                        onEdit({ slug: finalSlug });
+                        return;
+                      }
+                      
+                      counter++;
+                      finalSlug = `${baseSlug}-${counter}`;
+                    }
+                    
+                    // Fallback: use timestamp suffix if loop exhausted
+                    const timestamp = Date.now();
+                    onEdit({ slug: `${baseSlug}-${timestamp}` });
                   }}
                   size="icon"
                   variant="outline"
