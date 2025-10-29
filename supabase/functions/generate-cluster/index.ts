@@ -1930,6 +1930,12 @@ Return ONLY valid JSON:
         } catch (citError) {
           console.error(`[Job ${jobId}] Citation marker replacement failed:`, citError);
         }
+        
+        // Clean up any remaining [CITATION_NEEDED: ...] placeholders to prevent them from appearing on the live site
+        article.detailed_content = article.detailed_content.replace(
+          /\[CITATION_NEEDED:\s*([^\]]+)\]/g,
+          '' // Remove entirely - these should never appear to end users
+        );
       }
 
       // 11. FAQ ENTITIES (for MOFU/BOFU)
