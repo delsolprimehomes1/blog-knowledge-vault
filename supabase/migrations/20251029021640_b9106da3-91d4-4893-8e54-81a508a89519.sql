@@ -1,0 +1,9 @@
+-- Add slug uniqueness instruction to master content prompt
+UPDATE content_settings
+SET setting_value = REPLACE(
+  setting_value,
+  E'## 📝 CONTENT STRUCTURE: THE AI-OPTIMIZED TEMPLATE\n\n### **Target Length:** 2,000-2,500 words\n### **Reading Level:** 8th grade (Flesch Reading Ease: 60-70)\n### **Tone:** Conversational yet authoritative\n\n---',
+  E'## 📝 CONTENT STRUCTURE: THE AI-OPTIMIZED TEMPLATE\n\n### **Target Length:** 2,000-2,500 words\n### **Reading Level:** 8th grade (Flesch Reading Ease: 60-70)\n### **Tone:** Conversational yet authoritative\n\n---\n\n### ⚠️ CRITICAL: SLUG UNIQUENESS\n\nEach article in a cluster must have a **distinct, unique URL slug**. The system auto-generates slugs by:\n1. Lowercasing the headline\n2. Removing accents (Málaga → malaga)\n3. Converting spaces to hyphens\n4. Removing special characters\n\n**Your headline must be unique enough to avoid slug collisions.**\n\n**Rules:**\n- Don''t repeat leading phrases across articles ("Costa del Sol: Guide to..." × 6 will cause conflicts)\n- Include differentiators: year, location specificity, property type, buyer persona\n- Think about the URL structure: will `{{headline}}` become a distinct slug?\n\n**Examples:**\n\n✅ **GOOD** (distinct slugs):\n- "Costa del Sol Investment Guide 2025: Airport Properties" → `costa-del-sol-investment-guide-2025-airport-properties`\n- "Málaga Airport Real Estate: Location Analysis" → `malaga-airport-real-estate-location-analysis`\n- "Buying Property Near Spanish Airports: ROI Insights" → `buying-property-near-spanish-airports-roi-insights`\n\n❌ **BAD** (collision risk):\n- "Costa del Sol: Best Investment Guide" → `costa-del-sol-best-investment-guide`\n- "Costa del Sol: Complete Investment Guide" → `costa-del-sol-complete-investment-guide`\n(Too similar! Add more differentiators)\n\n---'
+),
+updated_at = NOW()
+WHERE setting_key = 'master_content_prompt';
