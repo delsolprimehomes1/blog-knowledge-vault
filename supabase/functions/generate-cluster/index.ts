@@ -373,6 +373,12 @@ async function generateUniqueSlugAndSave(
         // Check if it's a duplicate slug error (unique constraint violation)
         if (error.code === '23505' && error.message.includes('blog_articles_slug_key')) {
           console.log(`[Job ${jobId}] ⚠️ Slug collision on attempt ${counter + 1}: "${candidateSlug}" - retrying...`);
+          
+          // Alert if we're hitting many retries (indicates AI isn't following uniqueness instructions)
+          if (counter >= 3) {
+            console.error(`[Job ${jobId}] 🚨 HIGH RETRY COUNT: Slug "${baseSlug}" required ${counter + 1} attempts. AI may not be following uniqueness guidelines.`);
+          }
+          
           continue; // Try next counter
         }
         
@@ -514,6 +520,23 @@ Generate 6 article titles following this funnel structure:
 
 Each article must include the location "Costa del Sol" in the headline.
 
+**CRITICAL: SLUG UNIQUENESS REQUIREMENT**
+Each headline MUST be sufficiently distinct to generate a unique URL slug. To ensure this:
+- Vary the leading words (don't start every headline the same way)
+- Include differentiating keywords (year, specific location, property type, buyer profile)
+- Avoid repetitive phrasing patterns
+- Think: "If I lowercase and hyphenate these headlines, will they be clearly different?"
+
+Examples of GOOD variation:
+✅ "Costa del Sol Investment Guide 2025: Airport Properties"
+✅ "Buying Near Málaga Airport: Complete Location Analysis"
+✅ "Airport-Adjacent Real Estate: Costa del Sol ROI Insights"
+
+Examples of BAD variation (too similar):
+❌ "Costa del Sol: Investment Guide for Airport Properties"
+❌ "Costa del Sol: Best Investments Near Airport"
+(Both become: "costa-del-sol-investment-...")
+
 Return ONLY valid JSON:
 {
   "articles": [
@@ -593,6 +616,29 @@ Return ONLY valid JSON:
     }
 
     console.log(`[Job ${jobId}] Generated structure for`, articleStructures.length, 'articles');
+    
+    // Validate slug uniqueness potential BEFORE generating full articles
+    console.log(`[Job ${jobId}] Validating headline uniqueness...`);
+    const proposedSlugs = articleStructures.map((a: any) => 
+      a.headline
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+    );
+
+    const slugSet = new Set(proposedSlugs);
+    if (slugSet.size < proposedSlugs.length) {
+      const duplicates = proposedSlugs.filter((slug: string, i: number) => 
+        proposedSlugs.indexOf(slug) !== i
+      );
+      console.warn(`[Job ${jobId}] ⚠️ Detected ${duplicates.length} potential slug collisions:`, duplicates);
+      console.warn(`[Job ${jobId}] Headlines:`, articleStructures.map((a: any) => a.headline));
+      // Don't fail - let the atomic insert handle it - but log for monitoring
+    } else {
+      console.log(`[Job ${jobId}] ✅ All ${slugSet.size} proposed slugs are unique`);
+    }
     
     checkTimeout(); // Check after structure generation
 
