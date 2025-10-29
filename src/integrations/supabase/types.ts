@@ -382,6 +382,66 @@ export type Database = {
         }
         Relationships: []
       }
+      citation_compliance_alerts: {
+        Row: {
+          alert_type: string
+          article_id: string | null
+          article_title: string | null
+          auto_suggested_replacement: string | null
+          citation_url: string
+          created_at: string
+          detected_at: string
+          id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          alert_type: string
+          article_id?: string | null
+          article_title?: string | null
+          auto_suggested_replacement?: string | null
+          citation_url: string
+          created_at?: string
+          detected_at?: string
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          severity: string
+          updated_at?: string
+        }
+        Update: {
+          alert_type?: string
+          article_id?: string | null
+          article_title?: string | null
+          auto_suggested_replacement?: string | null
+          citation_url?: string
+          created_at?: string
+          detected_at?: string
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citation_compliance_alerts_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citation_compliance_alerts_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       citation_usage_tracking: {
         Row: {
           anchor_text: string | null

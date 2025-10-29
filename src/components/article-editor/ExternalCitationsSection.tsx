@@ -2,10 +2,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, Plus, Trash2, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { ExternalCitation } from "@/types/blog";
 import { ExternalLinkFinder } from "@/components/ExternalLinkFinder";
 import { BetterCitationFinder } from "@/components/admin/BetterCitationFinder";
+import { validateCitationCompliance, type CitationComplianceResult } from "@/lib/citationComplianceChecker";
+import { useState, useEffect } from "react";
 
 interface ExternalCitationsSectionProps {
   citations: ExternalCitation[];
@@ -24,6 +27,9 @@ export const ExternalCitationsSection = ({
   headline = "",
   language = "en",
 }: ExternalCitationsSectionProps) => {
+  const [validationResults, setValidationResults] = useState<Record<string, CitationComplianceResult>>({});
+  const [isValidating, setIsValidating] = useState<Record<number, boolean>>({});
+
   const addCitation = () => {
     onCitationsChange([...citations, { text: "", url: "", source: "" }]);
   };
@@ -41,6 +47,28 @@ export const ExternalCitationsSection = ({
     const updated = [...citations];
     updated[index] = { ...updated[index], [field]: value };
     onCitationsChange(updated);
+
+    // If URL changed, clear validation for this citation
+    if (field === 'url' && validationResults[updated[index].url]) {
+      const newResults = { ...validationResults };
+      delete newResults[updated[index].url];
+      setValidationResults(newResults);
+    }
+  };
+
+  const validateCitation = async (index: number, url: string) => {
+    if (!url || url.trim() === '') return;
+
+    setIsValidating({ ...isValidating, [index]: true });
+    
+    try {
+      const result = await validateCitationCompliance(url);
+      setValidationResults({ ...validationResults, [url]: result });
+    } catch (error) {
+      console.error('Validation error:', error);
+    } finally {
+      setIsValidating({ ...isValidating, [index]: false });
+    }
   };
 
   const removeCitation = (index: number) => {
@@ -50,6 +78,9 @@ export const ExternalCitationsSection = ({
   const hasGovDomain = citations.some(c => 
     c.url.includes('.gov') || c.url.includes('.gob.es') || c.url.includes('.overheid.nl')
   );
+
+  const hasCriticalIssues = Object.values(validationResults).some(r => r.severity === 'critical');
+  const hasCompetitorCitations = Object.values(validationResults).some(r => r.isCompetitor);
 
   return (
     <Card>
@@ -114,12 +145,62 @@ export const ExternalCitationsSection = ({
             </div>
             <div>
               <Label>Official URL *</Label>
-              <Input
-                value={citation.url}
-                onChange={(e) => updateCitation(index, "url", e.target.value)}
-                placeholder="https://..."
-                type="url"
-              />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={citation.url}
+                    onChange={(e) => updateCitation(index, "url", e.target.value)}
+                    onBlur={(e) => validateCitation(index, e.target.value)}
+                    placeholder="https://..."
+                    type="url"
+                    className={
+                      validationResults[citation.url]?.severity === 'critical' 
+                        ? 'border-destructive' 
+                        : validationResults[citation.url]?.severity === 'warning'
+                        ? 'border-orange-600'
+                        : validationResults[citation.url]?.severity === 'valid'
+                        ? 'border-green-600'
+                        : ''
+                    }
+                  />
+                  {isValidating[index] && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  {!isValidating[index] && validationResults[citation.url] && (
+                    <>
+                      {validationResults[citation.url].severity === 'valid' && (
+                        <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                      )}
+                      {validationResults[citation.url].severity === 'warning' && (
+                        <AlertCircle className="h-5 w-5 text-orange-600 shrink-0" />
+                      )}
+                      {validationResults[citation.url].severity === 'critical' && (
+                        <XCircle className="h-5 w-5 text-destructive shrink-0" />
+                      )}
+                    </>
+                  )}
+                </div>
+                {validationResults[citation.url] && (
+                  <div className="flex items-start gap-2">
+                    <Badge 
+                      variant={
+                        validationResults[citation.url].severity === 'critical' 
+                          ? 'destructive' 
+                          : validationResults[citation.url].severity === 'warning'
+                          ? 'default'
+                          : 'secondary'
+                      }
+                      className={
+                        validationResults[citation.url].severity === 'warning'
+                          ? 'bg-orange-600 hover:bg-orange-700'
+                          : ''
+                      }
+                    >
+                      {validationResults[citation.url].message}
+                    </Badge>
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <Label>Anchor Text *</Label>
@@ -151,7 +232,19 @@ export const ExternalCitationsSection = ({
           </p>
         )}
 
-        {citations.length >= 2 && !hasGovDomain && (
+        {hasCompetitorCitations && (
+          <div className="p-3 bg-destructive/10 border border-destructive rounded-lg">
+            <p className="text-sm text-destructive font-semibold flex items-center gap-1">
+              <XCircle className="h-4 w-4" />
+              ⛔ CRITICAL: Competitor citations detected! These must be removed before publishing.
+            </p>
+            <p className="text-xs text-destructive mt-1">
+              Never use links from real estate agencies, brokerages, or property sellers.
+            </p>
+          </div>
+        )}
+
+        {citations.length >= 2 && !hasGovDomain && !hasCriticalIssues && (
           <p className="text-sm text-muted-foreground flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             Recommended: Add at least one citation from a .gov or .gob.es domain for better E-E-A-T

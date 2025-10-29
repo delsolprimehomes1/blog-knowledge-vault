@@ -26,6 +26,7 @@ import { ChangePreviewModal } from "@/components/admin/ChangePreviewModal";
 import { BulkReplacementDialog } from "@/components/admin/BulkReplacementDialog";
 import { CitationHealthAnalysis } from "@/components/admin/CitationHealthAnalysis";
 import { NonApprovedCitationsPanel } from "@/components/admin/NonApprovedCitationsPanel";
+import { CitationComplianceAlerts } from "@/components/admin/CitationComplianceAlerts";
 import { Progress } from "@/components/ui/progress";
 
 interface CitationHealth {
@@ -591,6 +592,8 @@ const CitationHealth = () => {
             onFindReplacement={handleFindReplacement}
           />
         )}
+
+        <CitationComplianceAlerts />
 
         <Tabs defaultValue="pending">
           <TabsList>

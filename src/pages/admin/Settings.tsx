@@ -3,9 +3,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MasterPromptEditor } from "@/components/admin/MasterPromptEditor";
 import { BulkExperienceUpdater } from "@/components/admin/BulkExperienceUpdater";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Settings as SettingsIcon, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Settings = () => {
+  const navigate = useNavigate();
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -27,6 +31,24 @@ const Settings = () => {
             <div className="space-y-6">
               <MasterPromptEditor />
               <BulkExperienceUpdater />
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Citation Compliance Report
+                  </CardTitle>
+                  <CardDescription>
+                    Generate comprehensive reports on citation quality and compliance
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => navigate('/admin/citation-compliance-report')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Full Compliance Report
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
           
