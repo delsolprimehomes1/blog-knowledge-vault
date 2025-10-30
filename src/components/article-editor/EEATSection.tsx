@@ -62,13 +62,34 @@ export const EEATSection = ({
         </div>
 
         <div>
-          <Label htmlFor="reviewer">Reviewer (Optional)</Label>
-          <Select value={reviewerId || "none"} onValueChange={(value) => onReviewerChange(value === "none" ? "" : value)}>
+          <Label htmlFor="reviewer">
+            Reviewer (Optional)
+            {reviewerId && reviewerId !== "none" && (
+              <span className="ml-2 text-xs text-primary font-medium">✓ Set</span>
+            )}
+          </Label>
+          <Select 
+            value={reviewerId || "none"} 
+            onValueChange={(value) => {
+              console.log('Reviewer changed to:', value);
+              const newValue = value === "none" ? "" : value;
+              console.log('Setting reviewer ID:', newValue);
+              onReviewerChange(newValue);
+            }}
+          >
             <SelectTrigger>
-              <SelectValue placeholder="Select reviewer" />
+              <SelectValue placeholder="Select reviewer">
+                {reviewerId && reviewerId !== "none" ? (
+                  authors?.find(a => a.id === reviewerId)?.name || "Select reviewer"
+                ) : (
+                  "None"
+                )}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="none">
+                <span className="font-medium">None</span>
+              </SelectItem>
               {authors?.map((author) => (
                 <SelectItem key={author.id} value={author.id}>
                   <div className="flex items-center gap-2">
