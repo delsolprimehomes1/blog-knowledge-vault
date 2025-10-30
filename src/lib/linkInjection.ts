@@ -7,7 +7,10 @@ export const injectInternalLinks = (
   content: string,
   internalLinks: InternalLink[]
 ): string => {
-  if (!internalLinks || internalLinks.length === 0) return content;
+  // Filter out invalid links with missing title or url
+  const validLinks = internalLinks?.filter(link => link?.title && link?.url) || [];
+  
+  if (validLinks.length === 0) return content;
 
   let processedContent = content;
 
@@ -19,12 +22,15 @@ export const injectInternalLinks = (
     const placeholderText = match[1].trim();
 
     // Find matching internal link by title (fuzzy match)
-    const matchingLink = internalLinks.find(link => 
-      link.title.toLowerCase().includes(placeholderText.toLowerCase()) ||
-      placeholderText.toLowerCase().includes(link.title.toLowerCase())
-    );
+    const matchingLink = validLinks.find(link => {
+      // Additional safety check
+      if (!link?.title || !link?.url) return false;
+      
+      return link.title.toLowerCase().includes(placeholderText.toLowerCase()) ||
+        placeholderText.toLowerCase().includes(link.title.toLowerCase());
+    });
 
-    if (matchingLink) {
+    if (matchingLink && matchingLink.url && matchingLink.title) {
       // Replace placeholder with actual HTML link
       const link = `<a href="${matchingLink.url}" class="internal-link">${matchingLink.title}</a>`;
       processedContent = processedContent.replace(match[0], link);
@@ -70,8 +76,8 @@ export const injectExternalLinks = (
 
   // Process each citation
   citations.forEach((citation) => {
-    // Skip citations without a source
-    if (!citation.source) return;
+    // Skip citations without required fields
+    if (!citation?.source || !citation?.url) return;
     
     const citationUrl = citation.url;
     const sourceName = citation.source.toLowerCase();
