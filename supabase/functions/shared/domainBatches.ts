@@ -58,11 +58,27 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'lachispa.net'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'abogadoespanol.com',
       'legalservicesinspain.com',
       'spanishsolutions.net',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // Real estate news & insights
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es',
+      // Luxury lifestyle
+      'essentialmagazine.com',
+      'societymarbella.com',
+      'homeandlifestyle.es'
     ],
     tourism: [
       'andalucia.org',
@@ -128,11 +144,25 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'lachispa.net'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'abogadoespanol.com',
       'legalservicesinspain.com',
       'spanishsolutions.net',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // Real estate news
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es',
+      'andaluciatoday.com',
+      'lachispa.net'
     ],
     tourism: [
       'andalucia.org',
@@ -180,9 +210,21 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'legalservicesinspain.com',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // News
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es'
     ],
     tourism: [
       'andalucia.org',
@@ -219,9 +261,21 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'legalservicesinspain.com',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // News
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es'
     ],
     tourism: [
       'andalucia.org',
@@ -258,9 +312,21 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'legalservicesinspain.com',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // News
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es'
     ],
     tourism: [
       'andalucia.org',
@@ -297,9 +363,21 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'legalservicesinspain.com',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // News
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es'
     ],
     tourism: [
       'andalucia.org',
@@ -336,9 +414,21 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'legalservicesinspain.com',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // News
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es'
     ],
     tourism: [
       'andalucia.org',
@@ -375,9 +465,21 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'legalservicesinspain.com',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // News
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es'
     ],
     tourism: [
       'andalucia.org',
@@ -414,9 +516,21 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
+      // Legal services
       'costaluzlawyers.es',
       'legalservicesinspain.com',
-      'lexidy.com'
+      'lexidy.com',
+      // Government property authorities
+      'registradores.org',
+      'notariado.org',
+      'catastro.gob.es',
+      // Financial & market data
+      'ine.es',
+      'bde.es',
+      // News
+      'surinenglish.com',
+      'euroweeklynews.com',
+      'theolivepress.es'
     ],
     tourism: [
       'andalucia.org',
