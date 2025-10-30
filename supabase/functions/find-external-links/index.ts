@@ -176,8 +176,13 @@ serve(async (req) => {
       ? `\n\nMANDATORY: At least ONE source MUST be from an official government domain. This is non-negotiable and CRITICAL for article validation.`
       : '';
 
-    // Use new batch-aware citation finder
+    // Use new batch-aware citation finder with approved domains enforcement
     console.log(`🔍 Using batch citation system (funnel: ${funnelStage})`);
+    
+    // Import approved domains to ensure we only use vetted sources
+    const { getAllApprovedDomains } = await import('../shared/approvedDomains.ts');
+    const approvedDomains = getAllApprovedDomains();
+    console.log(`✅ Enforcing ${approvedDomains.length} approved domains only`);
     
     const { findBetterCitationsWithBatch } = await import('../shared/citationFinder.ts');
     

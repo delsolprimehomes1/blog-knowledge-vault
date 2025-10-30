@@ -304,10 +304,11 @@ export async function findBetterCitationsWithBatch(
 
   const prompt = `You are an expert research assistant finding authoritative external sources for a ${config.name} language article.
 
-**Search Strategy:**
-- You may search the ENTIRE WEB for the best sources
-- Prioritize ${selection.category} sources (suggested: ${selection.domains.slice(0, 10).join(', ')})
-- But you are NOT limited to these domains - find the BEST sources available
+**MANDATORY SEARCH RESTRICTIONS:**
+- You MUST ONLY search from the approved domain list provided
+- DO NOT suggest sources from any other domains
+- These ${selection.domains.length} domains have been pre-vetted for authority and relevance
+- Focus on ${selection.category} sources: ${selection.domains.slice(0, 10).join(', ')}...
 
 **Article Topic:** "${articleTopic}"
 **Funnel Stage:** ${funnelStage} (${funnelStage === 'TOFU' ? 'awareness' : funnelStage === 'MOFU' ? 'consideration' : 'decision'})
@@ -379,7 +380,8 @@ Return only the JSON array, nothing else.`;
       ],
       temperature: 0.3,
       max_tokens: 3000,
-      // Removed search_domain_filter to allow searching entire web
+      // CRITICAL: Only search approved domains (Perplexity limit: 20)
+      search_domain_filter: selection.domains.slice(0, 20),
     }),
   });
 
@@ -408,14 +410,28 @@ Return only the JSON array, nothing else.`;
     const citations = JSON.parse(jsonMatch[0]) as BetterCitation[];
     console.log(`📥 Received ${citations.length} citations from Perplexity`);
 
-    // Filter out competitors
-    console.log(`\n🔍 Filtering citations for competitors...`);
-    const nonCompetitorCitations = citations.filter(citation => {
+    // FIRST: Filter to only approved domains (safety net)
+    console.log(`\n🔍 Step 1: Filtering for approved domains...`);
+    const approvedCitations = citations.filter(citation => {
       if (!citation.url || !citation.sourceName || !citation.url.startsWith('http')) {
         return false;
       }
       
-      // Check if competitor
+      const isApproved = isApprovedDomain(citation.url);
+      if (!isApproved) {
+        console.log(`❌ BLOCKED (Non-approved): ${citation.url}`);
+        return false;
+      }
+      
+      console.log(`✅ Approved: ${citation.sourceName}`);
+      return true;
+    });
+
+    console.log(`✅ ${approvedCitations.length}/${citations.length} citations are from approved domains`);
+
+    // SECOND: Filter out competitors
+    console.log(`\n🔍 Step 2: Filtering out competitors...`);
+    const nonCompetitorCitations = approvedCitations.filter(citation => {
       if (isCompetitor(citation.url)) {
         console.log(`❌ BLOCKED (Competitor): ${citation.url} - ${getCompetitorReason(citation.url)}`);
         return false;
