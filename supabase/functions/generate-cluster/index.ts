@@ -348,10 +348,13 @@ async function generateUniqueSlugAndSave(
     
     try {
       // Attempt INSERT with pre-assigned slug (should succeed on first try)
+      // Extract id to prevent null override of database default
+      const { id, ...articleWithoutId } = article;
+      
       const { data: inserted, error } = await supabase
         .from('blog_articles')
         .insert({
-          ...article,
+          ...articleWithoutId,
           cluster_id: jobId,
           status: 'draft',
           cta_article_ids: [],
@@ -368,10 +371,12 @@ async function generateUniqueSlugAndSave(
           const timestampSlug = `${article.slug}-${Date.now()}`;
           console.warn(`[Job ${jobId}] ⚠️ Pre-assigned slug "${article.slug}" unexpectedly collided, using: "${timestampSlug}"`);
           
+          const { id: _id, ...articleWithoutId } = article;
+          
           const { data: fallbackInserted, error: fallbackError } = await supabase
             .from('blog_articles')
             .insert({
-              ...article,
+              ...articleWithoutId,
               slug: timestampSlug,
               cluster_id: jobId,
               status: 'draft',
@@ -424,10 +429,13 @@ async function generateUniqueSlugAndSave(
     
     try {
       // Attempt INSERT with this slug (atomic operation)
+      // Extract id to prevent null override of database default
+      const { id, ...articleWithoutId } = article;
+      
       const { data: inserted, error } = await supabase
         .from('blog_articles')
         .insert({
-          ...article,
+          ...articleWithoutId,
           slug: candidateSlug,
           cluster_id: jobId,
           status: 'draft',
