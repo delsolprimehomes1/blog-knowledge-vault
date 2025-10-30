@@ -14,7 +14,7 @@ async function updateProgress(supabase: any, jobId: string, step: number, messag
       status: 'generating',
       progress: {
         current_step: step,
-        total_steps: 11,
+        total_steps: 12,
         current_article: articleNum || 0,
         total_articles: 6,
         message
@@ -2506,9 +2506,64 @@ Return ONLY valid JSON:
     
     checkTimeout(); // Check after funnel linking
 
-    // STEP 5: Set related articles - Already set in CTA logic above
+    // STEP 5: Resolve temporary slugs to real IDs and update database
+    await updateProgress(supabase, jobId, 11, 'Linking articles in funnel...');
+    console.log(`[Job ${jobId}] Resolving article relationships...`);
 
-    await updateProgress(supabase, jobId, 11, 'Completed!');
+    for (const article of articles) {
+      try {
+        const ctaIds: string[] = [];
+        const relatedIds: string[] = [];
+        
+        // Resolve CTA article slugs to IDs
+        if (article._temp_cta_slugs && article._temp_cta_slugs.length > 0) {
+          for (const slug of article._temp_cta_slugs) {
+            const targetArticle = articles.find((a: any) => a.slug === slug);
+            if (targetArticle && targetArticle.id) {
+              ctaIds.push(targetArticle.id);
+            }
+          }
+        }
+        
+        // Resolve related article slugs to IDs
+        if (article._temp_related_slugs && article._temp_related_slugs.length > 0) {
+          for (const slug of article._temp_related_slugs) {
+            const targetArticle = articles.find((a: any) => a.slug === slug);
+            if (targetArticle && targetArticle.id) {
+              relatedIds.push(targetArticle.id);
+            }
+          }
+        }
+        
+        // Update database with resolved relationships
+        const { error: updateError } = await supabase
+          .from('blog_articles')
+          .update({
+            cta_article_ids: ctaIds,
+            related_article_ids: relatedIds,
+            internal_links: article.internal_links || []
+          })
+          .eq('id', article.id);
+        
+        if (updateError) {
+          console.error(`[Job ${jobId}] Failed to update relationships for article ${article.id}:`, updateError);
+        } else {
+          console.log(`[Job ${jobId}] ✅ Updated article "${article.headline}": ${ctaIds.length} CTA links, ${relatedIds.length} related articles`);
+        }
+        
+        // Update local article object
+        article.cta_article_ids = ctaIds;
+        article.related_article_ids = relatedIds;
+        
+      } catch (error) {
+        console.error(`[Job ${jobId}] Error resolving relationships for "${article.headline}":`, error);
+      }
+    }
+
+    console.log(`[Job ${jobId}] ✅ Funnel relationships resolved and persisted`);
+    checkTimeout(); // Check after linking
+
+    await updateProgress(supabase, jobId, 12, 'Completed!');
     console.log(`[Job ${jobId}] Generation complete!`);
     
     checkTimeout(); // Final check before save
@@ -2520,8 +2575,8 @@ Return ONLY valid JSON:
         status: 'completed',
         articles: articles,
         progress: {
-          current_step: 11,
-          total_steps: 11,
+          current_step: 12,
+          total_steps: 12,
           current_article: articles.length,
           total_articles: articles.length,
           message: 'Cluster generation completed!',
