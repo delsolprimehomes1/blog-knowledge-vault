@@ -364,19 +364,23 @@ export const ClusterReviewInterface = ({
         // Fix external citations if needed
         if (validation.missingExternalCitations) {
           try {
+            toast.info(`Finding citations for "${article.headline}"...`);
+            
             const { data, error } = await supabase.functions.invoke('find-external-links', {
               body: {
                 content: article.detailed_content,
                 headline: article.headline,
                 language: article.language || language,
-                requireGovernmentSource: false // Don't require government sources for auto-fix
+                requireGovernmentSource: false
               }
             });
 
             if (error) {
               console.error(`Failed to find external links for article ${i}:`, error);
-            } else if (data.citations && data.citations.length > 0) {
-              // Merge with existing citations instead of replacing
+              toast.warning(`Could not auto-fix citations for "${article.headline}" - ${error.message || 'try manually clicking "Find Sources"'}`);
+              // Continue to next article instead of stopping
+              continue;
+            } else if (data?.citations && data.citations.length > 0) {
               const existingCitations = article.external_citations || [];
               const newCitations = data.citations.filter((newCit: any) => 
                 !existingCitations.some((existing: any) => existing.url === newCit.url)
@@ -384,10 +388,17 @@ export const ClusterReviewInterface = ({
               const mergedCitations = [...existingCitations, ...newCitations];
               
               updateArticle(i, { external_citations: mergedCitations });
-              console.log(`✅ Added ${newCitations.length} new external citations to article ${i + 1} (total: ${mergedCitations.length})`);
+              console.log(`✅ Added ${newCitations.length} new external citations to article ${i + 1}`);
+              toast.success(`Added ${newCitations.length} citations to "${article.headline}"`);
+              fixedArticlesCount++;
+            } else {
+              toast.warning(`No citations found for "${article.headline}"`);
             }
           } catch (error) {
             console.error(`Error fixing external citations for article ${i}:`, error);
+            toast.warning(`Could not auto-fix citations for "${article.headline}" - unexpected error`);
+            // Continue to next article
+            continue;
           }
         }
 
