@@ -211,17 +211,31 @@ export function NonApprovedCitationsPanel() {
         return;
       }
 
-      // Get best verified match or fallback to highest authority
-      const bestMatch = data.suggestions.find((s: any) => s.verified) || data.suggestions[0];
+      // Get best match: verified > unverified > any
+      const verifiedMatch = data.suggestions.find((s: any) => s.verificationStatus === 'verified');
+      const unverifiedMatch = data.suggestions.find((s: any) => s.verificationStatus === 'unverified');
+      const bestMatch = verifiedMatch || unverifiedMatch || data.suggestions[0];
       
-      if (!bestMatch.verified) {
+      // Only reject if ALL suggestions failed verification
+      const allFailed = data.suggestions.every((s: any) => s.verificationStatus === 'failed');
+      
+      if (allFailed) {
         setProcessingCitation(null);
         toast.error(
-          "❌ Found suggestions but none could be verified\n" +
-          "The AI found alternatives but they're currently inaccessible",
+          "❌ All suggested URLs are inaccessible\n" +
+          "The AI found alternatives but none could be reached. Try manually reviewing the citation.",
           { duration: 6000 }
         );
         return;
+      }
+      
+      // Warn if using unverified suggestion
+      if (bestMatch.verificationStatus === 'unverified') {
+        toast.warning(
+          "⚠️ Using unverified suggestion\n" +
+          "The suggested URL couldn't be verified automatically. Please review before publishing.",
+          { duration: 5000 }
+        );
       }
 
       // Normalize URLs for comparison
