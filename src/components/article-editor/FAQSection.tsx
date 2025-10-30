@@ -37,9 +37,8 @@ export const FAQSection = ({
     setIsEnabled(enabled);
     if (!enabled) {
       onFaqEntitiesChange([]);
-    } else if (faqEntities.length === 0) {
-      onFaqEntitiesChange([{ question: "", answer: "" }]);
     }
+    // Don't auto-create empty entities - let users add via "Add FAQ" or "Auto-generate"
   };
 
   const addQuestion = () => {
@@ -166,6 +165,13 @@ export const FAQSection = ({
 
       {isEnabled && (
         <CardContent className="space-y-4">
+          {faqEntities.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="mb-2">No FAQs added yet</p>
+              <p className="text-sm">Click "Add FAQ" below to manually add questions, or use "Auto-generate FAQs" to create them automatically</p>
+            </div>
+          )}
+          
           {faqEntities.map((faq, index) => (
             <div key={index} className="p-4 border rounded-lg space-y-3">
               <div className="flex items-center justify-between">
