@@ -68,6 +68,7 @@ export const LinkValidationPanel = ({ articleId, articleSlug }: LinkValidationPa
           articleContent: "",
           articleLanguage: validation.articleLanguage,
           context,
+          mustBeApproved: false, // Allow all suggestions, not just approved domains
         }
       });
 
@@ -75,9 +76,14 @@ export const LinkValidationPanel = ({ articleId, articleSlug }: LinkValidationPa
 
       setSuggestions(prev => new Map(prev).set(originalUrl, data.suggestions));
       
+      const warningMsg = data.warnings && data.warnings.length > 0 
+        ? ` (${data.warnings[0]})` 
+        : '';
+      
       toast({
         title: "Alternatives Found",
-        description: `Found ${data.suggestions.length} alternative sources`,
+        description: `Found ${data.suggestions.length} alternative sources${warningMsg}`,
+        variant: data.warnings ? "default" : "default",
       });
     } catch (error: any) {
       console.error('Discovery error:', error);
@@ -307,17 +313,38 @@ export const LinkValidationPanel = ({ articleId, articleSlug }: LinkValidationPa
                     <div className="mt-2 space-y-2">
                       <p className="text-sm font-medium">🔍 Additional Alternatives:</p>
                       {suggestions.get(link.url)?.map((suggestion, idx) => (
-                        <div key={idx} className="bg-muted p-3 rounded space-y-1">
+                        <div key={idx} className="bg-muted p-3 rounded space-y-2">
                           <div className="flex items-center justify-between">
-                            <a 
-                              href={suggestion.suggestedUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline flex items-center gap-1"
-                            >
-                              {suggestion.sourceName}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <a 
+                                href={suggestion.suggestedUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline flex items-center gap-1 truncate"
+                              >
+                                {suggestion.sourceName}
+                                <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                              </a>
+                              {/* Verification Status Badge */}
+                              {(suggestion as any).verificationStatus === 'verified' && (
+                                <Badge variant="default" className="flex-shrink-0">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Verified
+                                </Badge>
+                              )}
+                              {(suggestion as any).verificationStatus === 'unverified' && (
+                                <Badge variant="secondary" className="flex-shrink-0">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Not Verified
+                                </Badge>
+                              )}
+                              {(suggestion as any).verificationStatus === 'failed' && (
+                                <Badge variant="destructive" className="flex-shrink-0">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Failed
+                                </Badge>
+                              )}
+                            </div>
                             <Button
                               size="sm"
                               onClick={() => handleReplaceLink(link.url, suggestion.suggestedUrl)}
@@ -326,9 +353,15 @@ export const LinkValidationPanel = ({ articleId, articleSlug }: LinkValidationPa
                             </Button>
                           </div>
                           <p className="text-xs text-muted-foreground">{suggestion.reason}</p>
-                          <div className="flex gap-2">
+                          {(suggestion as any).error && (
+                            <p className="text-xs text-amber-600">⚠️ {(suggestion as any).error}</p>
+                          )}
+                          <div className="flex gap-2 flex-wrap">
                             <Badge variant="outline">Authority: {suggestion.authorityScore}/10</Badge>
                             <Badge variant="outline">Relevance: {suggestion.relevanceScore}%</Badge>
+                            {(suggestion as any).statusCode && (
+                              <Badge variant="outline">Status: {(suggestion as any).statusCode}</Badge>
+                            )}
                           </div>
                         </div>
                       ))}

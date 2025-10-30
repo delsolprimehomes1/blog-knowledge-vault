@@ -167,6 +167,9 @@ Return only the JSON array, nothing else.`;
     console.log(`✅ ${filteredSuggestions.length}/${suggestions.length} suggestions passed competitor filter`);
 
     // Additional filtering for approved domains if requested
+    let warnings: string[] = [];
+    let approvedCount = filteredSuggestions.length;
+    
     if (mustBeApproved) {
       console.log(`\n🔍 Filtering for approved domains only...`);
       const approvedSuggestions = filteredSuggestions.filter(suggestion => {
@@ -180,11 +183,13 @@ Return only the JSON array, nothing else.`;
       });
 
       if (approvedSuggestions.length === 0) {
-        throw new Error('No approved domain alternatives found. The replacement must come from your approved list of 243 domains.');
+        console.warn('⚠️ No approved domain alternatives found, showing all suggestions');
+        warnings.push('None of the suggested sources are from your approved domain list. Please review carefully before using.');
+      } else {
+        console.log(`✅ ${approvedSuggestions.length}/${filteredSuggestions.length} suggestions from approved domains`);
+        filteredSuggestions = approvedSuggestions;
+        approvedCount = approvedSuggestions.length;
       }
-
-      console.log(`✅ ${approvedSuggestions.length}/${filteredSuggestions.length} suggestions from approved domains`);
-      filteredSuggestions = approvedSuggestions;
     }
 
     // Score and sort by authority
@@ -213,46 +218,103 @@ Return only the JSON array, nothing else.`;
     });
     console.log('');
 
-    // Verify suggested URLs are accessible
-    const verifiedSuggestions = await Promise.all(
-      scoredSuggestions.map(async (suggestion) => {
+    // Verify suggested URLs are accessible with retry logic
+    const verifyUrlWithRetry = async (url: string, retries = 2): Promise<{ verified: boolean; statusCode: number | null; verificationStatus: string; error?: string }> => {
+      for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-          const verifyResponse = await fetch(suggestion.suggestedUrl, {
+          const verifyResponse = await fetch(url, {
             method: 'HEAD',
             redirect: 'follow',
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; LinkValidator/1.0)'
             },
-            signal: AbortSignal.timeout(8000)
+            signal: AbortSignal.timeout(15000) // Increased to 15s
           });
           
           const isAccessible = verifyResponse.ok || verifyResponse.status === 403;
           
           return {
-            ...suggestion,
-            originalUrl,
             verified: isAccessible,
             statusCode: verifyResponse.status,
+            verificationStatus: isAccessible ? 'verified' : 'failed',
           };
         } catch (error) {
-          console.warn(`Failed to verify ${suggestion.suggestedUrl}:`, error);
-          return {
-            ...suggestion,
-            originalUrl,
-            verified: false,
-            statusCode: null,
-          };
+          const isLastAttempt = attempt === retries;
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          
+          // DNS or network errors should not block the suggestion
+          if (errorMessage.includes('dns') || errorMessage.includes('DNS')) {
+            console.warn(`⚠️ DNS lookup failed for ${url} (attempt ${attempt + 1}/${retries + 1})`);
+            if (isLastAttempt) {
+              return {
+                verified: false,
+                statusCode: null,
+                verificationStatus: 'unverified',
+                error: 'DNS lookup failed - URL may still be valid',
+              };
+            }
+          } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+            console.warn(`⚠️ Timeout verifying ${url} (attempt ${attempt + 1}/${retries + 1})`);
+            if (isLastAttempt) {
+              return {
+                verified: false,
+                statusCode: null,
+                verificationStatus: 'unverified',
+                error: 'Request timeout - URL may be slow or blocked',
+              };
+            }
+          } else {
+            console.warn(`⚠️ Verification error for ${url}:`, errorMessage);
+            if (isLastAttempt) {
+              return {
+                verified: false,
+                statusCode: null,
+                verificationStatus: 'failed',
+                error: errorMessage,
+              };
+            }
+          }
+          
+          // Wait before retry
+          if (!isLastAttempt) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
+      }
+      
+      return {
+        verified: false,
+        statusCode: null,
+        verificationStatus: 'failed',
+        error: 'All verification attempts failed',
+      };
+    };
+
+    const verifiedSuggestions = await Promise.all(
+      scoredSuggestions.map(async (suggestion) => {
+        const verificationResult = await verifyUrlWithRetry(suggestion.suggestedUrl);
+        
+        return {
+          ...suggestion,
+          originalUrl,
+          ...verificationResult,
+        };
       })
     );
 
-    // Sort by authority and relevance, prioritize verified links
+    // Sort by verification status, then authority and relevance
     verifiedSuggestions.sort((a, b) => {
-      if (a.verified !== b.verified) return a.verified ? -1 : 1;
+      // Prioritize: verified > unverified > failed
+      const statusOrder = { verified: 0, unverified: 1, failed: 2 };
+      const aOrder = statusOrder[a.verificationStatus as keyof typeof statusOrder] ?? 2;
+      const bOrder = statusOrder[b.verificationStatus as keyof typeof statusOrder] ?? 2;
+      
+      if (aOrder !== bOrder) return aOrder - bOrder;
       return (b.authorityScore + b.relevanceScore) - (a.authorityScore + a.relevanceScore);
     });
 
     console.log(`Found ${verifiedSuggestions.length} alternative sources`);
+    console.log(`Verified: ${verifiedSuggestions.filter(s => s.verified).length}, Unverified: ${verifiedSuggestions.filter(s => s.verificationStatus === 'unverified').length}, Failed: ${verifiedSuggestions.filter(s => s.verificationStatus === 'failed').length}`);
 
     return new Response(
       JSON.stringify({
@@ -260,6 +322,9 @@ Return only the JSON array, nothing else.`;
         suggestions: verifiedSuggestions,
         totalFound: verifiedSuggestions.length,
         verifiedCount: verifiedSuggestions.filter(s => s.verified).length,
+        unverifiedCount: verifiedSuggestions.filter(s => s.verificationStatus === 'unverified').length,
+        approvedCount: mustBeApproved ? approvedCount : verifiedSuggestions.length,
+        warnings: warnings.length > 0 ? warnings : undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
