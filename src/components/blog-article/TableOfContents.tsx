@@ -90,12 +90,12 @@ export const TableOfContents = ({ content }: TableOfContentsProps) => {
       </aside>
 
       {/* Mobile inline collapsible button */}
-      <div className="lg:hidden mb-8">
+      <div className="lg:hidden mb-6">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="outline" 
-              className="w-full justify-between backdrop-blur-lg bg-white/85 dark:bg-gray-900/85 border-white/30 shadow-xl rounded-3xl hover:shadow-2xl transition-all duration-300 py-6"
+              className="w-full justify-between backdrop-blur-lg bg-white/85 dark:bg-gray-900/85 border-white/30 shadow-lg rounded-2xl hover:shadow-xl transition-all duration-300 py-4"
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-full bg-gradient-to-br from-primary to-accent">
@@ -106,7 +106,7 @@ export const TableOfContents = ({ content }: TableOfContentsProps) => {
               <ChevronDown className={`h-5 w-5 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-4 backdrop-blur-lg bg-white/95 dark:bg-gray-900/95 border border-white/30 rounded-3xl p-6 shadow-2xl animate-scale-in">
+          <CollapsibleContent className="mt-3 backdrop-blur-lg bg-white/95 dark:bg-gray-900/95 border border-white/30 rounded-2xl p-4 shadow-lg animate-scale-in">
             <nav className="space-y-2">
               {items.map((item, index) => (
                 <button

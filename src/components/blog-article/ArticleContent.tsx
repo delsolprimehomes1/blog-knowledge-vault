@@ -108,7 +108,7 @@ export const ArticleContent = ({
     <article ref={contentRef} className="space-y-12 md:space-y-16">
       {/* Featured Image Hero - Full prominence before content */}
       {featuredImageUrl && (
-        <figure className="my-0 -mx-5 sm:mx-0">
+        <figure className="my-0 -mx-6 sm:mx-0">
           <OptimizedImage
             src={featuredImageUrl}
             alt={featuredImageAlt}

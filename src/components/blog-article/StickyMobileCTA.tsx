@@ -9,7 +9,7 @@ export const StickyMobileCTA = () => {
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
-      if (scrollPosition > 500) {
+      if (scrollPosition > 800) {
         setHasScrolled(true);
         setIsVisible(true);
       }
@@ -23,7 +23,7 @@ export const StickyMobileCTA = () => {
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 animate-slide-in-up pb-safe">
-      <div className="glass border-t-2 border-white/30 shadow-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 p-5">
+      <div className="glass border-t-2 border-white/30 shadow-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 p-3.5">
         <button
           onClick={() => {
             setIsVisible(false);
@@ -35,10 +35,10 @@ export const StickyMobileCTA = () => {
           <X className="h-4 w-4 text-muted-foreground" />
         </button>
         
-        <div className="flex gap-3">
+        <div className="flex gap-2.5">
           <Button
             asChild
-            className="flex-1 ripple-container bg-gradient-to-r from-primary to-[hsl(42_58%_50%)] text-white rounded-full px-6 py-4 font-bold shadow-xl shadow-primary/40 hover:shadow-2xl hover:scale-[1.02] active:scale-95 transition-all duration-300 min-h-[56px]"
+            className="flex-1 ripple-container bg-gradient-to-r from-primary to-[hsl(42_58%_50%)] text-white rounded-full px-5 py-3.5 font-bold shadow-xl shadow-primary/40 hover:shadow-2xl hover:scale-[1.02] active:scale-95 transition-all duration-300 min-h-[52px]"
           >
             <a href="/properties?near=malaga-airport">
               <Home className="h-5 w-5 mr-2" />
@@ -49,7 +49,7 @@ export const StickyMobileCTA = () => {
           <Button
             asChild
             variant="outline"
-            className="flex-1 border-2 border-primary text-primary rounded-full px-5 py-3 font-bold hover:bg-primary/10 hover:scale-[1.02] active:scale-95 transition-all duration-300 min-h-[56px]"
+            className="flex-1 border-2 border-primary text-primary rounded-full px-4 py-3 font-bold hover:bg-primary/10 hover:scale-[1.02] active:scale-95 transition-all duration-300 min-h-[52px]"
           >
             <a href="/contact">
               <Phone className="h-5 w-5 mr-2" />
