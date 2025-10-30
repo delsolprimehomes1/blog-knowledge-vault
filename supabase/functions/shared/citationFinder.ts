@@ -304,11 +304,13 @@ export async function findBetterCitationsWithBatch(
 
   const prompt = `You are an expert research assistant finding authoritative external sources for a ${config.name} language article.
 
-**MANDATORY SEARCH RESTRICTIONS:**
-- You MUST ONLY search from the approved domain list provided
-- DO NOT suggest sources from any other domains
-- These ${selection.domains.length} domains have been pre-vetted for authority and relevance
-- Focus on ${selection.category} sources: ${selection.domains.slice(0, 10).join(', ')}...
+**CRITICAL REQUIREMENTS:**
+- You MUST ONLY provide URLs that you ACTUALLY FOUND through web search
+- DO NOT invent, generate, or hallucinate URLs under any circumstances
+- ONLY use URLs from these approved domains: ${selection.domains.slice(0, 20).join(', ')}
+- Every URL must be a REAL, ACCESSIBLE page that exists on the internet
+- If you cannot find enough real sources, return fewer citations rather than making up URLs
+- Focus on ${selection.category} sources
 
 **Article Topic:** "${articleTopic}"
 **Funnel Stage:** ${funnelStage} (${funnelStage === 'TOFU' ? 'awareness' : funnelStage === 'MOFU' ? 'consideration' : 'decision'})
@@ -371,15 +373,17 @@ Return only the JSON array, nothing else.`;
       messages: [
         {
           role: 'system',
-          content: `You are an expert research assistant finding authoritative ${config.name}-language sources from ${selection.category} domains. Return ONLY valid JSON arrays.`
+          content: `You are a citation research expert. CRITICAL: Only return URLs that you actually found through web search. Never invent or hallucinate URLs. Return valid JSON with real, accessible URLs from your search results.`
         },
         {
           role: 'user',
           content: prompt
         }
       ],
-      temperature: 0.3,
+      temperature: 0.1, // Lower temperature to reduce hallucinations
       max_tokens: 3000,
+      return_citations: true, // Get real citations from Perplexity's search results
+      return_images: false,
       // CRITICAL: Only search approved domains (Perplexity limit: 20)
       search_domain_filter: selection.domains.slice(0, 20),
     }),
