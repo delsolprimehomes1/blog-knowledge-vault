@@ -339,20 +339,82 @@ async function generateUniqueSlugAndSave(
   articleIndex: number,
   maxRetries: number = 50
 ): Promise<string> {
-  // Generate base slug from headline with proper accent normalization
-  // Use pre-assigned slug if available (from batch deduplication)
-  const baseSlug = article.slug || article.headline
+  // NOTE: The blog_articles table has a UNIQUE constraint on the slug column (blog_articles_slug_key)
+  // This prevents duplicate slugs at the database level. We pre-deduplicate to avoid retry loops.
+  
+  // PRIORITY 1: Use pre-assigned slug if available (already deduplicated against DB + batch)
+  if (article.slug) {
+    console.log(`[Job ${jobId}] ✅ Using pre-assigned deduplicated slug: "${article.slug}"`);
+    
+    try {
+      // Attempt INSERT with pre-assigned slug (should succeed on first try)
+      const { data: inserted, error } = await supabase
+        .from('blog_articles')
+        .insert({
+          ...article,
+          cluster_id: jobId,
+          status: 'draft',
+          cta_article_ids: [],
+          related_article_ids: [],
+          cluster_number: articleIndex + 1
+        })
+        .select('id')
+        .single();
+      
+      if (error) {
+        // This should RARELY happen since slug was pre-deduplicated
+        if (error.code === '23505' && error.message.includes('blog_articles_slug_key')) {
+          // Race condition or external modification - use timestamp fallback immediately
+          const timestampSlug = `${article.slug}-${Date.now()}`;
+          console.warn(`[Job ${jobId}] ⚠️ Pre-assigned slug "${article.slug}" unexpectedly collided, using: "${timestampSlug}"`);
+          
+          const { data: fallbackInserted, error: fallbackError } = await supabase
+            .from('blog_articles')
+            .insert({
+              ...article,
+              slug: timestampSlug,
+              cluster_id: jobId,
+              status: 'draft',
+              cta_article_ids: [],
+              related_article_ids: [],
+              cluster_number: articleIndex + 1
+            })
+            .select('id')
+            .single();
+          
+          if (fallbackError) {
+            console.error(`[Job ${jobId}] ❌ Timestamp fallback failed:`, fallbackError);
+            throw fallbackError;
+          }
+          
+          console.log(`[Job ${jobId}] ✅ Fallback save successful (ID: ${fallbackInserted.id})`);
+          return fallbackInserted.id;
+        }
+        
+        // Other error - throw it
+        console.error(`[Job ${jobId}] ❌ Database error with pre-assigned slug "${article.slug}":`, error);
+        throw error;
+      }
+      
+      // Success! Pre-assigned slug worked
+      console.log(`[Job ${jobId}] ✅ Article saved with pre-assigned slug: "${article.slug}" (ID: ${inserted.id})`);
+      return inserted.id;
+      
+    } catch (error) {
+      console.error(`[Job ${jobId}] 💥 Unexpected error during save with pre-assigned slug:`, error);
+      throw error;
+    }
+  }
+  
+  // FALLBACK: No pre-assigned slug (shouldn't happen in cluster generation)
+  console.log(`[Job ${jobId}] ⚠️ No pre-assigned slug found, generating from headline (unexpected in cluster flow)`);
+  
+  const baseSlug = article.headline
     .normalize('NFD') // Decompose accented characters
     .replace(/[\u0300-\u036f]/g, '') // Remove diacritical marks
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-
-  if (article.slug) {
-    console.log(`[Job ${jobId}] ✅ Using pre-assigned slug: "${article.slug}"`);
-  } else {
-    console.log(`[Job ${jobId}] ⚠️ No pre-assigned slug found, generating from headline`);
-  }
   
   console.log(`[Job ${jobId}] 🔐 Attempting atomic slug reservation for: "${baseSlug}"`);
   
@@ -528,21 +590,32 @@ Generate 6 article titles following this funnel structure:
 Each article must include the location "Costa del Sol" in the headline.
 
 **CRITICAL: SLUG UNIQUENESS REQUIREMENT**
-Each headline MUST be sufficiently distinct to generate a unique URL slug. To ensure this:
-- Vary the leading words (don't start every headline the same way)
-- Include differentiating keywords (year, specific location, property type, buyer profile)
-- Avoid repetitive phrasing patterns
-- Think: "If I lowercase and hyphenate these headlines, will they be clearly different?"
+Your headlines MUST generate unique slugs when converted to lowercase-hyphenated URLs.
 
-Examples of GOOD variation:
-✅ "Costa del Sol Investment Guide 2025: Airport Properties"
-✅ "Buying Near Málaga Airport: Complete Location Analysis"
-✅ "Airport-Adjacent Real Estate: Costa del Sol ROI Insights"
+BAD Examples (create duplicate slugs):
+❌ "Experience Costa del Sol: Best Holiday Activities"
+❌ "Experience Costa del Sol: Top Holiday Activities"
+   → Both become similar: "experience-costa-del-sol-best-holiday-activities"
 
-Examples of BAD variation (too similar):
-❌ "Costa del Sol: Investment Guide for Airport Properties"
-❌ "Costa del Sol: Best Investments Near Airport"
-(Both become: "costa-del-sol-investment-...")
+GOOD Examples (clearly unique slugs):
+✅ "Costa del Sol in Spring: 10 Activities You Can't Miss"
+✅ "Winter Travel Guide: Hidden Gems of Costa del Sol"
+✅ "Summer Beach Paradise: Costa del Sol 2025"
+✅ "Family-Friendly Costa del Sol: Activities for Kids"
+✅ "Luxury Property Investment: Costa del Sol Airport Area"
+✅ "Budget Traveler's Guide to Costa del Sol"
+
+Rules to ensure uniqueness:
+1. Start headlines with different words (season, location, year, property type, audience)
+2. Include specific numbers (Top 5, 10 Best, 7 Essential)
+3. Use different action words (Discover, Experience, Explore, Guide to, Understanding, Buying)
+4. Add temporal markers (2025, Spring, December, Q1)
+5. Include differentiating qualifiers (Luxury, Budget, Family, Investment, First-Time)
+
+BEFORE finalizing your 6 headlines:
+- Mentally convert each to a slug (lowercase, hyphens, remove special chars)
+- Verify all 6 would be CLEARLY different in their first 3-4 words
+- If any two seem similar, rewrite one with a completely different leading phrase
 
 Return ONLY valid JSON:
 {
@@ -625,7 +698,7 @@ Return ONLY valid JSON:
     console.log(`[Job ${jobId}] Generated structure for`, articleStructures.length, 'articles');
     
     // Validate slug uniqueness potential BEFORE generating full articles
-    console.log(`[Job ${jobId}] Validating headline uniqueness...`);
+    console.log(`[Job ${jobId}] 🔍 Validating headline uniqueness...`);
     const proposedSlugs = articleStructures.map((a: any) => 
       a.headline
         .normalize('NFD')
@@ -640,9 +713,15 @@ Return ONLY valid JSON:
       const duplicates = proposedSlugs.filter((slug: string, i: number) => 
         proposedSlugs.indexOf(slug) !== i
       );
-      console.warn(`[Job ${jobId}] ⚠️ Detected ${duplicates.length} potential slug collisions:`, duplicates);
-      console.warn(`[Job ${jobId}] Headlines:`, articleStructures.map((a: any) => a.headline));
-      // Don't fail - let the atomic insert handle it - but log for monitoring
+      console.error(`[Job ${jobId}] ❌ AI GENERATED DUPLICATE SLUGS:`, duplicates);
+      console.error(`[Job ${jobId}] Headlines causing collisions:`, 
+        articleStructures
+          .map((a: any, i: number) => ({ headline: a.headline, slug: proposedSlugs[i] }))
+          .filter((item: any) => duplicates.includes(item.slug))
+      );
+      
+      // Don't fail immediately - let pre-processing fix it - but log prominently
+      console.warn(`[Job ${jobId}] ⚠️ Will auto-fix with counter suffixes, but AI should avoid this`);
     } else {
       console.log(`[Job ${jobId}] ✅ All ${slugSet.size} proposed slugs are unique`);
     }
