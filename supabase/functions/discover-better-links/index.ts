@@ -218,8 +218,35 @@ Return only the JSON array, nothing else.`;
     });
     console.log('');
 
+    // Check if original URL is a PDF
+    const isPdf = (url: string): boolean => {
+      try {
+        const urlObj = new URL(url);
+        return urlObj.pathname.toLowerCase().endsWith('.pdf');
+      } catch {
+        return url.toLowerCase().endsWith('.pdf');
+      }
+    };
+
+    const originalIsPdf = isPdf(originalUrl);
+    
+    if (originalIsPdf) {
+      console.log('🔍 Original citation is a PDF - skipping verification for PDF suggestions');
+    }
+
     // Verify suggested URLs are accessible with retry logic
-    const verifyUrlWithRetry = async (url: string, retries = 2): Promise<{ verified: boolean; statusCode: number | null; verificationStatus: string; error?: string }> => {
+    const verifyUrlWithRetry = async (url: string, retries = 2): Promise<{ verified: boolean; statusCode: number | null; verificationStatus: string; skipVerification?: boolean; error?: string }> => {
+      // Skip verification for PDFs when original was also a PDF
+      if (originalIsPdf && isPdf(url)) {
+        console.log(`⏭️ Skipping verification for PDF: ${url}`);
+        return {
+          verified: false,
+          statusCode: null,
+          verificationStatus: 'unverified',
+          skipVerification: true,
+          error: 'PDF source - verification skipped',
+        };
+      }
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
           const verifyResponse = await fetch(url, {

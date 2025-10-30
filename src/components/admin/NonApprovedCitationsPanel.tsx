@@ -14,6 +14,11 @@ export function NonApprovedCitationsPanel() {
   const [processingCitation, setProcessingCitation] = useState<string | null>(null);
   const [processingArticles, setProcessingArticles] = useState<Set<string>>(new Set());
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [failedSuggestions, setFailedSuggestions] = useState<{ 
+    articleId: string; 
+    url: string; 
+    suggestions: any[] 
+  } | null>(null);
 
   const { data: articlesWithIssues, isLoading } = useQuery({
     queryKey: ["non-approved-citations"],
@@ -221,9 +226,14 @@ export function NonApprovedCitationsPanel() {
       
       if (allFailed) {
         setProcessingCitation(null);
+        setFailedSuggestions({
+          articleId,
+          url,
+          suggestions: data.suggestions
+        });
         toast.error(
           "❌ All suggested URLs are inaccessible\n" +
-          "The AI found alternatives but none could be reached. Try manually reviewing the citation.",
+          "Click 'Review Suggestions' to manually select one anyway.",
           { duration: 6000 }
         );
         return;
@@ -657,6 +667,87 @@ export function NonApprovedCitationsPanel() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Manual Review Dialog for Failed Suggestions */}
+      {failedSuggestions && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full max-h-[80vh] overflow-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                Review Unverified Suggestions
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                These URLs couldn't be verified automatically (PDFs often fail verification). 
+                You can still use them if they look legitimate.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium mb-1">Original (Non-Approved) Citation:</p>
+                <a 
+                  href={failedSuggestions.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline break-all"
+                >
+                  {failedSuggestions.url}
+                </a>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-semibold">AI Suggestions (Unverified):</p>
+                {failedSuggestions.suggestions.map((suggestion: any, idx: number) => (
+                  <div key={idx} className="p-4 border rounded-lg space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 space-y-1">
+                        <p className="font-medium text-sm">{suggestion.sourceName}</p>
+                        <a 
+                          href={suggestion.suggestedUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline break-all block"
+                        >
+                          {suggestion.suggestedUrl}
+                        </a>
+                        <p className="text-xs text-muted-foreground">{suggestion.reason}</p>
+                        <div className="flex gap-2 items-center text-xs">
+                          <Badge variant="outline">Authority: {suggestion.authorityScore}/100</Badge>
+                          <Badge variant="outline">Relevance: {suggestion.relevanceScore}/100</Badge>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          applyReplacementMutation.mutate({
+                            articleId: failedSuggestions.articleId,
+                            oldUrl: failedSuggestions.url,
+                            newUrl: suggestion.suggestedUrl,
+                            newSource: suggestion.sourceName,
+                            confidence: suggestion.authorityScore || 0
+                          });
+                          setFailedSuggestions(null);
+                        }}
+                      >
+                        Use This
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setFailedSuggestions(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
