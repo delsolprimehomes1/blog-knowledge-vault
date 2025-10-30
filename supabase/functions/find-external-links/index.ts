@@ -285,8 +285,8 @@ Return only the JSON array, nothing else.`;
       if (citation.url.includes('.edu')) authorityScore += 4;
       if (citation.url.includes('.org')) authorityScore += 3;
       
-      // Established real estate platforms
-      const authoritative = ['idealista', 'kyero', 'propertyportal', 'boe.es', 'registradores', 'notariado', 'europa.eu'];
+      // Official government and legal sources only (no competitors)
+      const authoritative = ['boe.es', 'registradores', 'notariado', 'europa.eu', 'gov.uk', 'juntadeandalucia.es'];
       if (authoritative.some(domain => citation.url.toLowerCase().includes(domain))) authorityScore += 4;
       
       // Source name credibility

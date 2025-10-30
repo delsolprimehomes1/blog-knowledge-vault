@@ -58,20 +58,11 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'lachispa.net'
     ],
     realEstate: [
-      'kyero.com',
-      'propertyguides.com',
-      'spanishpropertychoice.com',
-      'aplaceinthesun.com',
-      'spanishpropertyinsight.com',
-      'spanishhomes.com',
       'costaluzlawyers.es',
       'abogadoespanol.com',
       'legalservicesinspain.com',
       'spanishsolutions.net',
-      'lexidy.com',
-      'idealista.com',
-      'fotocasa.es',
-      'pisos.com'
+      'lexidy.com'
     ],
     tourism: [
       'andalucia.org',
@@ -137,10 +128,6 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'lachispa.net'
     ],
     realEstate: [
-      'idealista.com',
-      'fotocasa.es',
-      'pisos.com',
-      'kyero.com',
       'costaluzlawyers.es',
       'abogadoespanol.com',
       'legalservicesinspain.com',
@@ -193,8 +180,6 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
-      'idealista.com',
-      'kyero.com',
       'costaluzlawyers.es',
       'legalservicesinspain.com',
       'lexidy.com'
@@ -234,8 +219,6 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
-      'idealista.com',
-      'kyero.com',
       'costaluzlawyers.es',
       'legalservicesinspain.com',
       'lexidy.com'
@@ -275,8 +258,6 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
-      'idealista.com',
-      'kyero.com',
       'costaluzlawyers.es',
       'legalservicesinspain.com',
       'lexidy.com'
@@ -316,8 +297,6 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
-      'idealista.com',
-      'kyero.com',
       'costaluzlawyers.es',
       'legalservicesinspain.com',
       'lexidy.com'
@@ -357,8 +336,6 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
-      'idealista.com',
-      'kyero.com',
       'costaluzlawyers.es',
       'legalservicesinspain.com',
       'lexidy.com'
@@ -398,8 +375,6 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
-      'idealista.com',
-      'kyero.com',
       'costaluzlawyers.es',
       'legalservicesinspain.com',
       'lexidy.com'
@@ -439,8 +414,6 @@ export const DOMAIN_BATCHES: Record<string, Record<DomainCategory, string[]>> = 
       'andaluciatoday.com'
     ],
     realEstate: [
-      'idealista.com',
-      'kyero.com',
       'costaluzlawyers.es',
       'legalservicesinspain.com',
       'lexidy.com'
