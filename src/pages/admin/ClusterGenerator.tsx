@@ -546,7 +546,7 @@ const ClusterGenerator = () => {
       
       // Step 3: Insert articles first (without IDs in cta/related fields)
       const articlesToInsert = generatedArticles.map(a => {
-        const { _temp_cta_slugs, _temp_related_slugs, _reviewed, ...article } = a as any;
+        const { _temp_cta_slugs, _temp_related_slugs, _reviewed, id, ...article } = a as any;
         return {
           ...article,
           status: 'draft',
@@ -697,7 +697,7 @@ const ClusterGenerator = () => {
       
       // Step 3: Prepare articles for insert
       const articlesToInsert = generatedArticles.map(a => {
-        const { _temp_cta_slugs, _temp_related_slugs, _reviewed, ...article } = a as any;
+        const { _temp_cta_slugs, _temp_related_slugs, _reviewed, id, ...article } = a as any;
         return {
           ...article,
           status: 'published',
