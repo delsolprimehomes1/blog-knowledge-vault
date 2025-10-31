@@ -1041,6 +1041,7 @@ export type Database = {
         Args: { extension_name: string }
         Returns: boolean
       }
+      check_stuck_citation_jobs: { Args: never; Returns: undefined }
       check_stuck_cluster_jobs: { Args: never; Returns: undefined }
       get_database_triggers: {
         Args: never

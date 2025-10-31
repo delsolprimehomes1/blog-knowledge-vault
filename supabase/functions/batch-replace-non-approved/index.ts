@@ -189,8 +189,27 @@ serve(async (req) => {
 async function processReplacements(supabaseClient: any, jobId: string, limit: number | null) {
   const startTime = Date.now();
   const MAX_EXECUTION_TIME = 540000; // 9 minutes (leave buffer before edge function timeout)
+  const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+  let lastHeartbeat = Date.now();
+
+  // Heartbeat function to keep job status updated
+  const updateHeartbeat = async () => {
+    const now = Date.now();
+    if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
+      await supabaseClient
+        .from('citation_replacement_jobs')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', jobId);
+      lastHeartbeat = now;
+      console.log(`Heartbeat updated for job ${jobId}`);
+    }
+  };
   
   try {
+    console.log(`Starting batch replacement job ${jobId}`);
+    
+    // Clean up any stuck jobs first
+    await supabaseClient.rpc('check_stuck_citation_jobs');
     // Fetch articles
     let query = supabaseClient
       .from('blog_articles')
@@ -235,6 +254,9 @@ async function processReplacements(supabaseClient: any, jobId: string, limit: nu
 
     // Process each citation
     for (const citation of nonApprovedCitations) {
+      // Update heartbeat
+      await updateHeartbeat();
+      
       // Check for timeout
       if (Date.now() - startTime > MAX_EXECUTION_TIME) {
         console.warn('Approaching timeout limit, stopping processing');
@@ -248,7 +270,16 @@ async function processReplacements(supabaseClient: any, jobId: string, limit: nu
 
       try {
         currentProgress++;
-        await updateJobStatus(supabaseClient, jobId, { progress_current: currentProgress });
+        
+        // Update progress every 5 citations
+        if (currentProgress % 5 === 0) {
+          await updateJobStatus(supabaseClient, jobId, { 
+            progress_current: currentProgress,
+            auto_applied_count: results.autoApplied,
+            manual_review_count: results.manualReview,
+            failed_count: results.failed
+          });
+        }
 
         console.log(`Processing: ${citation.url}`);
 
@@ -344,30 +375,43 @@ async function processReplacements(supabaseClient: any, jobId: string, limit: nu
           failed_count: results.failed,
         });
 
-      } catch (error) {
-        console.error('Error processing citation:', error);
+      } catch (citationError) {
+        console.error('Error processing citation:', citationError);
         results.failed++;
       }
     }
 
     // Mark complete
     const executionTime = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Batch complete in ${executionTime}s:`, results);
+    console.log(`Job ${jobId} completed in ${executionTime}s:`, results);
     
     await updateJobStatus(supabaseClient, jobId, {
       status: 'completed',
+      progress_current: nonApprovedCitations.length,
+      auto_applied_count: results.autoApplied,
+      manual_review_count: results.manualReview,
+      failed_count: results.failed,
       completed_at: new Date().toISOString(),
     });
 
   } catch (error) {
-    console.error('processReplacements error:', error);
+    console.error(`Job ${jobId} failed with error:`, error);
     const executionTime = Math.round((Date.now() - startTime) / 1000);
     
+    // Always mark job as failed on error
     await updateJobStatus(supabaseClient, jobId, {
       status: 'failed',
       error_message: `${(error as Error).message} (after ${executionTime}s)`,
       completed_at: new Date().toISOString(),
     });
+  } finally {
+    // Final heartbeat to ensure job status is updated
+    await supabaseClient
+      .from('citation_replacement_jobs')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', jobId);
+    
+    console.log(`Job ${jobId} processing finished`);
   }
 }
 
