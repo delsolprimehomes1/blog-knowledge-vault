@@ -167,13 +167,27 @@ Return ONLY valid JSON in this format:
           }
         }
 
-        // Update article with FAQs
+        // Update article with FAQs and date_modified
+        const now = new Date().toISOString();
         const { error: updateError } = await supabaseClient
           .from('blog_articles')
-          .update({ faq_entities: faqEntities })
+          .update({ 
+            faq_entities: faqEntities,
+            date_modified: now,
+            updated_at: now
+          })
           .eq('id', article.id);
 
         if (updateError) throw updateError;
+
+        // Track content update
+        await supabaseClient.from('content_updates').insert({
+          article_id: article.id,
+          update_type: 'faq',
+          updated_fields: ['faq_entities'],
+          new_date_modified: now,
+          update_notes: `Generated ${faqEntities.length} FAQ entries`
+        });
 
         console.log(`✅ Generated ${faqEntities.length} FAQs for article ${article.slug || article.id}`);
         results.successful++;

@@ -166,12 +166,14 @@ serve(async (req) => {
           }
           replacementCount += citationMatches;
 
-          // Update article
+          // Update article with date_modified
+          const now = new Date().toISOString();
           const { error: updateError } = await supabase
             .from('blog_articles')
             .update({
               external_citations: newCitations,
-              updated_at: new Date().toISOString()
+              updated_at: now,
+              date_modified: now
             })
             .eq('id', article.id);
 
@@ -179,6 +181,15 @@ serve(async (req) => {
             console.error(`⚠️ Failed to update article ${articleId}:`, updateError);
             continue;
           }
+
+          // Track content update
+          await supabase.from('content_updates').insert({
+            article_id: article.id,
+            update_type: 'citations',
+            updated_fields: ['external_citations'],
+            new_date_modified: now,
+            update_notes: `Replaced citation: ${replacement.original_url} → ${replacement.replacement_url}`
+          });
 
           // Update citation usage tracking
           await supabase

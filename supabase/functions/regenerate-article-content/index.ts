@@ -139,19 +139,30 @@ Write the article content now in HTML format:`
     }
 
     // Update article with new content
+    const now = new Date().toISOString();
     const readTime = Math.ceil(wordCount / 200); // Estimate 200 words per minute
     const { error: updateError } = await supabase
       .from('blog_articles')
       .update({
         detailed_content: generatedContent,
         read_time: readTime,
-        date_modified: new Date().toISOString(),
+        date_modified: now,
+        updated_at: now
       })
       .eq('id', articleId);
 
     if (updateError) {
       throw new Error(`Failed to update article: ${updateError.message}`);
     }
+
+    // Track content update
+    await supabase.from('content_updates').insert({
+      article_id: articleId,
+      update_type: 'content',
+      updated_fields: ['detailed_content', 'read_time'],
+      new_date_modified: now,
+      update_notes: 'Regenerated article content'
+    });
 
     console.log(`Successfully regenerated content: ${wordCount} words`);
 

@@ -3,12 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Calendar, RefreshCw, TrendingUp } from "lucide-react";
+import { AlertCircle, Calendar, RefreshCw, TrendingUp, PlayCircle } from "lucide-react";
 import { ContentFreshnessReport } from "@/types/contentUpdates";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { useState } from "react";
 
 export const ContentFreshnessPanel = () => {
+  const [isInitializing, setIsInitializing] = useState(false);
   const { data: freshnessReport, isLoading, refetch } = useQuery({
     queryKey: ['content-freshness'],
     queryFn: async () => {
@@ -21,6 +23,26 @@ export const ContentFreshnessPanel = () => {
       return data as ContentFreshnessReport[];
     }
   });
+
+  const handleInitialize = async () => {
+    setIsInitializing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-initialize-content-freshness');
+      
+      if (error) throw error;
+      
+      toast.success(`Initialized ${data.initialized} articles and created ${data.tracked} tracking entries.`);
+      
+      // Refresh the data
+      await refetch();
+    } catch (error) {
+      console.error('Failed to initialize content freshness:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to initialize content freshness tracking.");
+    } finally {
+      setIsInitializing(false);
+    }
+  };
 
   const handleBulkRefresh = async () => {
     const staleArticles = freshnessReport?.filter(
@@ -80,10 +102,16 @@ export const ContentFreshnessPanel = () => {
             <TrendingUp className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold">Content Freshness Monitor</h3>
           </div>
-          <Button onClick={() => refetch()} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleInitialize} variant="outline" size="sm" disabled={isInitializing}>
+              <PlayCircle className="h-4 w-4 mr-2" />
+              {isInitializing ? "Initializing..." : "Initialize Tracking"}
+            </Button>
+            <Button onClick={() => refetch()} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
