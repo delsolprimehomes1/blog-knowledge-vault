@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
+import { IndexingHealthDashboard } from "@/components/admin/IndexingHealthDashboard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,8 @@ import {
   Download,
   RefreshCw,
   BarChart3,
-  FileText
+  FileText,
+  Globe
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -249,6 +251,10 @@ const CitationCompliance = () => {
             <TabsTrigger value="stats">
               <BarChart3 className="h-4 w-4 mr-2" />
               Statistics
+            </TabsTrigger>
+            <TabsTrigger value="indexing">
+              <Globe className="h-4 w-4 mr-2" />
+              Indexing Health
             </TabsTrigger>
           </TabsList>
 
@@ -488,6 +494,10 @@ const CitationCompliance = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="indexing" className="space-y-4">
+            <IndexingHealthDashboard />
           </TabsContent>
         </Tabs>
       </div>
