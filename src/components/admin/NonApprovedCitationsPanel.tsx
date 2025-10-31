@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { getArticlesWithNonApprovedCitations, type ArticleWithNonApprovedCitations } from "@/lib/citationApprovalChecker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { extractCitationContext } from "@/lib/citationContextExtractor";
 
 export function NonApprovedCitationsPanel() {
   const queryClient = useQueryClient();
@@ -183,13 +184,15 @@ export function NonApprovedCitationsPanel() {
       articleId,
       articleHeadline,
       articleContent,
-      articleLanguage 
+      articleLanguage,
+      citationContext 
     }: {
       url: string;
       articleId: string;
       articleHeadline: string;
       articleContent: string;
       articleLanguage: string;
+      citationContext?: string | null;
     }) => {
       const { data, error } = await supabase.functions.invoke('discover-better-links', {
         body: {
@@ -198,6 +201,7 @@ export function NonApprovedCitationsPanel() {
           articleContent,
           articleLanguage,
           context: 'Replacing non-approved citation with approved source',
+          citationContext: citationContext || undefined, // NEW: Specific context
           mustBeApproved: true
         }
       });
@@ -384,12 +388,24 @@ export function NonApprovedCitationsPanel() {
       .eq('id', article.id)
       .single();
 
+    // Extract context around the citation for better AI understanding
+    const citationContext = fullArticle?.detailed_content 
+      ? extractCitationContext(fullArticle.detailed_content, url, 500)
+      : null;
+
+    if (citationContext) {
+      console.log(`📍 Citation context extracted (${citationContext.length} chars):`, citationContext);
+    } else {
+      console.log('⚠️ Could not extract citation context, using full content');
+    }
+
     findReplacementMutation.mutate({
       url,
       articleId: article.id,
       articleHeadline: article.headline,
       articleContent: fullArticle?.detailed_content || '',
-      articleLanguage: article.language
+      articleLanguage: article.language,
+      citationContext
     });
   };
 

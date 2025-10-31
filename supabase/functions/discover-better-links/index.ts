@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { isCompetitor, getCompetitorReason } from "../shared/competitorBlacklist.ts";
 import { calculateAuthorityScore } from "../shared/authorityScoring.ts";
-import { isApprovedDomain } from "../shared/approvedDomains.ts";
+import { isApprovedDomain, getAllApprovedDomains } from "../shared/approvedDomains.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,6 +30,7 @@ serve(async (req) => {
       articleContent, 
       articleLanguage = 'en',
       context,
+      citationContext, // NEW: Specific paragraph/sentence where citation appears
       mustBeApproved = false  // New parameter to filter only approved domains
     } = await req.json();
 
@@ -39,6 +40,13 @@ serve(async (req) => {
     }
 
     console.log(`Finding better alternatives for: ${originalUrl}`);
+    if (citationContext) {
+      console.log(`Citation context: "${citationContext.slice(0, 150)}..."`);
+    }
+
+    // Get ALL approved domains for comprehensive search
+    const allApprovedDomains = getAllApprovedDomains();
+    console.log(`🔍 Searching across ${allApprovedDomains.length} approved domains`);
 
     const languageConfig: Record<string, { name: string; domains: string[] }> = {
       en: { name: 'English', domains: ['.gov', '.gov.uk', '.edu'] },
@@ -48,55 +56,64 @@ serve(async (req) => {
 
     const config = languageConfig[articleLanguage] || languageConfig.en;
 
-    const prompt = `Find 3-5 HIGH-QUALITY alternative sources to replace this broken or irrelevant link.
+    const prompt = `You are finding HIGH-QUALITY replacement sources that specifically support a claim in an article.
 
-Original (Broken) Link: ${originalUrl}
-Article Topic: "${articleHeadline}"
-Context in Article: ${context || 'General reference'}
-Language Required: ${config.name}
+**ARTICLE CONTEXT:**
+Article Title: "${articleHeadline}"
+Language: ${config.name}
+Original URL to Replace: ${originalUrl}
 
-Article Preview:
-${articleContent.substring(0, 1000)}
+${citationContext ? `
+**🎯 SPECIFIC CLAIM THAT NEEDS SUPPORT:**
+"${citationContext}"
 
-**Search Strategy:**
-- You may search the ENTIRE WEB for the best replacement sources
-- Prioritize official, authoritative sources over commercial ones
+This is the EXACT text from the article where the citation appears. Your task is to find sources that specifically support THIS CLAIM with evidence, data, or official information.
+` : `
+**General Context:**
+${context || articleContent.substring(0, 800)}
+`}
 
-**Quality Requirements:**
-✅ MUST be authoritative (.gov, .edu, major news, legal services, professional associations)
-✅ MUST be in ${config.name} language
-✅ MUST be highly relevant to the article topic and context
-✅ MUST be accessible (HTTPS, not behind paywalls)
-✅ Prefer government domains (${config.domains.join(', ')})
-✅ Prefer recent sources (published within last 3 years)
+**YOUR TASK:**
+Find 3-5 alternative sources that ${citationContext ? 'specifically support the claim above' : 'are highly relevant to the article topic'}.
 
-❌ NEVER suggest: Property listing portals (Idealista, Kyero, Fotocasa, Pisos.com, etc.)
-❌ NEVER suggest: Real estate agency websites (RE/MAX, Engel & Völkers, Century21, etc.)
-❌ NEVER suggest: Competitor websites selling properties
-❌ NEVER suggest: Paywalled or inaccessible content
+**SEARCH APPROACH:**
+✅ You have access to ${allApprovedDomains.length} approved domains - search across ALL of them
+✅ Focus on finding sources that provide SPECIFIC evidence for the claim
+✅ If the claim mentions statistics/data, find sources with that exact information
+✅ If the claim mentions regulations/laws, find official government sources
+✅ Prefer sources from the past 1-2 years (2023-2024)
 
-**Prioritize These Source Types:**
-1. Government sources (highest authority) - agenciatributaria.es, boe.es, gov.uk, etc.
-2. Legal/professional services - lawyers, notaries, registrars, bar associations
-3. Major news outlets - BBC, El País, Reuters, Bloomberg
-4. Official tourism boards - andalucia.org, visitcostadelsol.com
-5. Financial authorities - Bank of Spain, ECB
-6. Educational institutions - .edu, .ac.uk
-7. Professional associations - .org domains
+**QUALITY REQUIREMENTS:**
+✅ MUST directly support the specific claim with factual evidence
+✅ MUST be from ${config.name} language sources or local domains (${config.domains.join(', ')})
+✅ MUST be authoritative (government > official statistics > established news > industry associations)
+✅ MUST be accessible and actively maintained
+✅ Higher relevance to the specific claim = better
 
-Return ONLY valid JSON array:
+**CRITICAL RULES:**
+❌ NEVER suggest property listing portals (Idealista, Kyero, Fotocasa, Pisos.com)
+❌ NEVER suggest real estate agencies (RE/MAX, Engel & Völkers, Century21)
+❌ NEVER suggest competitor real estate websites
+❌ NEVER suggest paywalled or inaccessible content
+
+**PRIORITIZE:**
+1. 🏛️ Government/Official sources (.gov, .gob.es, .juntadeandalucia.es, boe.es)
+2. 📊 Statistical authorities (ine.es, ecb.europa.eu, numbeo.com)
+3. 📰 Established news (surinenglish.com, euroweeklynews.com, theolivepress.es)
+4. ⚖️ Legal/Professional (registradores.org, notariado.org, legal services)
+5. 🏢 Official tourism/trade organizations
+
+Return ONLY a valid JSON array (no markdown, no explanations):
 [
   {
-    "suggestedUrl": "https://example.gob.es/...",
-    "sourceName": "Official Source Name",
-    "relevanceScore": 95,
+    "suggestedUrl": "https://...",
+    "sourceName": "Source Name",
+    "relevanceScore": 92,
     "authorityScore": 9,
-    "reason": "Why this source is better than the original",
-    "language": "es"
+    "reason": "Specifically supports the claim by providing [exact evidence/data]. This source...",
+    "language": "${articleLanguage}"
   }
-]
-
-Return only the JSON array, nothing else.`;
+]`;
 
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -105,19 +122,21 @@ Return only the JSON array, nothing else.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: 'llama-3.1-sonar-large-128k-online',
         messages: [
           {
             role: 'system',
-            content: `You are an expert research assistant finding authoritative ${config.name}-language sources. Always prioritize government and educational sources. Return only valid JSON arrays.`
+            content: `You are an expert research assistant specializing in finding authoritative ${config.name}-language sources that specifically support claims with evidence. Focus on government, official statistics, and established news sources. Return ONLY valid JSON arrays - no markdown, no explanations.`
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.2,
-        max_tokens: 2000,
+        temperature: 0.3, // Slightly higher for more creative source discovery
+        max_tokens: 2500, // More tokens for deeper analysis
+        search_recency_filter: 'year', // Expand to past year for better coverage
+        search_domain_filter: allApprovedDomains, // Search all 243 approved domains
       }),
     });
 
