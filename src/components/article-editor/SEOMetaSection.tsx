@@ -1,8 +1,9 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { getCharCountStatus } from "@/lib/articleUtils";
 
 interface SEOMetaSectionProps {
@@ -12,6 +13,8 @@ interface SEOMetaSectionProps {
   onMetaTitleChange: (value: string) => void;
   onMetaDescriptionChange: (value: string) => void;
   onCanonicalUrlChange: (value: string) => void;
+  onRegenerateMetaTitle?: () => void;
+  isRegenerating?: boolean;
   errors?: Record<string, string>;
 }
 
@@ -22,6 +25,8 @@ export const SEOMetaSection = ({
   onMetaTitleChange,
   onMetaDescriptionChange,
   onCanonicalUrlChange,
+  onRegenerateMetaTitle,
+  isRegenerating = false,
   errors = {},
 }: SEOMetaSectionProps) => {
   const metaTitleStatus = getCharCountStatus(metaTitle.length, 60);
@@ -34,7 +39,25 @@ export const SEOMetaSection = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label htmlFor="metaTitle">Meta Title *</Label>
+          <div className="flex items-center justify-between mb-2">
+            <Label htmlFor="metaTitle">Meta Title *</Label>
+            {onRegenerateMetaTitle && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onRegenerateMetaTitle}
+                disabled={isRegenerating}
+                className="h-7 text-xs"
+              >
+                {isRegenerating ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+              </Button>
+            )}
+          </div>
           <Input
             id="metaTitle"
             value={metaTitle}

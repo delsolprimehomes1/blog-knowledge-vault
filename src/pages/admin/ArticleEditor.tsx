@@ -33,6 +33,7 @@ import { FAQSection } from "@/components/article-editor/FAQSection";
 import { TranslationsSection } from "@/components/article-editor/TranslationsSection";
 import { SchemaPreviewSection } from "@/components/article-editor/SchemaPreviewSection";
 import { SEOPreviewSection } from "@/components/article-editor/SEOPreviewSection";
+import { SEOMetaSection } from "@/components/article-editor/SEOMetaSection";
 import { CitationReplacer } from "@/components/article-editor/CitationReplacer";
 import { CitationValidation } from "@/components/article-editor/CitationValidation";
 import { CitationHealthStatus } from "@/components/article-editor/CitationHealthStatus";
@@ -237,6 +238,53 @@ const ArticleEditor = () => {
       toast.info("No auto-fixable issues found", {
         duration: 3000
       });
+    }
+  };
+
+  // Regenerate meta title
+  const handleRegenerateMetaTitle = async () => {
+    if (!headline || !language) {
+      toast.error("Cannot regenerate: headline and language are required");
+      return;
+    }
+
+    try {
+      setIsRegenerating(true);
+      toast.info("Regenerating meta title...");
+
+      const { data, error } = await supabase.functions.invoke("regenerate-section", {
+        body: {
+          articleData: {
+            headline,
+            language,
+          },
+          section: "meta_title",
+          clusterTopic: category || headline,
+        },
+      });
+
+      if (error) {
+        console.error("Regeneration error:", error);
+        throw error;
+      }
+
+      if (data?.updates?.meta_title) {
+        setMetaTitle(data.updates.meta_title);
+        toast.success(`✨ Meta title regenerated!`, {
+          duration: 4000,
+          description: "Remember to save your changes to update the article."
+        });
+      } else {
+        throw new Error("No meta title returned");
+      }
+    } catch (error: any) {
+      console.error("Failed to regenerate meta title:", error);
+      toast.error(
+        error.message || "Failed to regenerate meta title. Please try again.",
+        { duration: 5000 }
+      );
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -663,63 +711,17 @@ const ArticleEditor = () => {
         </Card>
 
         {/* Section 2: SEO Meta */}
-        <Card>
-          <CardHeader>
-            <CardTitle>SEO Meta Tags</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="metaTitle">Meta Title *</Label>
-              <Input
-                id="metaTitle"
-                value={metaTitle}
-                onChange={(e) => setMetaTitle(e.target.value)}
-                placeholder="Compelling title for search results"
-                className={errors.metaTitle ? "border-red-500" : ""}
-              />
-              <p className={`text-xs mt-1 ${metaTitleStatus.color}`}>
-                {metaTitleStatus.message}
-              </p>
-              {errors.metaTitle && (
-                <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.metaTitle}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="metaDescription">Meta Description *</Label>
-              <Textarea
-                id="metaDescription"
-                value={metaDescription}
-                onChange={(e) => setMetaDescription(e.target.value)}
-                placeholder="Brief description for search results"
-                rows={3}
-                className={errors.metaDescription ? "border-red-500" : ""}
-              />
-              <p className={`text-xs mt-1 ${metaDescStatus.color}`}>
-                {metaDescStatus.message}
-              </p>
-              {errors.metaDescription && (
-                <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.metaDescription}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="canonicalUrl">Canonical URL (Optional)</Label>
-              <Input
-                id="canonicalUrl"
-                value={canonicalUrl}
-                onChange={(e) => setCanonicalUrl(e.target.value)}
-                placeholder="Leave blank for auto-generated"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <SEOMetaSection
+          metaTitle={metaTitle}
+          metaDescription={metaDescription}
+          canonicalUrl={canonicalUrl}
+          onMetaTitleChange={setMetaTitle}
+          onMetaDescriptionChange={setMetaDescription}
+          onCanonicalUrlChange={setCanonicalUrl}
+          onRegenerateMetaTitle={handleRegenerateMetaTitle}
+          isRegenerating={isRegenerating}
+          errors={errors}
+        />
 
         {/* SEO Preview */}
         <SEOPreviewSection
