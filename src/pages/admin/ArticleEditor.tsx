@@ -449,7 +449,7 @@ const ArticleEditor = () => {
         status: publishStatus,
         meta_title: metaTitle,
         meta_description: metaDescription,
-        canonical_url: canonicalUrl || null,
+        canonical_url: canonicalUrl || `https://delsolprimehomes.com/blog/${slug}`,
         speakable_answer: speakableAnswer,
         detailed_content: contentWithCitations, // Store pre-rendered citations
         featured_image_url: featuredImageUrl,
@@ -726,6 +726,7 @@ const ArticleEditor = () => {
           metaTitle={metaTitle}
           metaDescription={metaDescription}
           canonicalUrl={canonicalUrl}
+          slug={slug}
           onMetaTitleChange={setMetaTitle}
           onMetaDescriptionChange={setMetaDescription}
           onCanonicalUrlChange={setCanonicalUrl}
