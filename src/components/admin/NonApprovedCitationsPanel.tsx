@@ -148,16 +148,18 @@ export function NonApprovedCitationsPanel() {
       if (data.confidence < 70) {
         toast.warning(
           `⚠️ Replaced with moderate confidence (${data.confidence}/100)\n` +
+          `Article: "${data.headline}"\n` +
           `${oldDomain} → ${newDomain}\n` +
           `You may want to review this change`,
-          { duration: 8000 }
+          { duration: 10000 }
         );
       } else {
         toast.success(
-          `✅ Auto-Replaced Citation!\n` +
+          `✅ Citation Replaced Successfully!\n` +
+          `Article: "${data.headline}"\n` +
           `${oldDomain} → ${newDomain}\n` +
           `Confidence: ${data.confidence}/100 • Backup created`,
-          { duration: 8000 }
+          { duration: 10000 }
         );
       }
       

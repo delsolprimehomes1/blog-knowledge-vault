@@ -27,6 +27,7 @@ import { BulkReplacementDialog } from "@/components/admin/BulkReplacementDialog"
 import { CitationHealthAnalysis } from "@/components/admin/CitationHealthAnalysis";
 import { NonApprovedCitationsPanel } from "@/components/admin/NonApprovedCitationsPanel";
 import { CitationComplianceAlerts } from "@/components/admin/CitationComplianceAlerts";
+import { ReplacementHistoryPanel } from "@/components/admin/ReplacementHistoryPanel";
 import { Progress } from "@/components/ui/progress";
 
 interface CitationHealth {
@@ -600,6 +601,7 @@ const CitationHealth = () => {
             <TabsTrigger value="pending">Pending ({replacements?.length || 0})</TabsTrigger>
             <TabsTrigger value="approved">Approved ({approvedReplacements?.length || 0})</TabsTrigger>
             <TabsTrigger value="applied">Applied ({appliedReplacements?.length || 0})</TabsTrigger>
+            <TabsTrigger value="history">Replacement History</TabsTrigger>
             <TabsTrigger value="non-approved">Non-Approved Sources</TabsTrigger>
           </TabsList>
 
@@ -662,6 +664,10 @@ const CitationHealth = () => {
                 ))}
               </CardContent></Card>
             ) : <Card><CardContent className="py-12 text-center text-muted-foreground">No applied replacements</CardContent></Card>}
+          </TabsContent>
+
+          <TabsContent value="history">
+            <ReplacementHistoryPanel />
           </TabsContent>
 
           <TabsContent value="non-approved">
