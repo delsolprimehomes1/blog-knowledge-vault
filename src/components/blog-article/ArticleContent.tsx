@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { MermaidPreview } from "@/components/MermaidPreview";
 import { ExternalCitation, InternalLink } from "@/types/blog";
-import { injectExternalLinks, injectInternalLinks, injectInlineCitations } from "@/lib/linkInjection";
+import { injectExternalLinks, injectInternalLinks, injectInlineCitations, injectClusterLinksBlock } from "@/lib/linkInjection";
+import { ClusterLinksBlock } from "./ClusterLinksBlock";
 import { marked } from 'marked';
 
 interface ArticleContentProps {
@@ -16,6 +17,7 @@ interface ArticleContentProps {
   diagramDescription?: string;
   externalCitations?: ExternalCitation[];
   internalLinks?: InternalLink[];
+  clusterLinks?: InternalLink[];
 }
 
 export const ArticleContent = ({
@@ -29,6 +31,7 @@ export const ArticleContent = ({
   diagramDescription,
   externalCitations = [],
   internalLinks = [],
+  clusterLinks = [],
 }: ArticleContentProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -54,7 +57,7 @@ export const ArticleContent = ({
     return htmlContent;
   };
 
-  // Process content: sanitize -> markdown conversion -> internal links -> external links -> citation markers
+  // Process content: sanitize -> markdown conversion -> internal links -> external links -> cluster links -> inline citations
   const processContent = (htmlContent: string) => {
     let processed = sanitizeContent(htmlContent);
     
@@ -71,7 +74,35 @@ export const ArticleContent = ({
     processed = injectInternalLinks(processed, internalLinks);
     processed = injectExternalLinks(processed, externalCitations);
     
-    // Inject inline citations as contextual hyperlinks
+    // Inject cluster links block if available (after 500-700 words, before next H2)
+    if (clusterLinks && clusterLinks.length > 0) {
+      // Create the cluster links HTML using a temporary container
+      const tempDiv = document.createElement('div');
+      const clusterBlock = document.createElement('div');
+      clusterBlock.innerHTML = `
+        <div class="my-8 border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg">
+          <div class="p-6">
+            <div class="flex items-center gap-2 mb-4">
+              <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+              <em class="text-base font-medium">Learn more about:</em>
+            </div>
+            <ul class="space-y-2.5">
+              ${clusterLinks.map(link => `
+                <li class="flex items-start gap-2">
+                  <span class="text-primary mt-1 font-bold">→</span>
+                  <a href="${link.url}" title="${link.title}" class="text-primary hover:text-primary/80 font-medium transition-colors underline-offset-4 hover:underline">
+                    ${link.text}
+                  </a>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+      processed = injectClusterLinksBlock(processed, clusterBlock.innerHTML);
+    }
+    
+    // Inject inline citations as contextual hyperlinks with "According to Source (Year)" format
     processed = injectInlineCitations(processed, externalCitations);
     return processed;
   };

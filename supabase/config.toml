@@ -15,6 +15,9 @@ verify_jwt = false
 [functions.find-internal-links]
 verify_jwt = false
 
+[functions.get-cluster-articles]
+verify_jwt = false
+
 [functions.find-external-links]
 verify_jwt = false
 

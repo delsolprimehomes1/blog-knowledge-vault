@@ -93,7 +93,8 @@ export const ExternalLinkFinder = ({
     const newCitation: ExternalCitation = {
       source: link.sourceName,
       url: link.url,
-      text: link.anchorText
+      text: link.anchorText,
+      year: new Date().getFullYear() // Default to current year
     };
 
     onCitationsChange([...currentCitations, newCitation]);

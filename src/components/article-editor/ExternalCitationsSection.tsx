@@ -43,7 +43,7 @@ export const ExternalCitationsSection = ({
     onCitationsChange([...citations, newCitation]);
   };
 
-  const updateCitation = (index: number, field: keyof ExternalCitation, value: string) => {
+  const updateCitation = (index: number, field: keyof ExternalCitation, value: string | number) => {
     const updated = [...citations];
     updated[index] = { ...updated[index], [field]: value };
     onCitationsChange(updated);
@@ -142,6 +142,20 @@ export const ExternalCitationsSection = ({
                 onChange={(e) => updateCitation(index, "source", e.target.value)}
                 placeholder="Spanish Ministry of Inclusion"
               />
+            </div>
+            <div>
+              <Label>Publication Year</Label>
+              <Input
+                value={citation.year || new Date().getFullYear()}
+                onChange={(e) => updateCitation(index, "year", parseInt(e.target.value) || new Date().getFullYear())}
+                placeholder="2025"
+                type="number"
+                min="2000"
+                max={new Date().getFullYear() + 1}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Used in "According to {citation.source} ({citation.year || new Date().getFullYear()})" format
+              </p>
             </div>
             <div>
               <Label>Official URL *</Label>

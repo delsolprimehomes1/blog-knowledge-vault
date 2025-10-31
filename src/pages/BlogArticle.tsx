@@ -133,6 +133,30 @@ const BlogArticle = () => {
     enabled: !!article?.cta_article_ids,
   });
 
+  // Fetch cluster articles for automatic cluster linking
+  const { data: clusterLinks } = useQuery({
+    queryKey: ["clusterLinks", article?.cluster_id, article?.id, article?.language],
+    queryFn: async () => {
+      if (!article?.cluster_id) return [];
+      
+      const { data, error } = await supabase.functions.invoke('get-cluster-articles', {
+        body: {
+          cluster_id: article.cluster_id,
+          current_article_id: article.id,
+          language: article.language || 'en'
+        }
+      });
+
+      if (error) {
+        console.error('Error fetching cluster links:', error);
+        return [];
+      }
+
+      return data?.links || [];
+    },
+    enabled: !!article?.cluster_id,
+  });
+
   // Track article view with GA4 when article data is available
   useEffect(() => {
     trackArticleViewEffect(article);
@@ -285,6 +309,7 @@ const BlogArticle = () => {
               diagramDescription={article.diagram_description || undefined}
               externalCitations={article.external_citations as ExternalCitation[]}
               internalLinks={article.internal_links as InternalLink[]}
+              clusterLinks={clusterLinks as InternalLink[]}
             />
 
             <SpeakableBox answer={article.speakable_answer} language={article.language} />

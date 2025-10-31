@@ -39,6 +39,7 @@ export interface ExternalCitation {
   sourceType?: 'government' | 'news' | 'legal' | 'academic' | 'organization' | 'commercial';
   authorityScore?: number; // 0-100
   verificationDate?: string;
+  year?: number; // Publication year for "According to Source (Year)" format
 }
 
 export interface FAQEntity {
@@ -82,6 +83,8 @@ export interface BlogArticle {
   external_citations: ExternalCitation[];
   related_article_ids: string[];
   cta_article_ids: string[];
+  cluster_id?: string; // For cluster-based internal linking
+  cluster_number?: number; // Order within cluster
   
   // Translations
   translations: Record<string, string>;

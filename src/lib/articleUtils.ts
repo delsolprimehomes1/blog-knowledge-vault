@@ -42,3 +42,47 @@ export const uploadImage = async (file: File, supabase: any): Promise<string> =>
 
   return data.publicUrl;
 };
+
+/**
+ * Analyzes H2 sections in content and returns statistics
+ */
+export interface ContentSection {
+  heading: string;
+  position: number;
+  wordCount: number;
+  hasCitation: boolean;
+}
+
+export const analyzeContentSections = (content: string): ContentSection[] => {
+  const h2Pattern = /<h2[^>]*>(.*?)<\/h2>/gs;
+  const h2Matches = [...content.matchAll(h2Pattern)];
+  
+  const sections: ContentSection[] = [];
+  
+  h2Matches.forEach((match, index) => {
+    const heading = match[1].replace(/<[^>]*>/g, '').trim();
+    const position = content.indexOf(match[0]);
+    
+    // Get content between this H2 and the next (or end)
+    const nextH2 = h2Matches[index + 1];
+    const sectionEnd = nextH2 ? content.indexOf(nextH2[0]) : content.length;
+    const sectionContent = content.substring(position, sectionEnd);
+    
+    // Count words in this section
+    const textContent = sectionContent.replace(/<[^>]*>/g, ' ');
+    const wordCount = textContent.trim().split(/\s+/).length;
+    
+    // Check if section has citations
+    const hasCitation = sectionContent.includes('class="inline-citation"') || 
+                        sectionContent.includes('According to');
+    
+    sections.push({
+      heading,
+      position,
+      wordCount,
+      hasCitation
+    });
+  });
+  
+  return sections;
+};

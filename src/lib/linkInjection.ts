@@ -186,57 +186,8 @@ const isApprovedDomain = (url: string): boolean => {
 };
 
 /**
- * Finds the best anchor text in a paragraph for a citation
- */
-const findBestAnchorText = (
-  paragraph: string,
-  citation: ExternalCitation,
-  usedPhrases: Set<string>
-): { phrase: string; position: number } | null => {
-  if (!citation.text && !citation.source) return null;
-  
-  // Extract keywords from citation context
-  const citationKeywords = extractKeyPhrases(citation.text || citation.source);
-  if (citationKeywords.length === 0) return null;
-  
-  // Remove HTML tags for analysis
-  const plainText = paragraph.replace(/<[^>]*>/g, '');
-  
-  // Find phrases in the paragraph that match citation keywords
-  const candidates: Array<{ phrase: string; score: number; position: number }> = [];
-  
-  citationKeywords.forEach(keyword => {
-    const regex = new RegExp(`\\b([^<>]{0,20}${keyword}[^<>]{0,20})\\b`, 'gi');
-    let match;
-    
-    while ((match = regex.exec(plainText)) !== null) {
-      const phrase = match[1].trim();
-      
-      // Skip if too short, too long, or already used
-      if (phrase.length < 8 || phrase.length > 60 || usedPhrases.has(phrase.toLowerCase())) {
-        continue;
-      }
-      
-      // Calculate relevance score
-      let score = 0;
-      citationKeywords.forEach(kw => {
-        if (phrase.toLowerCase().includes(kw)) score += 1;
-      });
-      
-      candidates.push({ phrase, score, position: match.index });
-    }
-  });
-  
-  // Sort by score and return best match
-  candidates.sort((a, b) => b.score - a.score);
-  
-  return candidates.length > 0 
-    ? { phrase: candidates[0].phrase, position: candidates[0].position }
-    : null;
-};
-
-/**
- * Injects inline citations as hyperlinks embedded in relevant phrases
+ * Injects inline citations with "According to Source (Year)" format
+ * This replaces the old injectInlineCitations function
  */
 export const injectInlineCitations = (
   content: string,
@@ -266,8 +217,7 @@ export const injectInlineCitations = (
   console.log(`[injectInlineCitations] ${validCitations.length} valid citations after filtering`);
   
   let processedContent = content;
-  const usedPhrases = new Set<string>();
-  const linkedParagraphs = new Set<number>();
+  const usedCitations = new Set<string>();
   
   // Split content into paragraphs
   const paragraphPattern = /<p[^>]*>(.*?)<\/p>/gs;
@@ -275,82 +225,174 @@ export const injectInlineCitations = (
   
   console.log(`[injectInlineCitations] Found ${paragraphs.length} paragraphs`);
   
+  // Analyze H2 sections to distribute citations
+  const h2Pattern = /<h2[^>]*>(.*?)<\/h2>/gs;
+  const h2Sections = [...processedContent.matchAll(h2Pattern)];
+  const totalSections = h2Sections.length || 1;
+  
+  console.log(`[injectInlineCitations] Found ${totalSections} H2 sections`);
+  
+  // Track which H2 section each paragraph belongs to
+  const paragraphSections: number[] = [];
+  let currentSection = 0;
+  
+  paragraphs.forEach((paragraph) => {
+    const paragraphStart = processedContent.indexOf(paragraph[0]);
+    
+    // Check if there's an H2 before this paragraph
+    for (let i = currentSection; i < h2Sections.length; i++) {
+      const h2Match = h2Sections[i];
+      const h2Position = processedContent.indexOf(h2Match[0]);
+      
+      if (h2Position < paragraphStart) {
+        currentSection = i + 1;
+      } else {
+        break;
+      }
+    }
+    
+    paragraphSections.push(currentSection);
+  });
+  
+  // Distribute citations across sections (aim for 1 per section)
+  const sectionsWithCitations = new Set<number>();
+  
   // Process each citation
   validCitations.forEach((citation, citationIdx) => {
     console.log(`\n[Citation ${citationIdx + 1}/${validCitations.length}] ${citation.source}`);
     console.log(`  URL: ${citation.url}`);
-    console.log(`  Text: ${citation.text?.substring(0, 80)}...`);
+    console.log(`  Year: ${citation.year || 'not specified'}`);
     
+    const citationYear = citation.year || new Date().getFullYear();
     const citationKeywords = extractKeyPhrases(citation.text || citation.source);
     console.log(`  Keywords extracted: ${citationKeywords.slice(0, 5).join(', ')}${citationKeywords.length > 5 ? '...' : ''}`);
     
     // Find the best paragraph for this citation
     let bestMatch: { 
       paragraphIndex: number; 
-      phrase: string; 
-      position: number;
       score: number;
+      section: number;
     } | null = null;
     
     paragraphs.forEach((paragraph, idx) => {
-      // Skip if this paragraph already has a citation
-      if (linkedParagraphs.has(idx)) return;
-      
       const paragraphContent = paragraph[1];
+      const paragraphSection = paragraphSections[idx];
       
-      // Don't skip paragraphs with links - we can add inline citations to them
-      // Just skip the specific phrases that are already linked
+      // Skip paragraphs that already have a citation or are too short
+      if (usedCitations.has(paragraph[0]) || paragraphContent.length < 100) return;
       
-      // Find best anchor text in this paragraph
-      const match = findBestAnchorText(paragraphContent, citation, usedPhrases);
-      
-      if (match) {
-        // Calculate relevance score (more lenient threshold)
-        let score = 0;
-        citationKeywords.forEach(kw => {
-          if (paragraphContent.toLowerCase().includes(kw)) {
-            // Give higher score for longer keyword matches
-            score += kw.split(/\s+/).length;
-          }
-        });
-        
-        if (!bestMatch || score > bestMatch.score) {
-          bestMatch = {
-            paragraphIndex: idx,
-            phrase: match.phrase,
-            position: match.position,
-            score
-          };
+      // Calculate relevance score
+      let score = 0;
+      citationKeywords.forEach(kw => {
+        if (paragraphContent.toLowerCase().includes(kw)) {
+          score += kw.split(/\s+/).length;
         }
+      });
+      
+      // Prefer sections that don't have citations yet
+      if (!sectionsWithCitations.has(paragraphSection)) {
+        score += 10;
+      }
+      
+      if (score > 0 && (!bestMatch || score > bestMatch.score)) {
+        bestMatch = {
+          paragraphIndex: idx,
+          score,
+          section: paragraphSection
+        };
       }
     });
     
-    // Inject the citation link (lowered threshold from > 0 to >= 0)
+    // Inject the citation in "According to Source (Year)" format
     if (bestMatch) {
-      console.log(`  ✓ Best match found (score: ${bestMatch.score}):`);
+      console.log(`  ✓ Best match found (score: ${bestMatch.score}, section: ${bestMatch.section}):`);
       console.log(`    Paragraph ${bestMatch.paragraphIndex + 1}`);
-      console.log(`    Phrase: "${bestMatch.phrase}"`);
       
       const paragraph = paragraphs[bestMatch.paragraphIndex];
       const paragraphContent = paragraph[1];
       
-      // Create the inline citation link
-      const link = `<a href="${citation.url}" class="inline-citation" target="_blank" rel="noopener noreferrer" title="Source: ${citation.source}">${bestMatch.phrase}</a>`;
+      // Create the inline citation in the new format
+      const citationLink = `<a href="${citation.url}" class="inline-citation" target="_blank" rel="noopener nofollow" title="Source: ${citation.source}">${citation.source}</a>`;
+      const citationPhrase = `According to ${citationLink} (${citationYear}), `;
       
-      // Replace the phrase with the link
-      const updatedParagraph = paragraphContent.replace(bestMatch.phrase, link);
+      // Insert at the beginning of the first sentence
+      const updatedParagraph = citationPhrase + paragraphContent;
       processedContent = processedContent.replace(paragraph[0], paragraph[0].replace(paragraph[1], updatedParagraph));
       
       // Mark as used
-      usedPhrases.add(bestMatch.phrase.toLowerCase());
-      linkedParagraphs.add(bestMatch.paragraphIndex);
+      usedCitations.add(paragraph[0]);
+      sectionsWithCitations.add(bestMatch.section);
       
-      console.log(`  ✓ Injected successfully`);
+      console.log(`  ✓ Injected successfully in "According to" format`);
     } else {
-      console.log(`  ✗ No suitable anchor text found`);
+      console.log(`  ✗ No suitable paragraph found`);
     }
   });
   
-  console.log(`\n[injectInlineCitations] Complete. Injected ${linkedParagraphs.size} inline citations`);
+  console.log(`\n[injectInlineCitations] Complete. Injected ${usedCitations.size} inline citations across ${sectionsWithCitations.size} sections`);
   return processedContent;
+};
+
+/**
+ * Injects cluster links block between H2 sections after ~500-700 words
+ */
+export const injectClusterLinksBlock = (
+  content: string,
+  clusterLinksHtml: string
+): string => {
+  if (!clusterLinksHtml) return content;
+  
+  console.log('[injectClusterLinksBlock] Injecting cluster links');
+  
+  // Find all H2 headings
+  const h2Pattern = /<h2[^>]*>.*?<\/h2>/gs;
+  const h2Matches = [...content.matchAll(h2Pattern)];
+  
+  if (h2Matches.length < 2) {
+    console.log('[injectClusterLinksBlock] Not enough H2 sections, skipping');
+    return content;
+  }
+  
+  // Count words before each H2
+  let wordCount = 0;
+  let targetH2Index = -1;
+  
+  for (let i = 0; i < h2Matches.length; i++) {
+    const h2Match = h2Matches[i];
+    const h2Position = content.indexOf(h2Match[0]);
+    
+    // Count words in content before this H2
+    const contentBefore = content.substring(0, h2Position);
+    const textContent = contentBefore.replace(/<[^>]*>/g, ' ');
+    wordCount = textContent.trim().split(/\s+/).length;
+    
+    console.log(`  H2 #${i + 1} at position ${h2Position}, words before: ${wordCount}`);
+    
+    // Insert after the H2 that comes after 500-700 words
+    if (wordCount >= 500 && wordCount <= 700) {
+      targetH2Index = i;
+      break;
+    } else if (wordCount > 700 && targetH2Index === -1) {
+      // Fallback: use the first H2 after 500 words
+      targetH2Index = Math.max(0, i - 1);
+      break;
+    }
+  }
+  
+  // Default to after 2nd H2 if no suitable position found
+  if (targetH2Index === -1) {
+    targetH2Index = 1;
+  }
+  
+  const targetH2 = h2Matches[targetH2Index];
+  const insertPosition = content.indexOf(targetH2[0]) + targetH2[0].length;
+  
+  console.log(`[injectClusterLinksBlock] Inserting after H2 #${targetH2Index + 1} at position ${insertPosition}`);
+  
+  const updatedContent = 
+    content.substring(0, insertPosition) + 
+    '\n\n' + clusterLinksHtml + '\n\n' + 
+    content.substring(insertPosition);
+  
+  return updatedContent;
 };
