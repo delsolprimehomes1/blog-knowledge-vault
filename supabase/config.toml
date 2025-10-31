@@ -89,3 +89,9 @@ verify_jwt = false
 
 [functions.update-redirected-citations]
 verify_jwt = false
+
+[functions.replace-slow-citations]
+verify_jwt = false
+
+[functions.check-citation-replacement-status]
+verify_jwt = false

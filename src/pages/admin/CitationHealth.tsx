@@ -233,6 +233,30 @@ const CitationHealth = () => {
     }
   });
 
+  const replaceSlowCitations = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('replace-slow-citations');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      const messages = [];
+      if (data.autoFixed > 0) messages.push(`${data.autoFixed} auto-fixed`);
+      if (data.needsReview > 0) messages.push(`${data.needsReview} need review`);
+      if (data.skipped > 0) messages.push(`${data.skipped} skipped`);
+      
+      toast.success('Slow citations processed', {
+        description: messages.join(', '),
+        duration: 5000
+      });
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+      queryClient.invalidateQueries({ queryKey: ["dead-link-replacements"] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to replace slow citations: ${error.message}`);
+    }
+  });
+
   const approveReplacement = useMutation({
     mutationFn: async (replacementId: string) => {
       const { error } = await supabase.from("dead_link_replacements").update({ status: "approved" }).eq("id", replacementId);
@@ -582,6 +606,20 @@ const CitationHealth = () => {
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Fixing...</>
                 ) : (
                   <><ArrowRight className="mr-2 h-4 w-4" /> Fix {stats.redirected} Redirects</>
+                )}
+              </Button>
+            )}
+            {stats.slow > 0 && (
+              <Button 
+                onClick={() => replaceSlowCitations.mutate()}
+                disabled={replaceSlowCitations.isPending}
+                variant="secondary"
+                title="Replace slow citations with faster alternatives"
+              >
+                {replaceSlowCitations.isPending ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Finding...</>
+                ) : (
+                  <><Zap className="mr-2 h-4 w-4" /> Fix {stats.slow} Slow Citations</>
                 )}
               </Button>
             )}
