@@ -445,37 +445,45 @@ export function NonApprovedCitationsPanel() {
       setBatchJobId(data.jobId);
       toast.success("✅ Job started! Monitoring progress...", { id: 'batch-job' });
 
-      // Poll for job status
+      // Poll for job status using edge function
       const pollInterval = setInterval(async () => {
-        const { data: job, error: jobError } = await supabase
-          .from('citation_replacement_jobs')
-          .select('*')
-          .eq('id', data.jobId)
-          .single();
+        const { data: statusData, error: jobError } = await supabase.functions.invoke(
+          'check-citation-replacement-status',
+          { body: { jobId: data.jobId } }
+        );
 
         if (jobError) {
-          console.error('Error fetching job:', jobError);
+          console.error('Error fetching job status:', jobError);
           return;
         }
 
-        setJobStatus(job);
+        setJobStatus(statusData);
 
-        if (job.status === 'completed' || job.status === 'failed') {
+        if (statusData.status === 'completed' || statusData.status === 'failed' || statusData.status === 'partial') {
           clearInterval(pollInterval);
           setIsBatchProcessing(false);
           setBatchJobId(null);
 
-          if (job.status === 'completed') {
+          if (statusData.status === 'completed') {
             toast.success(
               `🎉 Batch replacement complete!\n\n` +
-              `✅ Auto-applied: ${job.auto_applied_count} citations\n` +
-              `📋 Manual review: ${job.manual_review_count} citations\n` +
-              `❌ Failed: ${job.failed_count} citations`,
+              `✅ Auto-applied: ${statusData.auto_applied_count} citations\n` +
+              `📋 Manual review: ${statusData.manual_review_count} citations\n` +
+              `❌ Failed: ${statusData.failed_count} citations`,
               { id: 'batch-job', duration: 12000 }
+            );
+          } else if (statusData.status === 'partial') {
+            toast.warning(
+              `⚠️ Batch processing timed out\n\n` +
+              `✅ Auto-applied: ${statusData.auto_applied_count} citations\n` +
+              `📋 Manual review: ${statusData.manual_review_count} citations\n` +
+              `❌ Failed: ${statusData.failed_count} citations\n\n` +
+              `${statusData.error_message || 'Processing stopped due to timeout'}`,
+              { id: 'batch-job', duration: 15000 }
             );
           } else {
             toast.error(
-              `❌ Batch replacement failed\n${job.error_message}`,
+              `❌ Batch replacement failed\n${statusData.error_message}`,
               { id: 'batch-job', duration: 8000 }
             );
           }

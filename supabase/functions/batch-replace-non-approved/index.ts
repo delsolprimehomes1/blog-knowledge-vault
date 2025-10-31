@@ -185,8 +185,11 @@ serve(async (req) => {
   }
 });
 
-// Background processing function
+// Background processing function with timeout handling
 async function processReplacements(supabaseClient: any, jobId: string, limit: number | null) {
+  const startTime = Date.now();
+  const MAX_EXECUTION_TIME = 540000; // 9 minutes (leave buffer before edge function timeout)
+  
   try {
     // Fetch articles
     let query = supabaseClient
@@ -232,6 +235,17 @@ async function processReplacements(supabaseClient: any, jobId: string, limit: nu
 
     // Process each citation
     for (const citation of nonApprovedCitations) {
+      // Check for timeout
+      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+        console.warn('Approaching timeout limit, stopping processing');
+        await updateJobStatus(supabaseClient, jobId, {
+          status: 'partial',
+          error_message: `Processed ${currentProgress} of ${nonApprovedCitations.length} citations before timeout`,
+          completed_at: new Date().toISOString(),
+        });
+        return;
+      }
+
       try {
         currentProgress++;
         await updateJobStatus(supabaseClient, jobId, { progress_current: currentProgress });
@@ -337,18 +351,21 @@ async function processReplacements(supabaseClient: any, jobId: string, limit: nu
     }
 
     // Mark complete
+    const executionTime = Math.round((Date.now() - startTime) / 1000);
+    console.log(`Batch complete in ${executionTime}s:`, results);
+    
     await updateJobStatus(supabaseClient, jobId, {
       status: 'completed',
       completed_at: new Date().toISOString(),
     });
 
-    console.log('Batch complete:', results);
-
   } catch (error) {
     console.error('processReplacements error:', error);
+    const executionTime = Math.round((Date.now() - startTime) / 1000);
+    
     await updateJobStatus(supabaseClient, jobId, {
       status: 'failed',
-      error_message: (error as Error).message,
+      error_message: `${(error as Error).message} (after ${executionTime}s)`,
       completed_at: new Date().toISOString(),
     });
   }
