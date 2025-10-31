@@ -150,6 +150,19 @@ export const Navbar = () => {
               Q&A
             </NavLink>
 
+            <NavLink
+              to="/case-studies"
+              className={cn(
+                "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
+                "transition-all duration-200",
+                isActive("/case-studies")
+                  ? "text-primary bg-primary/10"
+                  : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+              )}
+            >
+              Case Studies
+            </NavLink>
+
             <Button
               type="button"
               onClick={handleDownload}
@@ -235,6 +248,20 @@ export const Navbar = () => {
                   )}
                 >
                   Q&A
+                </NavLink>
+
+                <NavLink
+                  to="/case-studies"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "px-4 py-3 rounded-lg font-medium text-lg",
+                    "transition-all duration-200",
+                    isActive("/case-studies")
+                      ? "text-primary bg-primary/10"
+                      : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+                  )}
+                >
+                  Case Studies
                 </NavLink>
 
                 <Button

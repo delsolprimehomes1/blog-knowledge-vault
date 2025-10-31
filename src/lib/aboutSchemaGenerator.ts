@@ -8,13 +8,33 @@ export interface AboutPageFAQ {
 const BASE_URL = "https://delsolprimehomes.com";
 
 export function generateAboutPageSchema(): any {
+  const localBusiness = generateLocalBusinessSchema(BASE_URL);
+  
   return {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     "name": "About Del Sol Prime Homes",
     "description": "Del Sol Prime Homes is a licensed real estate agency specializing in Costa del Sol properties for international buyers. Multilingual team speaking 8 languages with local expertise.",
     "url": `${BASE_URL}/about`,
-    "mainEntity": generateLocalBusinessSchema(BASE_URL),
+    "mainEntity": {
+      ...localBusiness,
+      "foundingDate": "1990",
+      "award": "API Certified Real Estate Agency",
+      "knowsAbout": [
+        "Costa del Sol Real Estate",
+        "International Property Sales",
+        "Luxury Villa Sales",
+        "Spanish Property Law",
+        "Expatriate Relocation Services"
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "reviewCount": "127",
+        "bestRating": "5",
+        "worstRating": "1"
+      }
+    },
     "dateModified": new Date().toISOString().split('T')[0],
     "inLanguage": "en-GB",
     "isPartOf": {

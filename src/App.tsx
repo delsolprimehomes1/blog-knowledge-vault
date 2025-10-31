@@ -29,6 +29,7 @@ import BlogIndex from "./pages/BlogIndex";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
 import QA from "./pages/QA";
+import CaseStudies from "./pages/CaseStudies";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -60,6 +61,7 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/qa" element={<QA />} />
+          <Route path="/case-studies" element={<CaseStudies />} />
           <Route path="/sitemap" element={<Sitemap />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />

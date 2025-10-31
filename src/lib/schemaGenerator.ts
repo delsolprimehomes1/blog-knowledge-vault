@@ -23,6 +23,16 @@ export const ORGANIZATION_SCHEMA = {
   "description": "Premium real estate agency specializing in Costa del Sol properties",
   "url": "https://delsolprimehomes.com",
   "logo": "https://delsolprimehomes.com/logo.png",
+  "foundingDate": "1990",
+  "slogan": "Costa del Sol Real Estate. Refined. Verified. Trusted.",
+  "knowsAbout": [
+    "Costa del Sol Real Estate",
+    "International Property Sales",
+    "Luxury Villa Sales",
+    "Spanish Property Law",
+    "Expatriate Relocation Services"
+  ],
+  "award": "API Certified Real Estate Agency",
   "address": {
     "@type": "PostalAddress",
     "streetAddress": "Calle Alfonso XIII, 6-1º",
@@ -37,6 +47,13 @@ export const ORGANIZATION_SCHEMA = {
     { "@type": "City", "name": "Benalmádena" },
     { "@type": "City", "name": "Mijas" }
   ],
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "reviewCount": "127",
+    "bestRating": "5",
+    "worstRating": "1"
+  },
   "contactPoint": {
     "@type": "ContactPoint",
     "contactType": "Customer Service",
@@ -360,6 +377,8 @@ export function generateLocalBusinessSchema(baseUrl: string = "https://delsolpri
     "image": `${baseUrl}/logo.png`,
     "logo": `${baseUrl}/logo.png`,
     "url": baseUrl,
+    "foundingDate": "1990",
+    "slogan": "Costa del Sol Real Estate. Refined. Verified. Trusted.",
     "telephone": "+34-613-578-416",
     "email": "info@delsolprimehomes.com",
     "address": {
@@ -374,6 +393,13 @@ export function generateLocalBusinessSchema(baseUrl: string = "https://delsolpri
       "@type": "GeoCoordinates",
       "latitude": 36.5397,
       "longitude": -4.6262
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "reviewCount": "127",
+      "bestRating": "5",
+      "worstRating": "1"
     },
     "openingHoursSpecification": [
       {

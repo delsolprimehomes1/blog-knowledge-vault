@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { BookOpen, HelpCircle, FileText, MessageCircle, ArrowRight } from "lucide-react";
 import { SchemaMeta } from "@/components/SchemaMeta";
 import { generateAllHomeSchemas } from "@/lib/homeSchemaGenerator";
+import { TestimonialsSection } from "@/components/home/TestimonialsSection";
+import { GoogleBusinessWidget } from "@/components/home/GoogleBusinessWidget";
 
 interface NavigationPillProps {
   title: string;
@@ -82,6 +84,14 @@ const Home = () => {
                 delay={index * 100}
               />
             ))}
+          </div>
+
+          {/* Testimonials Section */}
+          <TestimonialsSection />
+
+          {/* Google Business Widget */}
+          <div className="mb-16">
+            <GoogleBusinessWidget />
           </div>
 
           {/* Footer */}
