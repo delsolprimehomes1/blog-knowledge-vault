@@ -6,7 +6,6 @@ import {
   CarouselItem,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import Autoplay from "embla-carousel-autoplay";
 import { HERO_IMAGES, type HeroImage } from "@/lib/heroImageSchemas";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +26,17 @@ export function HeroCarousel({ children }: HeroCarouselProps) {
       setCurrent(api.selectedScrollSnap());
     });
   }, [api]);
+
+  // Custom autoplay implementation
+  useEffect(() => {
+    if (!api || isHovered) return;
+
+    const intervalId = setInterval(() => {
+      api.scrollNext();
+    }, 6000);
+
+    return () => clearInterval(intervalId);
+  }, [api, isHovered]);
 
   const scrollTo = useCallback(
     (index: number) => {
@@ -49,13 +59,6 @@ export function HeroCarousel({ children }: HeroCarouselProps) {
           loop: true,
           duration: 40,
         }}
-        plugins={[
-          Autoplay({
-            delay: 6000,
-            stopOnInteraction: false,
-            stopOnMouseEnter: isHovered,
-          }),
-        ]}
         className="w-full h-full"
       >
         <CarouselContent className="h-full">
