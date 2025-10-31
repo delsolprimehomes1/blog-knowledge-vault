@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { ArrowRight, BookOpen } from "lucide-react";
 
 interface RelatedArticle {
@@ -45,7 +46,13 @@ export const MidClusterCTA = ({ relatedArticles, stage, currentArticleId }: MidC
   if (!cta) return null;
 
   return (
-    <div className="my-12 bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-xl transition-all duration-300">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+      className="my-12 bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-xl transition-all duration-300"
+    >
       <div className="flex items-center gap-2 mb-3">
         <BookOpen className="h-5 w-5 text-primary" />
         <p className="text-sm uppercase text-primary font-semibold tracking-wide">
@@ -79,6 +86,6 @@ export const MidClusterCTA = ({ relatedArticles, stage, currentArticleId }: MidC
       >
         Learn More <ArrowRight className="w-4 h-4" />
       </a>
-    </div>
+    </motion.div>
   );
 };

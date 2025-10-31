@@ -2,9 +2,11 @@ import { useState } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Play, Download, ChevronDown, ChevronRight, BookOpen } from "lucide-react";
+import { Play, Download, ChevronDown, ChevronRight, BookOpen, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
   PhaseTest,
   testPhase1,
@@ -33,6 +35,8 @@ export default function SystemCheck() {
   const [isRunning, setIsRunning] = useState(false);
   const [currentPhase, setCurrentPhase] = useState(0);
   const [expandedPhases, setExpandedPhases] = useState<number[]>([]);
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const { toast } = useToast();
 
   const phases = [
     { phase: 1, name: 'Database Schema & Content Model', testFn: testPhase1 },
@@ -118,6 +122,29 @@ export default function SystemCheck() {
     URL.revokeObjectURL(url);
   };
 
+  const runBackfillClusterArticles = async () => {
+    setIsBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-cluster-related-articles');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Backfill Complete",
+        description: `Successfully updated ${data.updatedArticles || 0} articles in ${data.clustersProcessed || 0} clusters.`,
+      });
+    } catch (error) {
+      console.error('Backfill error:', error);
+      toast({
+        title: "Backfill Failed",
+        description: error instanceof Error ? error.message : "An error occurred during backfill",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pass': return '✅';
@@ -162,6 +189,24 @@ export default function SystemCheck() {
                 Export Results
               </Button>
             )}
+            
+            <Button 
+              onClick={runBackfillClusterArticles}
+              disabled={isBackfilling}
+              variant="secondary"
+            >
+              {isBackfilling ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Backfilling...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Backfill Cluster Articles
+                </>
+              )}
+            </Button>
           </div>
         </header>
 

@@ -193,6 +193,29 @@ export function generateArticleSchema(
     "articleBody": stripHtml(article.detailed_content).substring(0, 500) + "..."
   };
   
+  // Add cluster relationship schema for AI engines
+  if (article.cluster_id && (article as any).related_cluster_articles?.length > 0) {
+    schema.isPartOf = {
+      "@type": "CreativeWorkSeries",
+      "name": `Content Cluster: ${(article as any).cluster_theme || 'Topic Cluster'}`,
+      "identifier": article.cluster_id,
+      "numberOfItems": (article as any).related_cluster_articles.length + 1,
+      "about": {
+        "@type": "Thing",
+        "name": article.category
+      }
+    };
+    
+    // Add related articles as "relatedLink" for AI understanding
+    schema.relatedLink = (article as any).related_cluster_articles.map((relatedArticle: any) => ({
+      "@type": "WebPage",
+      "name": relatedArticle.headline,
+      "url": `${baseUrl}/blog/${relatedArticle.slug}`,
+      "position": "mid-article",
+      "inLanguage": article.language
+    }));
+  }
+  
   if (author) {
     schema.author = generatePersonSchema(author);
   }
