@@ -1,5 +1,8 @@
 project_id = "kazggnufaoicopvmwhdl"
 
+[functions.backfill-inline-citations]
+verify_jwt = false
+
 [functions.bulk-initialize-content-freshness]
 verify_jwt = false
 

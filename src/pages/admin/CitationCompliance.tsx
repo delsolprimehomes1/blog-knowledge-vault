@@ -33,6 +33,8 @@ interface CitationStats {
 const CitationCompliance = () => {
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<any>(null);
+  const [isPrerendering, setIsPrerendering] = useState(false);
+  const [prerenderResult, setPrerenderResult] = useState<any>(null);
 
   // Fetch citation statistics
   const { data: stats, isLoading, refetch } = useQuery({
@@ -105,6 +107,35 @@ const CitationCompliance = () => {
     },
   });
 
+  // Prerender mutation
+  const prerenderMutation = useMutation({
+    mutationFn: async (dryRun: boolean) => {
+      setIsPrerendering(true);
+      const { data, error } = await supabase.functions.invoke("backfill-inline-citations", {
+        body: { dryRun },
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setPrerenderResult(data);
+      if (!data.dryRun) {
+        toast.success(`✅ ${data.message}`);
+        refetch();
+      } else {
+        toast.info(`Preview: Would inject citations into ${data.articlesProcessed} articles`);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(`Failed: ${error.message}`);
+      console.error(error);
+    },
+    onSettled: () => {
+      setIsPrerendering(false);
+    },
+  });
+
   const handleBackfill = (dryRun: boolean) => {
     if (!dryRun) {
       const confirmed = confirm(
@@ -113,6 +144,16 @@ const CitationCompliance = () => {
       if (!confirmed) return;
     }
     backfillMutation.mutate(dryRun);
+  };
+
+  const handlePrerender = (dryRun: boolean) => {
+    if (!dryRun) {
+      const confirmed = confirm(
+        "This will inject inline citations into detailed_content for all published articles. This makes citations crawlable by search engines. Continue?"
+      );
+      if (!confirmed) return;
+    }
+    prerenderMutation.mutate(dryRun);
   };
 
   const compliancePercentage = stats
@@ -195,17 +236,130 @@ const CitationCompliance = () => {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="backfill" className="space-y-6">
+        <Tabs defaultValue="prerender" className="space-y-6">
           <TabsList>
+            <TabsTrigger value="prerender">
+              <Download className="h-4 w-4 mr-2" />
+              Pre-render Citations
+            </TabsTrigger>
             <TabsTrigger value="backfill">
               <PlayCircle className="h-4 w-4 mr-2" />
-              Backfill Tool
+              Backfill Years
             </TabsTrigger>
             <TabsTrigger value="stats">
               <BarChart3 className="h-4 w-4 mr-2" />
               Statistics
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="prerender" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pre-render Inline Citations</CardTitle>
+                <CardDescription>
+                  Inject "According to Source (Year)" citations directly into detailed_content HTML for SEO/AEO compliance
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-semibold">⚠️ CRITICAL FOR SEO</p>
+                      <p>Currently, inline citations are rendered <strong>client-side only</strong>, making them invisible to search engines and SSG.</p>
+                      <p>This tool will:</p>
+                      <ol className="list-decimal list-inside space-y-1 mt-2">
+                        <li>Inject citations into stored HTML (detailed_content)</li>
+                        <li>Distribute one citation per H2 section</li>
+                        <li>Use "According to [Source](URL) (Year)" format</li>
+                        <li>Make citations crawlable by Google/Bing</li>
+                        <li>Backup original content to article_revisions</li>
+                      </ol>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+
+                <Alert>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertDescription>
+                    <p className="font-semibold mb-1">✅ Prerequisites Check</p>
+                    <ul className="space-y-1 text-sm">
+                      <li>• {stats?.totalArticles} published articles found</li>
+                      <li>• {stats?.totalCitations} external citations available</li>
+                      <li>• {stats?.citationsWithYear} citations have year field ({compliancePercentage}%)</li>
+                    </ul>
+                    {stats?.citationsWithoutYear && stats.citationsWithoutYear > 0 && (
+                      <p className="text-orange-600 mt-2">
+                        ⚠️ Run "Backfill Years" tab first to populate missing year fields
+                      </p>
+                    )}
+                  </AlertDescription>
+                </Alert>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => handlePrerender(true)}
+                    disabled={isPrerendering}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Preview Changes (Dry Run)
+                  </Button>
+                  <Button
+                    onClick={() => handlePrerender(false)}
+                    disabled={isPrerendering}
+                  >
+                    {isPrerendering ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Pre-render All Articles
+                  </Button>
+                </div>
+
+                {prerenderResult && (
+                  <Alert className="mt-4">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="font-semibold mb-2">{prerenderResult.message}</div>
+                      <div className="text-sm space-y-1">
+                        <p>• Total articles: {prerenderResult.totalArticles}</p>
+                        <p>• Articles processed: {prerenderResult.articlesProcessed}</p>
+                        <p>• Already had citations: {prerenderResult.alreadyProcessed}</p>
+                        <p>• Citations injected: {prerenderResult.citationsInjected}</p>
+                        {prerenderResult.failed > 0 && (
+                          <p className="text-red-600">• Failed: {prerenderResult.failed}</p>
+                        )}
+                      </div>
+                      {prerenderResult.sampleResults && prerenderResult.sampleResults.length > 0 && (
+                        <div className="mt-3 text-xs">
+                          <p className="font-semibold mb-1">Sample results:</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {prerenderResult.sampleResults.map((result: any, i: number) => (
+                              <li key={i}>
+                                {result.slug}: {result.citationsAdded} citations added ({result.citationsBefore} → {result.citationsAfter})
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {!prerenderResult.dryRun && prerenderResult.articlesProcessed > 0 && (
+                        <div className="mt-3 p-2 bg-blue-50 rounded text-sm">
+                          <p className="font-semibold text-blue-900">🚀 Next Steps:</p>
+                          <ol className="list-decimal list-inside space-y-1 text-blue-800 mt-1">
+                            <li>Trigger production rebuild to regenerate static pages</li>
+                            <li>Verify citations appear in view-source for a sample article</li>
+                            <li>Test with Google Rich Results Test</li>
+                          </ol>
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="backfill" className="space-y-4">
             <Card>
