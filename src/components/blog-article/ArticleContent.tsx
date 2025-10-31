@@ -4,7 +4,15 @@ import { MermaidPreview } from "@/components/MermaidPreview";
 import { ExternalCitation, InternalLink } from "@/types/blog";
 import { injectExternalLinks, injectInternalLinks, injectInlineCitations, injectClusterLinksBlock } from "@/lib/linkInjection";
 import { ClusterLinksBlock } from "./ClusterLinksBlock";
+import { MidClusterCTA } from "@/components/blog/MidClusterCTA";
 import { marked } from 'marked';
+
+interface RelatedClusterArticle {
+  id: string;
+  slug: string;
+  headline: string;
+  stage: "TOFU" | "MOFU" | "BOFU";
+}
 
 interface ArticleContentProps {
   content: string;
@@ -18,6 +26,9 @@ interface ArticleContentProps {
   externalCitations?: ExternalCitation[];
   internalLinks?: InternalLink[];
   clusterLinks?: InternalLink[];
+  relatedClusterArticles?: RelatedClusterArticle[];
+  funnelStage?: "TOFU" | "MOFU" | "BOFU";
+  articleId?: string;
 }
 
 export const ArticleContent = ({
@@ -32,6 +43,9 @@ export const ArticleContent = ({
   externalCitations = [],
   internalLinks = [],
   clusterLinks = [],
+  relatedClusterArticles = [],
+  funnelStage = "TOFU",
+  articleId = "",
 }: ArticleContentProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -57,7 +71,28 @@ export const ArticleContent = ({
     return htmlContent;
   };
 
-  // Process content: sanitize -> markdown conversion -> internal links -> external links -> cluster links -> inline citations
+  // Inject MidClusterCTA before 2nd H2 heading
+  const injectMidCTA = (htmlContent: string): string => {
+    if (!relatedClusterArticles || relatedClusterArticles.length === 0 || !funnelStage) {
+      return htmlContent;
+    }
+
+    const h2Regex = /<h2[^>]*>/gi;
+    const matches = [...htmlContent.matchAll(h2Regex)];
+    
+    // Only inject if there are at least 2 H2 headings
+    if (matches.length >= 2) {
+      const secondH2Index = matches[1].index!;
+      const midCtaPlaceholder = `<!-- MID_CLUSTER_CTA_PLACEHOLDER -->`;
+      return htmlContent.slice(0, secondH2Index) 
+        + midCtaPlaceholder 
+        + htmlContent.slice(secondH2Index);
+    }
+    
+    return htmlContent;
+  };
+
+  // Process content: sanitize -> markdown conversion -> internal links -> external links -> cluster links -> MidCTA injection -> inline citations
   const processContent = (htmlContent: string) => {
     let processed = sanitizeContent(htmlContent);
     
@@ -101,6 +136,9 @@ export const ArticleContent = ({
       `;
       processed = injectClusterLinksBlock(processed, clusterBlock.innerHTML);
     }
+
+    // Inject MidClusterCTA placeholder before 2nd H2
+    processed = injectMidCTA(processed);
     
     // Inject inline citations as contextual hyperlinks with "According to Source (Year)" format
     processed = injectInlineCitations(processed, externalCitations);
@@ -137,6 +175,12 @@ export const ArticleContent = ({
     });
   }, [content]);
 
+  // Check if content has MidCTA placeholder and split content
+  const hasMidCtaPlaceholder = processedContent.includes('<!-- MID_CLUSTER_CTA_PLACEHOLDER -->');
+  const [contentBeforeCta, contentAfterCta] = hasMidCtaPlaceholder
+    ? processedContent.split('<!-- MID_CLUSTER_CTA_PLACEHOLDER -->')
+    : [processedContent, ''];
+
   return (
     <article ref={contentRef} className="space-y-12 md:space-y-16">
       {/* Featured Image Hero - Full prominence before content */}
@@ -158,10 +202,33 @@ export const ArticleContent = ({
         </figure>
       )}
 
-      <div
-        className="article-content prose prose-lg max-w-none"
-        dangerouslySetInnerHTML={{ __html: processedContent }}
-      />
+      {/* Content before MidCTA */}
+      {hasMidCtaPlaceholder ? (
+        <>
+          <div
+            className="article-content prose prose-lg max-w-none"
+            dangerouslySetInnerHTML={{ __html: contentBeforeCta }}
+          />
+          
+          {/* MidClusterCTA Component */}
+          <MidClusterCTA
+            relatedArticles={relatedClusterArticles}
+            stage={funnelStage}
+            currentArticleId={articleId}
+          />
+          
+          {/* Content after MidCTA */}
+          <div
+            className="article-content prose prose-lg max-w-none"
+            dangerouslySetInnerHTML={{ __html: contentAfterCta }}
+          />
+        </>
+      ) : (
+        <div
+          className="article-content prose prose-lg max-w-none"
+          dangerouslySetInnerHTML={{ __html: processedContent }}
+        />
+      )}
 
       {diagramUrl && (
         <figure className="my-12 md:my-16">

@@ -221,6 +221,7 @@ export type Database = {
           published_by: string | null
           read_time: number | null
           related_article_ids: string[] | null
+          related_cluster_articles: Json | null
           reviewer_id: string | null
           slug: string
           speakable_answer: string
@@ -265,6 +266,7 @@ export type Database = {
           published_by?: string | null
           read_time?: number | null
           related_article_ids?: string[] | null
+          related_cluster_articles?: Json | null
           reviewer_id?: string | null
           slug: string
           speakable_answer: string
@@ -309,6 +311,7 @@ export type Database = {
           published_by?: string | null
           read_time?: number | null
           related_article_ids?: string[] | null
+          related_cluster_articles?: Json | null
           reviewer_id?: string | null
           slug?: string
           speakable_answer?: string

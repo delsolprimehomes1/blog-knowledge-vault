@@ -83,3 +83,22 @@ export function trackEngagement(timeOnPage: number, scrollDepth: number) {
     scroll_depth: scrollDepth
   });
 }
+
+/**
+ * Track MidClusterCTA clicks
+ */
+export function trackMidClusterCTAClick(
+  articleId: string,
+  targetSlug: string,
+  targetArticleId: string,
+  funnelStage: string,
+  targetStage: string
+) {
+  trackEvent('mid_cluster_cta_click', {
+    article_id: articleId,
+    target_slug: targetSlug,
+    target_article_id: targetArticleId,
+    funnel_stage: funnelStage,
+    target_stage: targetStage
+  });
+}

@@ -2563,6 +2563,46 @@ Return ONLY valid JSON:
     console.log(`[Job ${jobId}] ✅ Funnel relationships resolved and persisted`);
     checkTimeout(); // Check after linking
 
+    // STEP 6: Populate related_cluster_articles for MidClusterCTA feature
+    console.log(`[Job ${jobId}] 📋 Populating related_cluster_articles for MidClusterCTA...`);
+    
+    for (const article of articles) {
+      try {
+        // Build sibling articles data (all articles in cluster except self)
+        const relatedClusterArticles = articles
+          .filter((a: any) => a.id !== article.id)
+          .map((a: any) => ({
+            id: a.id,
+            slug: a.slug,
+            headline: a.headline,
+            stage: a.funnel_stage
+          }));
+
+        // Update database with related cluster articles
+        const { error: updateError } = await supabase
+          .from('blog_articles')
+          .update({
+            related_cluster_articles: relatedClusterArticles
+          })
+          .eq('id', article.id);
+
+        if (updateError) {
+          console.error(`[Job ${jobId}] ⚠️ Failed to update related_cluster_articles for article ${article.id}:`, updateError);
+        } else {
+          console.log(`[Job ${jobId}] ✅ Updated related_cluster_articles for "${article.headline}": ${relatedClusterArticles.length} sibling articles`);
+        }
+
+        // Update local article object
+        article.related_cluster_articles = relatedClusterArticles;
+
+      } catch (error) {
+        console.error(`[Job ${jobId}] Error updating related_cluster_articles for "${article.headline}":`, error);
+      }
+    }
+
+    console.log(`[Job ${jobId}] ✅ Related cluster articles populated for all articles`);
+    checkTimeout(); // Check after populating
+
     await updateProgress(supabase, jobId, 12, 'Completed!');
     console.log(`[Job ${jobId}] Generation complete!`);
     
