@@ -281,25 +281,43 @@ async function processReplacements(supabaseClient: any, jobId: string, limit: nu
 
         if (confidenceScore >= 8.0) {
           // Auto-apply high confidence replacements
-          const { error: applyError } = await supabaseClient.functions.invoke(
-            'apply-citation-replacement',
-            {
-              body: {
-                articleId: citation.articleId,
-                oldUrl: citation.url,
-                newUrl: bestMatch.suggestedUrl,
-                newSource: bestMatch.sourceName,
-                anchorText: citation.text,
-                reason: `Auto-replacement: ${bestMatch.reason}`,
-                confidenceScore,
-              },
-            }
-          );
+          // First, create a replacement record in dead_link_replacements
+          const { data: replacement, error: replError } = await supabaseClient
+            .from('dead_link_replacements')
+            .insert({
+              original_url: citation.url,
+              original_source: citation.source,
+              replacement_url: bestMatch.suggestedUrl,
+              replacement_source: bestMatch.sourceName,
+              replacement_reason: `Auto-replacement: ${bestMatch.reason}`,
+              confidence_score: confidenceScore,
+              status: 'approved',
+              suggested_by: 'auto',
+            })
+            .select()
+            .single();
 
-          if (applyError) {
+          if (replError) {
+            console.error('Failed to create replacement record:', replError);
             results.failed++;
           } else {
-            results.autoApplied++;
+            // Now call apply-citation-replacement with the record ID
+            const { error: applyError } = await supabaseClient.functions.invoke(
+              'apply-citation-replacement',
+              {
+                body: {
+                  replacementIds: [replacement.id],
+                  preview: false
+                },
+              }
+            );
+
+            if (applyError) {
+              console.error('Failed to apply replacement:', applyError);
+              results.failed++;
+            } else {
+              results.autoApplied++;
+            }
           }
         } else {
           results.manualReview++;
