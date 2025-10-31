@@ -306,4 +306,40 @@ All colors MUST be HSL.
   .hover-glow:hover {
     box-shadow: 0 0 30px hsl(var(--primary) / 0.4);
   }
+
+  /* Ken Burns effect for hero carousel */
+  .ken-burns-effect {
+    animation: ken-burns 12s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  @keyframes ken-burns {
+    0% {
+      transform: scale(1) translate(0, 0);
+    }
+    100% {
+      transform: scale(1.08) translate(-2%, -2%);
+    }
+  }
+
+  /* Color utility classes matching Del Sol Prime Homes logo */
+  .text-gold {
+    color: hsl(var(--primary));
+  }
+
+  .bg-gold {
+    background-color: hsl(var(--primary));
+  }
+
+  .border-gold {
+    border-color: hsl(var(--primary));
+  }
+
+  .text-coastal-blue {
+    color: hsl(var(--secondary));
+  }
+
+  .bg-coastal-blue {
+    background-color: hsl(var(--secondary));
+  }
 }

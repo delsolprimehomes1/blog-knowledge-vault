@@ -4,6 +4,8 @@ import { SchemaMeta } from "@/components/SchemaMeta";
 import { generateAllHomeSchemas } from "@/lib/homeSchemaGenerator";
 import { TestimonialsSection } from "@/components/home/TestimonialsSection";
 import { GoogleBusinessWidget } from "@/components/home/GoogleBusinessWidget";
+import { HeroCarousel } from "@/components/home/HeroCarousel";
+import { FeatureCards } from "@/components/home/FeatureCards";
 
 interface NavigationPillProps {
   title: string;
@@ -15,17 +17,18 @@ interface NavigationPillProps {
 const NavigationPill = ({ title, path, icon: Icon, delay }: NavigationPillProps) => (
   <Link
     to={path}
-    className="group relative p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 
-               hover:bg-white/10 hover:border-primary/50 transition-all duration-500 animate-fade-in-up"
+    className="group relative p-4 md:p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 
+               hover:bg-white/10 hover:border-primary/50 transition-all duration-500 animate-fade-in-up
+               min-h-[48px] flex items-center justify-center"
     style={{ animationDelay: `${delay}ms` }}
     aria-label={`Navigate to ${title}`}
   >
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <Icon className="w-6 h-6 text-primary" />
-        <span className="text-white font-semibold text-lg">{title}</span>
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center gap-2 md:gap-3">
+        <Icon className="w-5 h-5 md:w-6 md:h-6 text-primary flex-shrink-0" />
+        <span className="text-white font-semibold text-base md:text-lg">{title}</span>
       </div>
-      <ArrowRight className="w-5 h-5 text-white/60 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+      <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white/60 group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
     </div>
   </Link>
 );
@@ -48,56 +51,97 @@ const Home = () => {
         canonical="https://delsolprimehomes.com/"
         ogTitle="Del Sol Prime Homes | Costa del Sol Real Estate Experts"
         ogDescription="35+ years of expertise guiding investors, homeowners, and dreamers along Spain's southern coast."
-        ogImage="https://delsolprimehomes.com/logo.png"
+        ogImage="https://delsolprimehomes.com/images/costa-del-sol-beauty.jpg"
         schemas={Object.values(schemas)}
       />
 
       <div className="min-h-screen relative overflow-hidden">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0A0A0A] via-[#1A1A1A] to-[#0A0A0A]">
-          {/* Subtle animated overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(212,165,116,0.05),transparent_50%)] animate-pulse-slow" />
+        {/* Hero Section with Auto-Rotating Background Carousel */}
+        <div className="relative min-h-screen w-full">
+          <HeroCarousel>
+            {/* Logo - Fixed Top Left */}
+            <div className="fixed top-4 left-4 md:top-6 md:left-8 z-50">
+              <img
+                src="/images/delsol-logo.png"
+                alt="Del Sol Prime Homes - Lifestyle Meets Property Investment on Costa del Sol"
+                width={250}
+                height={80}
+                className="h-10 md:h-14 lg:h-20 w-auto drop-shadow-2xl"
+              />
+            </div>
+
+            {/* Main Content */}
+            <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 md:px-8 pt-20 md:pt-0">
+              {/* Headline */}
+              <h1 className="speakable-headline font-headline text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl 
+                           font-bold text-white text-center mb-4 md:mb-6 animate-fade-in-up leading-[1.1] tracking-tight
+                           drop-shadow-2xl max-w-5xl">
+                Discover Your Dream Home on the
+                <br />
+                <span className="text-primary">Costa del Sol</span>
+              </h1>
+
+              {/* Subheadline */}
+              <p className="speakable-summary text-base sm:text-lg md:text-xl lg:text-2xl text-white/95 
+                          text-center max-w-3xl mb-8 md:mb-12 animate-fade-in-up leading-relaxed
+                          drop-shadow-xl px-4" 
+                 style={{ animationDelay: '200ms' }}>
+                Expert-verified luxury properties | 35+ years of excellence | Multilingual support for international buyers
+              </p>
+
+              {/* CTA Button */}
+              <Link
+                to="/blog"
+                className="mb-10 md:mb-12 px-6 md:px-8 py-3 md:py-4 bg-primary hover:bg-primary/90 text-white 
+                         font-semibold text-base md:text-lg rounded-full shadow-2xl
+                         hover:shadow-primary/50 hover:scale-105 
+                         transition-all duration-300 animate-fade-in-up
+                         min-h-[48px] flex items-center gap-2"
+                style={{ animationDelay: '400ms' }}
+              >
+                Explore Properties
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+
+              {/* Navigation Pills */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-4xl w-full mb-16 md:mb-0">
+                {navigationLinks.map((link, index) => (
+                  <NavigationPill
+                    key={link.path}
+                    title={link.title}
+                    path={link.path}
+                    icon={link.icon}
+                    delay={600 + index * 100}
+                  />
+                ))}
+              </div>
+            </div>
+          </HeroCarousel>
         </div>
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 md:px-8">
-          {/* Headline */}
-          <h1 className="speakable-headline font-headline text-4xl md:text-6xl lg:text-8xl font-bold text-white text-center mb-6 animate-fade-in-up leading-tight">
-            Costa del Sol Real Estate.
-            <br />
-            <span className="text-primary">Refined. Verified. Trusted.</span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="speakable-summary text-xl md:text-2xl text-white/90 text-center max-w-3xl mb-12 animate-fade-in-up leading-relaxed">
-            35+ years of expertise guiding investors, homeowners, and dreamers along Spain's southern coast.
-          </p>
-
-          {/* Navigation Pills */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl w-full mb-16">
-            {navigationLinks.map((link, index) => (
-              <NavigationPill
-                key={link.path}
-                title={link.title}
-                path={link.path}
-                icon={link.icon}
-                delay={index * 100}
-              />
-            ))}
+        {/* Below-the-Fold Content */}
+        <div className="relative z-10 bg-gradient-to-b from-black via-[#0A0A0A] to-black">
+          {/* Feature Cards Section */}
+          <div className="py-16 md:py-24">
+            <FeatureCards />
           </div>
 
           {/* Testimonials Section */}
-          <TestimonialsSection />
+          <div className="py-8 md:py-16">
+            <TestimonialsSection />
+          </div>
 
           {/* Google Business Widget */}
-          <div className="mb-16">
+          <div className="py-8 md:py-16 flex justify-center px-4">
             <GoogleBusinessWidget />
           </div>
 
           {/* Footer */}
-          <p className="text-sm text-white/60 text-center">
-            © 2025 Del Sol Prime Homes. Expert Verified | AI-First Site Architecture.
-          </p>
+          <div className="py-8 text-center">
+            <p className="text-sm text-white/60">
+              © 2025 Del Sol Prime Homes. Expert Verified | AI-First Site Architecture.
+            </p>
+          </div>
         </div>
       </div>
     </>

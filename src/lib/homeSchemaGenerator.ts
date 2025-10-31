@@ -4,6 +4,7 @@
  */
 
 import { ORGANIZATION_SCHEMA } from './schemaGenerator';
+import { generateImageGallerySchema, getAllHeroImageSchemas } from './heroImageSchemas';
 
 const BASE_URL = 'https://delsolprimehomes.com';
 
@@ -15,6 +16,12 @@ export function generateHomePageSchema() {
     "description": "Licensed real estate agency specializing in Costa del Sol luxury properties. 35+ years expertise, multilingual support, verified by industry experts.",
     "url": `${BASE_URL}/`,
     "inLanguage": "en-GB",
+    "primaryImageOfPage": {
+      "@type": "ImageObject",
+      "url": `${BASE_URL}/images/costa-del-sol-beauty.jpg`,
+      "width": 1920,
+      "height": 1080
+    },
     "isPartOf": {
       "@type": "WebSite",
       "name": "Del Sol Prime Homes",
@@ -107,6 +114,8 @@ export function generateAllHomeSchemas() {
     organization: ORGANIZATION_SCHEMA,
     speakable: generateHomeSpeakableSchema(),
     breadcrumb: generateHomeBreadcrumbSchema(),
-    reviews: generateHomeReviewsSchema()
+    reviews: generateHomeReviewsSchema(),
+    imageGallery: generateImageGallerySchema(),
+    heroImages: getAllHeroImageSchemas()
   };
 }
