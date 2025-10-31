@@ -23,6 +23,20 @@ export interface CaseStudy {
   };
 }
 
+function generateCaseStudyImageSchema(url: string, propertyType: string, location: string): any {
+  return {
+    "@type": "ImageObject",
+    "url": url,
+    "contentUrl": url,
+    "width": 1200,
+    "height": 800,
+    "encodingFormat": "image/jpeg",
+    "caption": `${propertyType} in ${location}`,
+    "description": `Professional photograph of ${propertyType.toLowerCase()} located in ${location}, Costa del Sol`,
+    "representativeOfPage": false
+  };
+}
+
 export function generateCaseStudySchema(caseStudy: CaseStudy): any {
   return {
     "@context": "https://schema.org",
@@ -30,6 +44,7 @@ export function generateCaseStudySchema(caseStudy: CaseStudy): any {
     "@id": `${BASE_URL}/case-studies#${caseStudy.id}`,
     "name": `${caseStudy.title} - Del Sol Prime Homes`,
     "description": caseStudy.challenge,
+    "image": generateCaseStudyImageSchema(caseStudy.images.after, caseStudy.propertyType, caseStudy.location),
     "provider": ORGANIZATION_SCHEMA,
     "areaServed": {
       "@type": "City",

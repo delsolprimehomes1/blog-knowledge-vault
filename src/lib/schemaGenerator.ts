@@ -22,7 +22,14 @@ export const ORGANIZATION_SCHEMA = {
   "name": "Del Sol Prime Homes",
   "description": "Premium real estate agency specializing in Costa del Sol properties",
   "url": "https://delsolprimehomes.com",
-  "logo": "https://delsolprimehomes.com/logo.png",
+  "logo": {
+    "@type": "ImageObject",
+    "url": "https://delsolprimehomes.com/logo.png",
+    "width": 250,
+    "height": 80,
+    "encodingFormat": "image/png",
+    "caption": "Del Sol Prime Homes Logo"
+  },
   "foundingDate": "1990",
   "slogan": "Costa del Sol Real Estate. Refined. Verified. Trusted.",
   "knowsAbout": [
@@ -130,7 +137,16 @@ export function generateArticleSchema(
             "caption": article.featured_image_caption || article.headline,
             "description": article.featured_image_alt || article.meta_description,
             "representativeOfPage": true,
-            "position": 1
+            "position": 1,
+            "width": 1200,
+            "height": 675,
+            "encodingFormat": "image/jpeg",
+            "thumbnail": {
+              "@type": "ImageObject",
+              "url": article.featured_image_url,
+              "width": 400,
+              "height": 225
+            }
           },
           // Diagram image (secondary)
           {
@@ -142,6 +158,8 @@ export function generateArticleSchema(
             "description": article.diagram_description || "Diagram illustrating key concepts",
             "representativeOfPage": false,
             "position": 2,
+            "width": 1200,
+            "height": 1200,
             "encodingFormat": "image/png",
             "contentType": "Infographic"
           }
@@ -153,7 +171,16 @@ export function generateArticleSchema(
           "contentUrl": article.featured_image_url,
           "caption": article.featured_image_caption || article.headline,
           "description": article.featured_image_alt || article.meta_description,
-          "representativeOfPage": true
+          "representativeOfPage": true,
+          "width": 1200,
+          "height": 675,
+          "encodingFormat": "image/jpeg",
+          "thumbnail": {
+            "@type": "ImageObject",
+            "url": article.featured_image_url,
+            "width": 400,
+            "height": 225
+          }
         },
     "datePublished": article.date_published,
     "dateModified": article.date_modified || article.date_published,
@@ -228,7 +255,10 @@ export function generateSpeakableSchema(article: BlogArticle): any {
         "url": article.featured_image_url,
         "description": article.featured_image_alt,
         "caption": article.featured_image_caption,
-        "representativeOfPage": true
+        "representativeOfPage": true,
+        "width": 1200,
+        "height": 675,
+        "encodingFormat": "image/jpeg"
       });
     }
     
@@ -240,7 +270,10 @@ export function generateSpeakableSchema(article: BlogArticle): any {
         "alternateName": article.diagram_alt || "Infographic diagram",
         "caption": article.diagram_caption || "Visual guide",
         "description": article.diagram_description || "Diagram illustrating key concepts",
-        "contentType": "Infographic"
+        "contentType": "Infographic",
+        "width": 1200,
+        "height": 1200,
+        "encodingFormat": "image/png"
       });
     }
     
@@ -374,8 +407,22 @@ export function generateLocalBusinessSchema(baseUrl: string = "https://delsolpri
     "@type": ["RealEstateAgent", "LocalBusiness"],
     "name": "Del Sol Prime Homes",
     "description": "Premium real estate agency specializing in Costa del Sol properties, offering expert guidance for foreign buyers and investors",
-    "image": `${baseUrl}/logo.png`,
-    "logo": `${baseUrl}/logo.png`,
+    "image": {
+      "@type": "ImageObject",
+      "url": `${baseUrl}/logo.png`,
+      "width": 250,
+      "height": 80,
+      "encodingFormat": "image/png",
+      "caption": "Del Sol Prime Homes Logo"
+    },
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${baseUrl}/logo.png`,
+      "width": 250,
+      "height": 80,
+      "encodingFormat": "image/png",
+      "caption": "Del Sol Prime Homes Logo"
+    },
     "url": baseUrl,
     "foundingDate": "1990",
     "slogan": "Costa del Sol Real Estate. Refined. Verified. Trusted.",
