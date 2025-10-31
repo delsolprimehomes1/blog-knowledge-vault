@@ -50,7 +50,7 @@ serve(async (req) => {
         // Get all articles in this cluster
         const { data: clusterArticles, error: articlesError } = await supabase
           .from('blog_articles')
-          .select('id, slug, headline, funnel_stage')
+          .select('id, slug, headline, funnel_stage, status, featured_image_url')
           .eq('cluster_id', clusterId);
 
         if (articlesError) {
@@ -64,14 +64,35 @@ serve(async (req) => {
         // Update each article with sibling data
         for (const article of clusterArticles) {
           try {
-            // Build sibling articles array (all except self)
+            // Skip BOFU articles (they should have no CTAs)
+            if (article.funnel_stage === 'BOFU') {
+              const { error: updateError } = await supabase
+                .from('blog_articles')
+                .update({ related_cluster_articles: [] })
+                .eq('id', article.id);
+              
+              if (!updateError) {
+                console.log(`  ✅ Cleared CTAs for BOFU article "${article.headline}"`);
+                totalArticlesUpdated++;
+              } else {
+                console.error(`  ❌ Error clearing BOFU article ${article.id}:`, updateError);
+                totalErrors++;
+              }
+              continue;
+            }
+
+            // Build sibling articles array (published only, exclude self)
             const relatedClusterArticles = clusterArticles
-              .filter((a: any) => a.id !== article.id)
+              .filter((a: any) => 
+                a.id !== article.id && 
+                a.status === 'published'
+              )
               .map((a: any) => ({
                 id: a.id,
                 slug: a.slug,
                 headline: a.headline,
-                stage: a.funnel_stage
+                stage: a.funnel_stage,
+                featured_image_url: a.featured_image_url
               }));
 
             // Update article
