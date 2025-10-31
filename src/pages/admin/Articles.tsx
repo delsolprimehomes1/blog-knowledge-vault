@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Search, Edit, Eye, Trash2, Plus, AlertCircle, Sparkles, Loader2 } from "lucide-react";
+import { Search, Edit, Eye, Trash2, Plus, AlertCircle, Sparkles, Loader2, Network } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 
@@ -23,6 +23,7 @@ const Articles = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isGeneratingFAQs, setIsGeneratingFAQs] = useState(false);
   const [isRecitingArticles, setIsRecitingArticles] = useState(false);
+  const [isAutoClusteringArticles, setIsAutoClusteringArticles] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobProgress, setJobProgress] = useState<{
     current: number;
@@ -201,6 +202,47 @@ const Articles = () => {
     }
   };
 
+  const handleAutoClusterOrphans = async () => {
+    const orphanedCount = filteredArticles.filter(a => !a.cluster_id && a.funnel_stage !== 'BOFU').length;
+    
+    if (!confirm(`Auto-cluster ${orphanedCount} orphaned articles? This will:\n\n• Create new clusters for groups of 4+ articles\n• Assign smaller groups to existing clusters\n• Automatically populate Mid-Article CTAs\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setIsAutoClusteringArticles(true);
+      
+      toast({
+        title: "Auto-Clustering Started",
+        description: "Processing orphaned articles...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('auto-cluster-orphaned-articles', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Auto-Clustering Complete! ✨",
+        description: `Created ${data.newClustersCreated} clusters, assigned ${data.totalArticlesProcessed} articles. ${data.remainingOrphans} remain orphaned.`,
+      });
+
+      // Refresh the article list
+      setTimeout(() => window.location.reload(), 1500);
+
+    } catch (error: any) {
+      console.error('Error auto-clustering:', error);
+      toast({
+        title: "Auto-Clustering Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsAutoClusteringArticles(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -259,6 +301,61 @@ const Articles = () => {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Auto-Cluster Orphaned Articles Card */}
+        <Card className="bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Network className="h-5 w-5 text-purple-500" />
+              Auto-Cluster Orphaned Articles
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Automatically assign clusters to {filteredArticles.filter(a => !a.cluster_id && a.funnel_stage !== 'BOFU').length} orphaned articles to enable Mid-Article CTAs.
+              </p>
+              <div className="flex items-start gap-2 p-3 bg-purple-500/5 rounded-lg border border-purple-500/20">
+                <AlertCircle className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1 text-xs">
+                  <p className="font-medium text-purple-700 dark:text-purple-300">Smart Clustering</p>
+                  <p className="text-purple-600/80 dark:text-purple-400/80">
+                    Creates new clusters for groups of 4+ articles (language + category). 
+                    Smaller groups are assigned to existing matching clusters. All CTAs are populated automatically.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  {filteredArticles.filter(a => !a.cluster_id && a.funnel_stage !== 'BOFU').length} orphaned article{filteredArticles.filter(a => !a.cluster_id && a.funnel_stage !== 'BOFU').length !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  (Published, non-BOFU, no cluster assigned)
+                </p>
+              </div>
+              <Button 
+                onClick={handleAutoClusterOrphans}
+                disabled={isAutoClusteringArticles || filteredArticles.filter(a => !a.cluster_id && a.funnel_stage !== 'BOFU').length === 0}
+                variant="default"
+              >
+                {isAutoClusteringArticles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Clustering...
+                  </>
+                ) : (
+                  <>
+                    <Network className="mr-2 h-4 w-4" />
+                    Auto-Cluster Now
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
