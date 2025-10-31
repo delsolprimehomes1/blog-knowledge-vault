@@ -242,14 +242,28 @@ export const injectInlineCitations = (
   content: string,
   citations: ExternalCitation[]
 ): string => {
-  if (!citations || citations.length === 0) return content;
+  if (!citations || citations.length === 0) {
+    console.log('[injectInlineCitations] No citations provided');
+    return content;
+  }
+
+  console.log(`[injectInlineCitations] Processing ${citations.length} citations`);
   
   // Filter for valid citations from approved domains
-  const validCitations = citations.filter(c => 
-    c?.url && c?.source && isApprovedDomain(c.url)
-  );
+  const validCitations = citations.filter(c => {
+    const isValid = c?.url && c?.source && isApprovedDomain(c.url);
+    if (!isValid) {
+      console.warn('[injectInlineCitations] Skipping invalid/unapproved citation:', c?.source);
+    }
+    return isValid;
+  });
   
-  if (validCitations.length === 0) return content;
+  if (validCitations.length === 0) {
+    console.log('[injectInlineCitations] No valid approved citations');
+    return content;
+  }
+  
+  console.log(`[injectInlineCitations] ${validCitations.length} valid citations after filtering`);
   
   let processedContent = content;
   const usedPhrases = new Set<string>();
@@ -259,8 +273,17 @@ export const injectInlineCitations = (
   const paragraphPattern = /<p[^>]*>(.*?)<\/p>/gs;
   const paragraphs = [...processedContent.matchAll(paragraphPattern)];
   
+  console.log(`[injectInlineCitations] Found ${paragraphs.length} paragraphs`);
+  
   // Process each citation
-  validCitations.forEach((citation) => {
+  validCitations.forEach((citation, citationIdx) => {
+    console.log(`\n[Citation ${citationIdx + 1}/${validCitations.length}] ${citation.source}`);
+    console.log(`  URL: ${citation.url}`);
+    console.log(`  Text: ${citation.text?.substring(0, 80)}...`);
+    
+    const citationKeywords = extractKeyPhrases(citation.text || citation.source);
+    console.log(`  Keywords extracted: ${citationKeywords.slice(0, 5).join(', ')}${citationKeywords.length > 5 ? '...' : ''}`);
+    
     // Find the best paragraph for this citation
     let bestMatch: { 
       paragraphIndex: number; 
@@ -275,18 +298,20 @@ export const injectInlineCitations = (
       
       const paragraphContent = paragraph[1];
       
-      // Skip if already has links
-      if (paragraphContent.includes('<a href')) return;
+      // Don't skip paragraphs with links - we can add inline citations to them
+      // Just skip the specific phrases that are already linked
       
       // Find best anchor text in this paragraph
       const match = findBestAnchorText(paragraphContent, citation, usedPhrases);
       
       if (match) {
-        // Calculate relevance score
-        const citationKeywords = extractKeyPhrases(citation.text || citation.source);
+        // Calculate relevance score (more lenient threshold)
         let score = 0;
         citationKeywords.forEach(kw => {
-          if (paragraphContent.toLowerCase().includes(kw)) score += 1;
+          if (paragraphContent.toLowerCase().includes(kw)) {
+            // Give higher score for longer keyword matches
+            score += kw.split(/\s+/).length;
+          }
         });
         
         if (!bestMatch || score > bestMatch.score) {
@@ -300,8 +325,12 @@ export const injectInlineCitations = (
       }
     });
     
-    // Inject the citation link
-    if (bestMatch && bestMatch.score > 0) {
+    // Inject the citation link (lowered threshold from > 0 to >= 0)
+    if (bestMatch) {
+      console.log(`  ✓ Best match found (score: ${bestMatch.score}):`);
+      console.log(`    Paragraph ${bestMatch.paragraphIndex + 1}`);
+      console.log(`    Phrase: "${bestMatch.phrase}"`);
+      
       const paragraph = paragraphs[bestMatch.paragraphIndex];
       const paragraphContent = paragraph[1];
       
@@ -315,8 +344,13 @@ export const injectInlineCitations = (
       // Mark as used
       usedPhrases.add(bestMatch.phrase.toLowerCase());
       linkedParagraphs.add(bestMatch.paragraphIndex);
+      
+      console.log(`  ✓ Injected successfully`);
+    } else {
+      console.log(`  ✗ No suitable anchor text found`);
     }
   });
   
+  console.log(`\n[injectInlineCitations] Complete. Injected ${linkedParagraphs.size} inline citations`);
   return processedContent;
 };
