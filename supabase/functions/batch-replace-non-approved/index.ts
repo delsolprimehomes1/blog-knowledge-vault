@@ -49,23 +49,101 @@ function isApprovedDomain(url: string): boolean {
   }
 }
 
+function extractCitationContext(content: string, citationUrl: string, maxLength: number = 500): string | null {
+  try {
+    const urlPattern = citationUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const position = content.search(new RegExp(urlPattern, 'i'));
+    
+    if (position === -1) {
+      const domain = new URL(citationUrl).hostname.replace('www.', '');
+      const domainPosition = content.indexOf(domain);
+      if (domainPosition === -1) return null;
+      return extractParagraph(content, domainPosition, maxLength);
+    }
+    
+    return extractParagraph(content, position, maxLength);
+  } catch (error) {
+    console.warn('Error extracting citation context:', error);
+    return null;
+  }
+}
+
+function extractParagraph(content: string, position: number, maxLength: number): string {
+  const paragraphBreaks = /\n\n|<\/p>|<p>|<h[1-6]>|<\/h[1-6]>/gi;
+  let match;
+  let lastBreak = 0;
+  let nextBreak = content.length;
+  
+  while ((match = paragraphBreaks.exec(content)) !== null) {
+    if (match.index < position) {
+      lastBreak = match.index + match[0].length;
+    } else if (match.index > position && nextBreak === content.length) {
+      nextBreak = match.index;
+      break;
+    }
+  }
+  
+  let paragraph = content.substring(lastBreak, nextBreak).trim();
+  
+  if (paragraph.length > maxLength) {
+    return extractSentence(paragraph, position - lastBreak, maxLength);
+  }
+  
+  return paragraph;
+}
+
+function extractSentence(text: string, position: number, maxLength: number): string {
+  const sentenceEndings = /[.!?]+\s+/g;
+  let match;
+  let lastEnding = 0;
+  let nextEnding = text.length;
+  
+  while ((match = sentenceEndings.exec(text)) !== null) {
+    const endPos = match.index + match[0].length;
+    if (endPos < position) {
+      lastEnding = endPos;
+    } else if (endPos > position && nextEnding === text.length) {
+      nextEnding = endPos;
+      break;
+    }
+  }
+  
+  let sentence = text.substring(lastEnding, nextEnding).trim();
+  
+  if (sentence.length > maxLength) {
+    const start = Math.max(0, position - lastEnding - Math.floor(maxLength / 2));
+    const end = Math.min(sentence.length, start + maxLength);
+    sentence = (start > 0 ? '...' : '') + sentence.substring(start, end) + (end < sentence.length ? '...' : '');
+  }
+  
+  return sentence;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const { limit } = await req.json().catch(() => ({}));
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('🔄 Starting batch replacement for non-approved citations...');
+    console.log(`🔄 Starting batch replacement for non-approved citations${limit ? ` (testing with ${limit} articles)` : ''}...`);
 
-    // Fetch all articles with external_citations
-    const { data: articles, error: fetchError } = await supabaseClient
+    // Fetch articles with external_citations
+    let query = supabaseClient
       .from('blog_articles')
       .select('id, headline, detailed_content, language, external_citations, slug, status');
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    const { data: articles, error: fetchError } = await query;
 
     if (fetchError) {
       console.error('Error fetching articles:', fetchError);
@@ -121,6 +199,9 @@ serve(async (req) => {
         results.processed++;
         results.citationsProcessed++;
 
+        // Extract citation context for better replacements
+        const citationContext = extractCitationContext(citation.articleContent, citation.url);
+
         // Call discover-better-links to find approved alternatives
         const { data: discoveryData, error: discoveryError } = await supabaseClient.functions.invoke(
           'discover-better-links',
@@ -129,6 +210,7 @@ serve(async (req) => {
               originalUrl: citation.url,
               articleHeadline: citation.articleHeadline,
               articleContent: citation.articleContent,
+              citationContext: citationContext,
               articleLanguage: citation.articleLanguage,
               context: 'Batch replacement of non-approved citation',
               mustBeApproved: true

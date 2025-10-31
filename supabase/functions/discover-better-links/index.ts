@@ -122,7 +122,7 @@ Return ONLY a valid JSON array (no markdown, no explanations):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-large-128k-online',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'system',
@@ -136,7 +136,7 @@ Return ONLY a valid JSON array (no markdown, no explanations):
         temperature: 0.3, // Slightly higher for more creative source discovery
         max_tokens: 2500, // More tokens for deeper analysis
         search_recency_filter: 'year', // Expand to past year for better coverage
-        search_domain_filter: allApprovedDomains, // Search all 243 approved domains
+        // Note: search_domain_filter removed (max 20 domains) - we filter results after AI search
       }),
     });
 
