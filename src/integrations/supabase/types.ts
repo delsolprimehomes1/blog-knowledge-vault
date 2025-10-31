@@ -328,13 +328,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "blog_articles_cluster_id_fkey"
-            columns: ["cluster_id"]
-            isOneToOne: false
-            referencedRelation: "cluster_generations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "blog_articles_reviewer_id_fkey"
             columns: ["reviewer_id"]
             isOneToOne: false
