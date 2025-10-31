@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSearch } from "@/utils/analytics";
@@ -29,11 +29,22 @@ const BlogIndex = () => {
   }, []);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const { category: categoryParam } = useParams<{ category?: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const selectedCategory = searchParams.get("category") || "all";
+  // Use category from URL param if available, otherwise from search params
+  const selectedCategory = categoryParam || searchParams.get("category") || "all";
   const selectedLanguage = searchParams.get("lang") || "all";
+
+  // Sync URL param to search params
+  useEffect(() => {
+    if (categoryParam && selectedCategory !== categoryParam) {
+      const params = new URLSearchParams(searchParams);
+      params.set("category", categoryParam);
+      setSearchParams(params, { replace: true });
+    }
+  }, [categoryParam]);
   
   const baseUrl = 'https://delsolprimehomes.com';
 

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Image, BarChart3, Link2, Link, Loader2, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BatchLinkValidator } from "@/components/admin/BatchLinkValidator";
+import { LinkHealthDashboard } from "@/components/admin/LinkHealthDashboard";
 
 export default function AITools() {
   const [testingImage, setTestingImage] = useState(false);
@@ -429,6 +430,9 @@ export default function AITools() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Link Health Dashboard */}
+        <LinkHealthDashboard />
 
         {/* Batch Link Validation */}
         <BatchLinkValidator />

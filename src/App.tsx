@@ -57,6 +57,7 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/blog" element={<BlogIndex />} />
+          <Route path="/blog/category/:category" element={<BlogIndex />} />
           <Route path="/blog/:slug" element={<BlogArticle />} />
           <Route path="/about" element={<About />} />
           <Route path="/faq" element={<FAQ />} />

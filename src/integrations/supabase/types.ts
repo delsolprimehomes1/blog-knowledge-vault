@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_link_patterns: {
+        Row: {
+          article_id: string
+          compliance_score: number | null
+          has_parent_category_link: boolean | null
+          has_related_article_link: boolean | null
+          has_service_link: boolean | null
+          last_updated: string | null
+          last_validated_by: string | null
+          parent_category_url: string | null
+          related_article_urls: string[] | null
+          service_link_url: string | null
+          total_external_links: number | null
+          total_internal_links: number | null
+        }
+        Insert: {
+          article_id: string
+          compliance_score?: number | null
+          has_parent_category_link?: boolean | null
+          has_related_article_link?: boolean | null
+          has_service_link?: boolean | null
+          last_updated?: string | null
+          last_validated_by?: string | null
+          parent_category_url?: string | null
+          related_article_urls?: string[] | null
+          service_link_url?: string | null
+          total_external_links?: number | null
+          total_internal_links?: number | null
+        }
+        Update: {
+          article_id?: string
+          compliance_score?: number | null
+          has_parent_category_link?: boolean | null
+          has_related_article_link?: boolean | null
+          has_service_link?: boolean | null
+          last_updated?: string | null
+          last_validated_by?: string | null
+          parent_category_url?: string | null
+          related_article_urls?: string[] | null
+          service_link_url?: string | null
+          total_external_links?: number | null
+          total_internal_links?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_link_patterns_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: true
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_link_patterns_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: true
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_revisions: {
         Row: {
           article_id: string
@@ -154,6 +214,8 @@ export type Database = {
           language: string
           last_citation_check_at: string | null
           last_edited_by: string | null
+          last_link_validation: string | null
+          link_depth: number | null
           meta_description: string
           meta_title: string
           published_by: string | null
@@ -196,6 +258,8 @@ export type Database = {
           language: string
           last_citation_check_at?: string | null
           last_edited_by?: string | null
+          last_link_validation?: string | null
+          link_depth?: number | null
           meta_description: string
           meta_title: string
           published_by?: string | null
@@ -238,6 +302,8 @@ export type Database = {
           language?: string
           last_citation_check_at?: string | null
           last_edited_by?: string | null
+          last_link_validation?: string | null
+          link_depth?: number | null
           meta_description?: string
           meta_title?: string
           published_by?: string | null
@@ -861,6 +927,60 @@ export type Database = {
           },
           {
             foreignKeyName: "link_suggestions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      link_validation_alerts: {
+        Row: {
+          alert_type: string
+          article_id: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          is_resolved: boolean | null
+          message: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+        }
+        Insert: {
+          alert_type: string
+          article_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          is_resolved?: boolean | null
+          message: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+        }
+        Update: {
+          alert_type?: string
+          article_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          is_resolved?: boolean | null
+          message?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_validation_alerts_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "link_validation_alerts_article_id_fkey"
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "content_freshness_report"
