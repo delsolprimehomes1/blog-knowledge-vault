@@ -161,7 +161,21 @@ export function generateArticleSchema(
     schema.citation = article.external_citations.map(citation => ({
       "@type": "CreativeWork",
       "name": citation.source,
-      "url": citation.url
+      "url": citation.url,
+      ...(citation.year && { 
+        "datePublished": `${citation.year}-01-01` 
+      }),
+      ...(citation.sourceType && { 
+        "genre": citation.sourceType 
+      }),
+      ...(citation.authorityScore && { 
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": (citation.authorityScore / 20).toFixed(1), // Convert 0-100 to 0-5
+          "bestRating": "5",
+          "worstRating": "0"
+        }
+      }),
     }));
   }
   

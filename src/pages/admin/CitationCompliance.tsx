@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
 import { IndexingHealthDashboard } from "@/components/admin/IndexingHealthDashboard";
+import { CitationEnhancementPanel } from "@/components/admin/CitationEnhancementPanel";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,8 @@ import {
   RefreshCw,
   BarChart3,
   FileText,
-  Globe
+  Globe,
+  TrendingUp
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -238,8 +240,12 @@ const CitationCompliance = () => {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="prerender" className="space-y-6">
+        <Tabs defaultValue="enhance" className="space-y-6">
           <TabsList>
+            <TabsTrigger value="enhance">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Enhance Citations
+            </TabsTrigger>
             <TabsTrigger value="prerender">
               <Download className="h-4 w-4 mr-2" />
               Pre-render Citations
@@ -257,6 +263,10 @@ const CitationCompliance = () => {
               Indexing Health
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="enhance" className="space-y-4">
+            <CitationEnhancementPanel />
+          </TabsContent>
 
           <TabsContent value="prerender" className="space-y-4">
             <Card>

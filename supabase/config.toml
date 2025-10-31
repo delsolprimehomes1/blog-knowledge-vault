@@ -6,6 +6,12 @@ verify_jwt = false
 [functions.backfill-canonical-urls]
 verify_jwt = false
 
+[functions.backfill-citation-years]
+verify_jwt = false
+
+[functions.bulk-enhance-citations]
+verify_jwt = false
+
 [functions.bulk-initialize-content-freshness]
 verify_jwt = false
 
