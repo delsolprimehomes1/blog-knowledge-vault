@@ -94,22 +94,6 @@ export function HeroCarousel({ children }: HeroCarouselProps) {
           {children}
         </div>
 
-        {/* Progress Indicators */}
-        <div className="absolute bottom-16 md:bottom-20 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 z-30 pointer-events-auto">
-          {HERO_IMAGES.map((image, index) => (
-            <button
-              key={image.id}
-              onClick={() => scrollTo(index)}
-              className={cn(
-                "h-2 md:h-3 rounded-full transition-all duration-500 hover:bg-primary/80",
-                index === current
-                  ? "bg-primary w-8 md:w-12"
-                  : "bg-white/40 w-2 md:w-3 hover:w-4 md:hover:w-6"
-              )}
-              aria-label={`Go to ${image.caption} image`}
-            />
-          ))}
-        </div>
 
         {/* Scroll Indicator */}
         <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 animate-bounce z-30 pointer-events-none">
