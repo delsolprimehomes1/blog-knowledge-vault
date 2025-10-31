@@ -122,58 +122,201 @@ export const injectExternalLinks = (
 };
 
 /**
- * Adds citation superscript markers throughout the content
+ * Extracts key phrases from citation text for matching
  */
-export const addCitationMarkers = (
+const extractKeyPhrases = (text: string): string[] => {
+  if (!text) return [];
+  
+  const stopWords = ['the', 'and', 'for', 'about', 'with', 'this', 'that', 'from', 'claims', 'support', 'evidence'];
+  const words = text.toLowerCase().split(/\s+/);
+  
+  // Filter out stop words and short words
+  const keywords = words.filter(w => w.length > 3 && !stopWords.includes(w));
+  
+  // Also look for multi-word phrases
+  const phrases: string[] = [];
+  for (let i = 0; i < words.length - 1; i++) {
+    const twoWord = `${words[i]} ${words[i + 1]}`;
+    const threeWord = i < words.length - 2 ? `${words[i]} ${words[i + 1]} ${words[i + 2]}` : '';
+    if (twoWord.length > 8) phrases.push(twoWord);
+    if (threeWord.length > 12) phrases.push(threeWord);
+  }
+  
+  return [...keywords, ...phrases];
+};
+
+/**
+ * Checks if a URL is from an approved domain
+ */
+const isApprovedDomain = (url: string): boolean => {
+  try {
+    const domain = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    
+    // Import approved domains list (subset for client-side validation)
+    const approvedDomains = [
+      'costaluzlawyers.es',
+      'spanishsolutions.net',
+      'lexidy.com',
+      'aena.es',
+      'ryanair.com',
+      'easyjet.com',
+      'britishairways.com',
+      'gov.uk',
+      'gov.ie',
+      'administracion.gob.es',
+      'tourspain.es',
+      'met.ie',
+      'metoffice.gov.uk',
+      'aemet.es',
+      'bbc.com',
+      'theguardian.com',
+      'irishtimes.com',
+      'elpais.com',
+      'elmundo.es',
+      'sur.es',
+      'malagahoy.es',
+    ];
+    
+    return approvedDomains.some(approved => 
+      domain === approved || domain.endsWith(`.${approved}`)
+    );
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Finds the best anchor text in a paragraph for a citation
+ */
+const findBestAnchorText = (
+  paragraph: string,
+  citation: ExternalCitation,
+  usedPhrases: Set<string>
+): { phrase: string; position: number } | null => {
+  if (!citation.text && !citation.source) return null;
+  
+  // Extract keywords from citation context
+  const citationKeywords = extractKeyPhrases(citation.text || citation.source);
+  if (citationKeywords.length === 0) return null;
+  
+  // Remove HTML tags for analysis
+  const plainText = paragraph.replace(/<[^>]*>/g, '');
+  
+  // Find phrases in the paragraph that match citation keywords
+  const candidates: Array<{ phrase: string; score: number; position: number }> = [];
+  
+  citationKeywords.forEach(keyword => {
+    const regex = new RegExp(`\\b([^<>]{0,20}${keyword}[^<>]{0,20})\\b`, 'gi');
+    let match;
+    
+    while ((match = regex.exec(plainText)) !== null) {
+      const phrase = match[1].trim();
+      
+      // Skip if too short, too long, or already used
+      if (phrase.length < 8 || phrase.length > 60 || usedPhrases.has(phrase.toLowerCase())) {
+        continue;
+      }
+      
+      // Calculate relevance score
+      let score = 0;
+      citationKeywords.forEach(kw => {
+        if (phrase.toLowerCase().includes(kw)) score += 1;
+      });
+      
+      candidates.push({ phrase, score, position: match.index });
+    }
+  });
+  
+  // Sort by score and return best match
+  candidates.sort((a, b) => b.score - a.score);
+  
+  return candidates.length > 0 
+    ? { phrase: candidates[0].phrase, position: candidates[0].position }
+    : null;
+};
+
+/**
+ * Injects inline citations as hyperlinks embedded in relevant phrases
+ */
+export const injectInlineCitations = (
   content: string,
   citations: ExternalCitation[]
 ): string => {
   if (!citations || citations.length === 0) return content;
-
+  
+  // Filter for valid citations from approved domains
+  const validCitations = citations.filter(c => 
+    c?.url && c?.source && isApprovedDomain(c.url)
+  );
+  
+  if (validCitations.length === 0) return content;
+  
   let processedContent = content;
-
-  // Keywords that indicate a claim needing citation
-  const claimIndicators = [
-    'flights',
-    'airlines',
-    'prices',
-    'routes',
-    'frequency',
-    'direct',
-    'non-stop',
-    'terminals',
-    'facilities',
-    'transport',
-    'connections',
-    'visa',
-    'passport',
-    'requirements',
-    'regulations',
-  ];
-
-  // Split content into sentences
-  const sentences = processedContent.split(/\.\s+/);
-  let citationIndex = 0;
-
-  const processedSentences = sentences.map((sentence, idx) => {
-    // Skip if already has a link or citation
-    if (sentence.includes('<a href') || sentence.includes('<sup>')) {
-      return sentence;
+  const usedPhrases = new Set<string>();
+  const linkedParagraphs = new Set<number>();
+  
+  // Split content into paragraphs
+  const paragraphPattern = /<p[^>]*>(.*?)<\/p>/gs;
+  const paragraphs = [...processedContent.matchAll(paragraphPattern)];
+  
+  // Process each citation
+  validCitations.forEach((citation) => {
+    // Find the best paragraph for this citation
+    let bestMatch: { 
+      paragraphIndex: number; 
+      phrase: string; 
+      position: number;
+      score: number;
+    } | null = null;
+    
+    paragraphs.forEach((paragraph, idx) => {
+      // Skip if this paragraph already has a citation
+      if (linkedParagraphs.has(idx)) return;
+      
+      const paragraphContent = paragraph[1];
+      
+      // Skip if already has links
+      if (paragraphContent.includes('<a href')) return;
+      
+      // Find best anchor text in this paragraph
+      const match = findBestAnchorText(paragraphContent, citation, usedPhrases);
+      
+      if (match) {
+        // Calculate relevance score
+        const citationKeywords = extractKeyPhrases(citation.text || citation.source);
+        let score = 0;
+        citationKeywords.forEach(kw => {
+          if (paragraphContent.toLowerCase().includes(kw)) score += 1;
+        });
+        
+        if (!bestMatch || score > bestMatch.score) {
+          bestMatch = {
+            paragraphIndex: idx,
+            phrase: match.phrase,
+            position: match.position,
+            score
+          };
+        }
+      }
+    });
+    
+    // Inject the citation link
+    if (bestMatch && bestMatch.score > 0) {
+      const paragraph = paragraphs[bestMatch.paragraphIndex];
+      const paragraphContent = paragraph[1];
+      
+      // Create the inline citation link
+      const link = `<a href="${citation.url}" class="inline-citation" target="_blank" rel="noopener noreferrer" title="Source: ${citation.source}">${bestMatch.phrase}</a>`;
+      
+      // Replace the phrase with the link
+      const updatedParagraph = paragraphContent.replace(bestMatch.phrase, link);
+      processedContent = processedContent.replace(paragraph[0], paragraph[0].replace(paragraph[1], updatedParagraph));
+      
+      // Mark as used
+      usedPhrases.add(bestMatch.phrase.toLowerCase());
+      linkedParagraphs.add(bestMatch.paragraphIndex);
     }
-
-    // Check if sentence contains claim indicators
-    const hasClaim = claimIndicators.some(keyword => 
-      sentence.toLowerCase().includes(keyword)
-    );
-
-    // Add citation marker to qualifying sentences (but not too many)
-    if (hasClaim && citationIndex < citations.length && idx % 3 === 0) {
-      citationIndex++;
-      return `${sentence}<sup class="citation-marker"><a href="#citation-${citationIndex}">[${citationIndex}]</a></sup>`;
-    }
-
-    return sentence;
   });
-
-  return processedSentences.join('. ');
+  
+  return processedContent;
 };

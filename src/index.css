@@ -218,6 +218,10 @@ All colors MUST be HSL.
   @apply text-[hsl(42_40%_55%)] hover:underline;
 }
 
+.article-content .inline-citation {
+  @apply text-primary underline decoration-dotted underline-offset-4 transition-all hover:decoration-solid hover:text-primary/80;
+}
+
 .article-content .citation-marker {
   @apply text-primary font-medium ml-0.5;
 }

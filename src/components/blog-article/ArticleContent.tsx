@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { MermaidPreview } from "@/components/MermaidPreview";
 import { ExternalCitation, InternalLink } from "@/types/blog";
-import { injectExternalLinks, injectInternalLinks, addCitationMarkers } from "@/lib/linkInjection";
+import { injectExternalLinks, injectInternalLinks, injectInlineCitations } from "@/lib/linkInjection";
 import { marked } from 'marked';
 
 interface ArticleContentProps {
@@ -70,7 +70,9 @@ export const ArticleContent = ({
     // Process internal link placeholders FIRST (before other transformations)
     processed = injectInternalLinks(processed, internalLinks);
     processed = injectExternalLinks(processed, externalCitations);
-    processed = addCitationMarkers(processed, externalCitations);
+    
+    // Inject inline citations as contextual hyperlinks
+    processed = injectInlineCitations(processed, externalCitations);
     return processed;
   };
   
@@ -91,8 +93,8 @@ export const ArticleContent = ({
       link.classList.add("internal-link");
     });
 
-    // Style external links and add icon
-    const externalLinks = contentRef.current.querySelectorAll('a[href^="http"]');
+    // Style external links and add icon (but not inline citations)
+    const externalLinks = contentRef.current.querySelectorAll('a[href^="http"]:not(.inline-citation)');
     externalLinks.forEach((link) => {
       link.classList.add("external-link");
       link.setAttribute("target", "_blank");
