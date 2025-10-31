@@ -17,6 +17,7 @@ export default {
         sans: ['Inter', 'sans-serif'],
         serif: ['Cormorant Garamond', 'serif'],
         display: ['Cormorant Garamond', 'serif'],
+        headline: ['Playfair Display', 'serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -123,6 +124,14 @@ export default {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.8" },
         },
+        "glow-pulse": {
+          "0%, 100%": { 
+            boxShadow: "0 0 20px rgba(212, 165, 116, 0.3), 0 0 40px rgba(212, 165, 116, 0.1)" 
+          },
+          "50%": { 
+            boxShadow: "0 0 40px rgba(212, 165, 116, 0.6), 0 0 80px rgba(212, 165, 116, 0.2)" 
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -135,6 +144,7 @@ export default {
         "slide-in-up": "slide-in-up 0.4s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
         "pulse-slow": "pulse-slow 3s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
       },
     },
   },

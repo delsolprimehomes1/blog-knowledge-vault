@@ -86,7 +86,7 @@ export const Navbar = () => {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link
-            to="/blog"
+            to="/"
             className="flex items-center hover:opacity-80 transition-opacity"
           >
             <img
@@ -99,6 +99,19 @@ export const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2">
             <NavLink
+              to="/blog"
+              className={cn(
+                "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
+                "transition-all duration-200",
+                isActive("/blog")
+                  ? "text-primary bg-primary/10"
+                  : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+              )}
+            >
+              Blog
+            </NavLink>
+
+            <NavLink
               to="/about"
               className={cn(
                 "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
@@ -109,6 +122,32 @@ export const Navbar = () => {
               )}
             >
               About
+            </NavLink>
+
+            <NavLink
+              to="/faq"
+              className={cn(
+                "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
+                "transition-all duration-200",
+                isActive("/faq")
+                  ? "text-primary bg-primary/10"
+                  : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+              )}
+            >
+              FAQ
+            </NavLink>
+
+            <NavLink
+              to="/qa"
+              className={cn(
+                "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
+                "transition-all duration-200",
+                isActive("/qa")
+                  ? "text-primary bg-primary/10"
+                  : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+              )}
+            >
+              Q&A
             </NavLink>
 
             <Button
@@ -143,6 +182,20 @@ export const Navbar = () => {
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <nav className="flex flex-col gap-4 mt-8">
                 <NavLink
+                  to="/blog"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "px-4 py-3 rounded-lg font-medium text-lg",
+                    "transition-all duration-200",
+                    isActive("/blog")
+                      ? "text-primary bg-primary/10"
+                      : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+                  )}
+                >
+                  Blog
+                </NavLink>
+
+                <NavLink
                   to="/about"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
@@ -154,6 +207,34 @@ export const Navbar = () => {
                   )}
                 >
                   About
+                </NavLink>
+
+                <NavLink
+                  to="/faq"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "px-4 py-3 rounded-lg font-medium text-lg",
+                    "transition-all duration-200",
+                    isActive("/faq")
+                      ? "text-primary bg-primary/10"
+                      : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+                  )}
+                >
+                  FAQ
+                </NavLink>
+
+                <NavLink
+                  to="/qa"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "px-4 py-3 rounded-lg font-medium text-lg",
+                    "transition-all duration-200",
+                    isActive("/qa")
+                      ? "text-primary bg-primary/10"
+                      : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+                  )}
+                >
+                  Q&A
                 </NavLink>
 
                 <Button

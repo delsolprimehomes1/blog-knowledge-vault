@@ -23,9 +23,12 @@ import CitationCompliance from "./pages/admin/CitationCompliance";
 import ContentUpdates from "./pages/admin/ContentUpdates";
 import FAQBackfill from "./pages/admin/FAQBackfill";
 import Auth from "./pages/Auth";
+import Home from "./pages/Home";
 import BlogArticle from "./pages/BlogArticle";
 import BlogIndex from "./pages/BlogIndex";
 import About from "./pages/About";
+import FAQ from "./pages/FAQ";
+import QA from "./pages/QA";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -50,11 +53,13 @@ const App = () => (
         <AnalyticsProvider />
         
         <Routes>
-          <Route path="/" element={<Navigate to="/blog" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/blog" element={<BlogIndex />} />
           <Route path="/blog/:slug" element={<BlogArticle />} />
           <Route path="/about" element={<About />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/qa" element={<QA />} />
           <Route path="/sitemap" element={<Sitemap />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
