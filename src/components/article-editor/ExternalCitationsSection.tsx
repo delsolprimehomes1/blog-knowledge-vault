@@ -31,7 +31,7 @@ export const ExternalCitationsSection = ({
   const [isValidating, setIsValidating] = useState<Record<number, boolean>>({});
 
   const addCitation = () => {
-    onCitationsChange([...citations, { text: "", url: "", source: "" }]);
+    onCitationsChange([...citations, { text: "", url: "", source: "", year: new Date().getFullYear() }]);
   };
 
   const handleAddCitationFromFinder = (citation: { url: string; sourceName: string; anchorText: string }) => {
@@ -39,6 +39,7 @@ export const ExternalCitationsSection = ({
       text: citation.anchorText,
       url: citation.url,
       source: citation.sourceName,
+      year: new Date().getFullYear(),
     };
     onCitationsChange([...citations, newCitation]);
   };
