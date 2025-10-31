@@ -2568,14 +2568,33 @@ Return ONLY valid JSON:
     
     for (const article of articles) {
       try {
-        // Build sibling articles data (all articles in cluster except self)
+        // Skip BOFU articles (they should have no CTAs)
+        if (article.funnel_stage === 'BOFU') {
+          const { error: updateError } = await supabase
+            .from('blog_articles')
+            .update({ related_cluster_articles: [] })
+            .eq('id', article.id);
+          
+          if (!updateError) {
+            console.log(`[Job ${jobId}] ✅ BOFU article "${article.headline}" - no CTAs (correct)`);
+          }
+          
+          article.related_cluster_articles = [];
+          continue;
+        }
+
+        // Build sibling articles data (published only, exclude self)
         const relatedClusterArticles = articles
-          .filter((a: any) => a.id !== article.id)
+          .filter((a: any) => 
+            a.id !== article.id && 
+            a.status === 'published'
+          )
           .map((a: any) => ({
             id: a.id,
             slug: a.slug,
             headline: a.headline,
-            stage: a.funnel_stage
+            stage: a.funnel_stage,
+            featured_image_url: a.featured_image_url
           }));
 
         // Update database with related cluster articles
