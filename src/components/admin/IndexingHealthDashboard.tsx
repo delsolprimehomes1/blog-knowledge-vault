@@ -19,6 +19,8 @@ import { toast } from "sonner";
 export const IndexingHealthDashboard = () => {
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<any>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
 
   // Fetch articles with indexing issues
   const { data: articles, isLoading, refetch } = useQuery({
@@ -74,6 +76,31 @@ export const IndexingHealthDashboard = () => {
       toast.error(`Backfill failed: ${error.message}`);
     } finally {
       setIsBackfilling(false);
+    }
+  };
+
+  const scanForBrokenLinks = async () => {
+    try {
+      setIsScanning(true);
+      setScanResult(null);
+      toast.info("Scanning all articles for broken internal links...");
+
+      const { data, error } = await supabase.functions.invoke('validate-article-links');
+
+      if (error) throw error;
+
+      setScanResult(data);
+      
+      if (data.success) {
+        toast.success(`Scan complete! Found ${data.summary.articlesWithBrokenLinks} articles with broken links.`);
+      } else {
+        toast.error(data.error || "Scan failed");
+      }
+    } catch (error: any) {
+      console.error('Error scanning links:', error);
+      toast.error("Failed to scan for broken links");
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -198,6 +225,123 @@ export const IndexingHealthDashboard = () => {
                 </div>
               </AlertDescription>
             </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Broken Links Scanner */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link className="h-5 w-5" />
+            Broken Internal Links Scanner
+          </CardTitle>
+          <CardDescription>
+            Scan all published articles for internal links pointing to non-existent pages
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button
+            onClick={scanForBrokenLinks}
+            disabled={isScanning}
+            className="w-full"
+          >
+            {isScanning ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Scanning {stats.total} articles...
+              </>
+            ) : (
+              <>
+                <Link className="mr-2 h-4 w-4" />
+                Scan for Broken Internal Links
+              </>
+            )}
+          </Button>
+
+          {scanResult && (
+            <div className="space-y-4 mt-4">
+              <Alert className={scanResult.success ? (scanResult.summary.articlesWithBrokenLinks > 0 ? "border-yellow-500" : "border-green-500") : "border-red-500"}>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {scanResult.success ? (
+                    <div className="space-y-2">
+                      <p className="font-semibold">Scan Complete</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Articles scanned:</span>{' '}
+                          <span className="font-medium">{scanResult.summary.totalArticlesScanned}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">With broken links:</span>{' '}
+                          <span className={`font-medium ${scanResult.summary.articlesWithBrokenLinks > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {scanResult.summary.articlesWithBrokenLinks}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Total occurrences:</span>{' '}
+                          <span className="font-medium">{scanResult.summary.totalBrokenLinkOccurrences}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Unique patterns:</span>{' '}
+                          <span className="font-medium">{scanResult.summary.uniqueBrokenLinkPatterns}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-red-600">{scanResult.error}</p>
+                  )}
+                </AlertDescription>
+              </Alert>
+
+              {scanResult.success && scanResult.topBrokenPatterns && scanResult.topBrokenPatterns.length > 0 && (
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold mb-3">Most Common Broken Links:</h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {scanResult.topBrokenPatterns.map((pattern: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
+                        <code className="text-xs bg-muted px-2 py-1 rounded flex-1 mr-2 truncate">{pattern.href}</code>
+                        <Badge variant="destructive">{pattern.count}x</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {scanResult.success && scanResult.articlesWithBrokenLinks && scanResult.articlesWithBrokenLinks.length > 0 && (
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold mb-3">Articles with Broken Links (Top 10):</h4>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {scanResult.articlesWithBrokenLinks.slice(0, 10).map((article: any, idx: number) => (
+                      <div key={idx} className="border-l-4 border-red-500 pl-3 space-y-2">
+                        <div>
+                          <p className="font-medium text-sm">{article.headline}</p>
+                          <p className="text-xs text-muted-foreground">/blog/{article.slug}</p>
+                          <Badge variant="destructive" className="mt-1 text-xs">
+                            {article.totalBrokenLinks} broken link{article.totalBrokenLinks > 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          {article.brokenLinks.map((link: any, linkIdx: number) => (
+                            <div key={linkIdx} className="text-xs bg-muted p-2 rounded">
+                              <code className="text-red-600 block truncate">{link.href}</code>
+                              <span className="text-muted-foreground">
+                                {link.occurrences}x - "{link.anchorText.substring(0, 50)}{link.anchorText.length > 50 ? '...' : ''}"
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {scanResult.articlesWithBrokenLinks.length > 10 && (
+                      <p className="text-sm text-muted-foreground text-center pt-2 border-t">
+                        Showing top 10 of {scanResult.articlesWithBrokenLinks.length} articles with broken links
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
