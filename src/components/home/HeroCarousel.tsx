@@ -46,7 +46,7 @@ export function HeroCarousel({ children }: HeroCarouselProps) {
 
   return (
     <div 
-      className="absolute inset-0 bg-black"
+      className="absolute inset-0 bg-gradient-radial-luxury"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={() => setIsHovered(true)}
@@ -75,8 +75,8 @@ export function HeroCarousel({ children }: HeroCarouselProps) {
                   loading={index === 0 ? "eager" : "lazy"}
                 />
 
-                {/* Gradient Overlay - Stronger on mobile for text readability */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70 md:from-black/60 md:via-black/40 md:to-black/60" />
+                {/* Gradient Overlay - Enhanced with center spotlight */}
+                <div className="absolute inset-0 bg-gradient-luxury-overlay" />
 
                 {/* Category Label */}
                 <div className="absolute top-24 left-4 md:top-32 md:left-8 z-10 hidden md:block">

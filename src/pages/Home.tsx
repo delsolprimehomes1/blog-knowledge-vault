@@ -75,7 +75,10 @@ const Home = () => {
               {/* Headline */}
               <h1 className="speakable-headline font-headline text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl 
                            font-bold text-white text-center mb-4 md:mb-6 animate-fade-in-up leading-[1.1] tracking-tight
-                           drop-shadow-2xl max-w-5xl">
+                           drop-shadow-2xl max-w-5xl"
+                  style={{
+                    textShadow: '0 0 40px rgba(212, 165, 116, 0.3), 0 0 80px rgba(212, 165, 116, 0.1)'
+                  }}>
                 Discover Your Dream Home on the
                 <br />
                 <span className="text-primary">Costa del Sol</span>
@@ -93,11 +96,20 @@ const Home = () => {
               <Link
                 to="/blog"
                 className="mb-10 md:mb-12 px-6 md:px-8 py-3 md:py-4 bg-primary hover:bg-primary/90 text-white 
-                         font-semibold text-base md:text-lg rounded-full shadow-2xl
-                         hover:shadow-primary/50 hover:scale-105 
+                         font-semibold text-base md:text-lg rounded-full
+                         hover:scale-105 
                          transition-all duration-300 animate-fade-in-up
                          min-h-[48px] flex items-center gap-2 pointer-events-auto"
-                style={{ animationDelay: '400ms' }}
+                style={{ 
+                  animationDelay: '400ms',
+                  boxShadow: '0 0 30px rgba(212, 165, 116, 0.3), 0 20px 60px rgba(0, 0, 0, 0.4)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 40px rgba(212, 165, 116, 0.5), 0 20px 80px rgba(0, 0, 0, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(212, 165, 116, 0.3), 0 20px 60px rgba(0, 0, 0, 0.4)';
+                }}
               >
                 Explore Properties
                 <ArrowRight className="w-5 h-5" />
