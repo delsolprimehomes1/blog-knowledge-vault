@@ -71,92 +71,103 @@ serve(async (req) => {
       }) || [];
 
       if (affectedArticles.length === 0) {
-        console.log(`  ⏭️  No articles using this citation`);
-        continue;
-      }
+        console.log(`  ⏭️  No articles using this citation (already fixed)`);
+      } else {
+        console.log(`  📄 Found ${affectedArticles.length} articles using this citation`);
 
-      console.log(`  📄 Found ${affectedArticles.length} articles using this citation`);
+        // Update each article
+        for (const article of affectedArticles) {
+          try {
+            const externalCitations = article.external_citations as any[];
+            const updatedCitations = externalCitations.map(c => 
+              c.url === oldUrl 
+                ? { ...c, url: newUrl }
+                : c
+            );
 
-      // Update each article
-      for (const article of affectedArticles) {
-        try {
-          const externalCitations = article.external_citations as any[];
-          const updatedCitations = externalCitations.map(c => 
-            c.url === oldUrl 
-              ? { ...c, url: newUrl }
-              : c
-          );
+            // Update article
+            const { error: updateError } = await supabase
+              .from('blog_articles')
+              .update({ 
+                external_citations: updatedCitations,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', article.id);
 
-          // Update article
-          const { error: updateError } = await supabase
-            .from('blog_articles')
-            .update({ 
-              external_citations: updatedCitations,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', article.id);
+            if (updateError) {
+              console.error(`  ❌ Failed to update article ${article.id}: ${updateError.message}`);
+              continue;
+            }
 
-          if (updateError) {
-            console.error(`  ❌ Failed to update article ${article.id}: ${updateError.message}`);
-            continue;
+            updatedArticles++;
+            console.log(`  ✅ Updated: ${article.headline}`);
+
+            results.push({
+              articleId: article.id,
+              articleTitle: article.headline,
+              oldUrl,
+              newUrl
+            });
+
+          } catch (error) {
+            console.error(`  ❌ Error updating article ${article.id}:`, error);
           }
+        }
 
-          updatedArticles++;
-          console.log(`  ✅ Updated: ${article.headline}`);
+        // Update citation_usage_tracking: mark old as inactive, create new
+        const { data: trackingRecords } = await supabase
+          .from('citation_usage_tracking')
+          .select('*')
+          .eq('citation_url', oldUrl)
+          .eq('is_active', true);
 
-          results.push({
-            articleId: article.id,
-            articleTitle: article.headline,
-            oldUrl,
-            newUrl
-          });
+        if (trackingRecords && trackingRecords.length > 0) {
+          // Deactivate old tracking records
+          await supabase
+            .from('citation_usage_tracking')
+            .update({ is_active: false })
+            .eq('citation_url', oldUrl);
 
-        } catch (error) {
-          console.error(`  ❌ Error updating article ${article.id}:`, error);
+          // Create new tracking records for redirect URL
+          const newTrackingRecords = trackingRecords.map(record => ({
+            article_id: record.article_id,
+            citation_url: newUrl,
+            citation_source: citation.source_name || record.citation_source,
+            anchor_text: record.anchor_text,
+            position_in_article: record.position_in_article,
+            is_active: true
+          }));
+
+          await supabase
+            .from('citation_usage_tracking')
+            .insert(newTrackingRecords);
         }
       }
 
-      // Update citation_usage_tracking: mark old as inactive, create new
-      const { data: trackingRecords } = await supabase
-        .from('citation_usage_tracking')
-        .select('*')
-        .eq('citation_url', oldUrl)
-        .eq('is_active', true);
-
-      if (trackingRecords && trackingRecords.length > 0) {
-        // Deactivate old tracking records
-        await supabase
-          .from('citation_usage_tracking')
-          .update({ is_active: false })
-          .eq('citation_url', oldUrl);
-
-        // Create new tracking records for redirect URL
-        const newTrackingRecords = trackingRecords.map(record => ({
-          article_id: record.article_id,
-          citation_url: newUrl,
-          citation_source: citation.source_name || record.citation_source,
-          anchor_text: record.anchor_text,
-          position_in_article: record.position_in_article,
-          is_active: true
-        }));
-
-        await supabase
-          .from('citation_usage_tracking')
-          .insert(newTrackingRecords);
-      }
-
-      // Update external_citation_health: update the URL to the redirect
+      // ALWAYS update external_citation_health - delete old record and create new one
+      // This ensures the health table reflects the correct state even if no articles were found
+      console.log(`  🔄 Updating health table: removing ${oldUrl}, adding ${newUrl}`);
+      
+      // Delete the old URL record
       await supabase
         .from('external_citation_health')
-        .update({ 
-          url: newUrl,
-          status: 'active',
-          redirect_url: null,
-          updated_at: new Date().toISOString()
-        })
+        .delete()
         .eq('url', oldUrl);
 
+      // Insert new record with the redirect URL (copy all fields from old record)
+      await supabase
+        .from('external_citation_health')
+        .insert({
+          url: newUrl,
+          source_name: citation.source_name,
+          status: 'active',
+          redirect_url: null,
+          is_government_source: false,
+          updated_at: new Date().toISOString()
+        });
+
       updatedCitations++;
+      console.log(`  ✅ Health table updated`);
     }
 
     console.log(`\n✅ Update complete:`);
