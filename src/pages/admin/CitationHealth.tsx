@@ -214,6 +214,25 @@ const CitationHealth = () => {
     }
   });
 
+  const updateRedirectedCitations = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('update-redirected-citations');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message, {
+        description: `Updated ${data.updatedCitations} redirected URLs in ${data.updatedArticles} articles`,
+        duration: 5000
+      });
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+      queryClient.invalidateQueries({ queryKey: ["citation-usage-tracking"] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to update redirects: ${error.message}`);
+    }
+  });
+
   const approveReplacement = useMutation({
     mutationFn: async (replacementId: string) => {
       const { error } = await supabase.from("dead_link_replacements").update({ status: "approved" }).eq("id", replacementId);
@@ -503,8 +522,10 @@ const CitationHealth = () => {
     if (item.status === 'healthy') acc.healthy++;
     else if (item.status === 'broken' || item.status === 'unreachable') acc.broken++;
     else if (item.status === 'replaced') acc.replaced++;
+    else if (item.status === 'redirected') acc.redirected++;
+    else if (item.status === 'slow') acc.slow++;
     return acc;
-  }, { total: 0, healthy: 0, broken: 0, replaced: 0 }) || { total: 0, healthy: 0, broken: 0, replaced: 0 };
+  }, { total: 0, healthy: 0, broken: 0, replaced: 0, redirected: 0, slow: 0 }) || { total: 0, healthy: 0, broken: 0, replaced: 0, redirected: 0, slow: 0 };
 
   const healthPercentage = stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 0;
 
@@ -550,6 +571,20 @@ const CitationHealth = () => {
                 <><XCircle className="mr-2 h-4 w-4" /> Clean Up Unused</>
               )}
             </Button>
+            {stats.redirected > 0 && (
+              <Button 
+                onClick={() => updateRedirectedCitations.mutate()}
+                disabled={updateRedirectedCitations.isPending}
+                variant="secondary"
+                title="Update all redirected URLs to their final destination"
+              >
+                {updateRedirectedCitations.isPending ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Fixing...</>
+                ) : (
+                  <><ArrowRight className="mr-2 h-4 w-4" /> Fix {stats.redirected} Redirects</>
+                )}
+              </Button>
+            )}
             <Button 
               onClick={() => { setIsRunningCheck(true); runHealthCheck.mutateAsync().finally(() => setIsRunningCheck(false)); }} 
               disabled={isRunningCheck}
@@ -581,10 +616,11 @@ const CitationHealth = () => {
           </Card>
         )}
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card><CardHeader><CardTitle className="text-sm">Total Citations</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>
           <Card><CardHeader><CardTitle className="text-sm">Health Score</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{healthPercentage}%</div><p className="text-xs text-muted-foreground mt-1">{stats.healthy} healthy citations</p></CardContent></Card>
           <Card><CardHeader><CardTitle className="text-sm">Needs Attention</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{stats.broken}</div><p className="text-xs text-muted-foreground mt-1">Broken or unreachable</p></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-sm">Optimization</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-orange-600">{stats.redirected + stats.slow}</div><p className="text-xs text-muted-foreground mt-1">{stats.redirected} redirected, {stats.slow} slow</p></CardContent></Card>
         </div>
 
         {healthData && healthData.length > 0 && (
