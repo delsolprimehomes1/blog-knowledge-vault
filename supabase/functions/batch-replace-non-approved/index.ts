@@ -6,7 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Approved domains check (inline to avoid import issues)
 const APPROVED_DOMAINS = {
   climate_weather: ['wikipedia.org', 'weather-and-climate.com', 'climasyviajes.com', 'weatherspark.com', 'aemet.es', 'wmo.int', 'climatestotravel.com', 'ncdc.noaa.gov', 'es.weatherspark.com'],
   government_official: ['boe.es', 'agenciatributaria.es', 'exteriores.gob.es', 'juntadeandalucia.es', 'gov.uk', 'gov.ie', 'dfa.ie', 'cnmc.es', 'ine.es', 'catastro.gob.es', 'e-justice.europa.eu', 'extranjeria.administracionespublicas.gob.es', 'mjusticia.gob.es'],
@@ -124,64 +123,94 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   try {
-    const { limit } = await req.json().catch(() => ({}));
-    
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    console.log('Starting batch non-approved citation replacement');
+
+    // Get user ID from auth header
+    const authHeader = req.headers.get('Authorization');
+    let userId = null;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const { data: { user } } = await supabaseClient.auth.getUser(token);
+      userId = user?.id;
+    }
+
+    // Get limit from request body (for testing)
+    const { limit } = await req.json().catch(() => ({ limit: null }));
+
+    // Create job record immediately
+    const { data: job, error: jobError } = await supabaseClient
+      .from('citation_replacement_jobs')
+      .insert({
+        status: 'running',
+        created_by: userId,
+      })
+      .select()
+      .single();
+
+    if (jobError) {
+      console.error('Failed to create job:', jobError);
+      throw jobError;
+    }
+
+    console.log('Created job:', job.id);
+
+    // Return job ID immediately
+    const response = new Response(
+      JSON.stringify({ jobId: job.id, status: 'running' }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
     );
 
-    console.log(`🔄 Starting batch replacement for non-approved citations${limit ? ` (testing with ${limit} articles)` : ''}...`);
+    // Process in background (don't await)
+    processReplacements(supabaseClient, job.id, limit).catch(error => {
+      console.error('Background processing error:', error);
+    });
 
-    // Fetch articles with external_citations
+    return response;
+
+  } catch (error) {
+    console.error('Error in batch-replace-non-approved:', error);
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
+
+// Background processing function
+async function processReplacements(supabaseClient: any, jobId: string, limit: number | null) {
+  try {
+    // Fetch articles
     let query = supabaseClient
       .from('blog_articles')
       .select('id, headline, detailed_content, language, external_citations, slug, status');
     
-    if (limit) {
-      query = query.limit(limit);
-    }
+    if (limit) query = query.limit(limit);
     
     const { data: articles, error: fetchError } = await query;
 
-    if (fetchError) {
-      console.error('Error fetching articles:', fetchError);
-      throw fetchError;
-    }
+    if (fetchError) throw fetchError;
 
-    console.log(`📚 Found ${articles?.length || 0} total articles`);
+    console.log(`Processing ${articles.length} articles`);
 
-    const results = {
-      processed: 0,
-      autoApplied: 0,
-      manualReview: 0,
-      failed: 0,
-      noAlternatives: 0,
-      alreadyApproved: 0,
-      articlesUpdated: 0,
-      citationsProcessed: 0,
-      details: [] as any[]
-    };
-
-    // Collect all non-approved citations
-    const nonApprovedCitations: Array<{
-      url: string;
-      source: string;
-      articleId: string;
-      articleHeadline: string;
-      articleContent: string;
-      articleLanguage: string;
-    }> = [];
-
+    // Collect non-approved citations
+    const nonApprovedCitations: any[] = [];
     for (const article of articles || []) {
       const citations = (article.external_citations as any[]) || [];
-      
       for (const citation of citations) {
         if (!isApprovedDomain(citation.url)) {
           nonApprovedCitations.push({
             url: citation.url,
             source: citation.source || 'Unknown',
+            text: citation.text || '',
             articleId: article.id,
             articleHeadline: article.headline,
             articleContent: article.detailed_content || '',
@@ -191,19 +220,27 @@ serve(async (req) => {
       }
     }
 
-    console.log(`🔍 Found ${nonApprovedCitations.length} non-approved citations to process`);
+    // Update total progress
+    await updateJobStatus(supabaseClient, jobId, {
+      progress_total: nonApprovedCitations.length,
+    });
 
+    console.log(`Found ${nonApprovedCitations.length} non-approved citations`);
+
+    const results = { autoApplied: 0, manualReview: 0, failed: 0 };
+    let currentProgress = 0;
+
+    // Process each citation
     for (const citation of nonApprovedCitations) {
       try {
-        console.log(`\n🔧 Processing: ${citation.url} in "${citation.articleHeadline}"`);
-        results.processed++;
-        results.citationsProcessed++;
+        currentProgress++;
+        await updateJobStatus(supabaseClient, jobId, { progress_current: currentProgress });
 
-        // Extract citation context for better replacements
+        console.log(`Processing: ${citation.url}`);
+
         const citationContext = extractCitationContext(citation.articleContent, citation.url);
 
-        // Call discover-better-links to find approved alternatives
-        const { data: discoveryData, error: discoveryError } = await supabaseClient.functions.invoke(
+        const { data: discoveryResult, error: discoveryError } = await supabaseClient.functions.invoke(
           'discover-better-links',
           {
             body: {
@@ -212,214 +249,100 @@ serve(async (req) => {
               articleContent: citation.articleContent,
               citationContext: citationContext,
               articleLanguage: citation.articleLanguage,
-              context: 'Batch replacement of non-approved citation',
+              context: 'Batch replacement',
               mustBeApproved: true
             }
           }
         );
 
-        if (discoveryError || !discoveryData?.suggestions?.length) {
-          console.log(`❌ No approved alternatives found for ${citation.url}`);
-          results.noAlternatives++;
-          results.details.push({
-            url: citation.url,
-            articleId: citation.articleId,
-            status: 'no-alternatives',
-            reason: 'No approved domain alternatives found'
-          });
+        if (discoveryError || !discoveryResult?.suggestions?.length) {
+          console.log('No alternatives found');
+          results.failed++;
           continue;
         }
 
-        const suggestions = discoveryData.suggestions;
-        console.log(`💡 Found ${suggestions.length} suggestions for ${citation.url}`);
-
-        // Get best verified match
-        const bestMatch = suggestions.find((s: any) => s.verified) || suggestions[0];
+        const bestMatch = discoveryResult.suggestions.find((s: any) => s.verified) || discoveryResult.suggestions[0];
         
         if (!bestMatch.verified) {
-          console.log(`⚠️  Best suggestion not verified for ${citation.url}`);
           results.failed++;
-          results.details.push({
-            url: citation.url,
-            articleId: citation.articleId,
-            status: 'verification-failed',
-            reason: 'Suggestions found but could not be verified'
-          });
           continue;
         }
 
-        // Normalize URLs to check if they're the same
-        const normalizeUrl = (urlString: string) => {
-          try {
-            const urlObj = new URL(urlString);
-            return urlObj.hostname.replace('www.', '') + urlObj.pathname.replace(/\/$/, '');
-          } catch {
-            return urlString;
-          }
-        };
-
-        if (normalizeUrl(citation.url) === normalizeUrl(bestMatch.suggestedUrl)) {
-          console.log(`✅ Citation already uses approved domain: ${citation.url}`);
-          results.alreadyApproved++;
-          results.details.push({
-            url: citation.url,
-            articleId: citation.articleId,
-            status: 'already-approved',
-            reason: 'URL is already from an approved domain'
-          });
-          continue;
-        }
-
-        // Calculate confidence score
+        // Calculate confidence (0-10 scale)
         const relevanceScore = bestMatch.relevanceScore || 75;
         const authorityScore = bestMatch.authorityScore || 7;
         
-        let confidenceScore = 0;
-        if (relevanceScore >= 90 && authorityScore >= 8) {
-          confidenceScore = 9.5;
-        } else if (relevanceScore >= 85 && authorityScore >= 8) {
-          confidenceScore = 9.0;
-        } else if (relevanceScore >= 80 && authorityScore >= 9) {
-          confidenceScore = 8.5;
-        } else if (relevanceScore >= 80 && authorityScore >= 8) {
-          confidenceScore = 8.0;
-        } else if (relevanceScore >= 75 && authorityScore >= 7) {
-          confidenceScore = 7.5;
-        } else if (relevanceScore >= 70 && authorityScore >= 7) {
-          confidenceScore = 7.0;
-        } else {
-          confidenceScore = 6.5;
-        }
+        let confidenceScore = 5.0;
+        if (relevanceScore >= 90 && authorityScore >= 8) confidenceScore = 9.5;
+        else if (relevanceScore >= 85 && authorityScore >= 8) confidenceScore = 9.0;
+        else if (relevanceScore >= 80 && authorityScore >= 9) confidenceScore = 8.5;
+        else if (relevanceScore >= 80 && authorityScore >= 8) confidenceScore = 8.0;
+        else if (relevanceScore >= 75 && authorityScore >= 7) confidenceScore = 7.5;
 
-        // Insert replacement suggestion
-        const replacementData = {
-          original_url: citation.url,
-          original_source: citation.source,
-          replacement_url: bestMatch.suggestedUrl,
-          replacement_source: bestMatch.sourceName || 'Unknown',
-          replacement_reason: bestMatch.reason || 'Better approved source found',
-          confidence_score: confidenceScore,
-          status: confidenceScore >= 8.0 ? 'approved' : 'suggested',
-          suggested_by: 'batch-replace-non-approved'
-        };
-
-        const { data: insertedReplacement, error: insertError } = await supabaseClient
-          .from('dead_link_replacements')
-          .insert(replacementData)
-          .select('id')
-          .single();
-
-        if (insertError) {
-          console.error(`Error inserting replacement for ${citation.url}:`, insertError);
-          results.failed++;
-          results.details.push({
-            url: citation.url,
-            articleId: citation.articleId,
-            status: 'insert-failed',
-            error: insertError.message
-          });
-          continue;
-        }
-
-        // Auto-apply if confidence is high enough
-        if (confidenceScore >= 8.0 && insertedReplacement?.id) {
-          console.log(`🚀 Auto-applying replacement (confidence: ${confidenceScore}/10)`);
-
-          const { data: applyResult, error: applyError } = await supabaseClient.functions.invoke(
+        if (confidenceScore >= 8.0) {
+          // Auto-apply high confidence replacements
+          const { error: applyError } = await supabaseClient.functions.invoke(
             'apply-citation-replacement',
             {
               body: {
-                replacementIds: [insertedReplacement.id],
-                preview: false
-              }
+                articleId: citation.articleId,
+                oldUrl: citation.url,
+                newUrl: bestMatch.suggestedUrl,
+                newSource: bestMatch.sourceName,
+                anchorText: citation.text,
+                reason: `Auto-replacement: ${bestMatch.reason}`,
+                confidenceScore,
+              },
             }
           );
 
-          if (applyError || !applyResult?.success) {
-            console.log(`⚠️  Auto-application failed for ${citation.url}`);
-            results.manualReview++;
-            results.details.push({
-              url: citation.url,
-              articleId: citation.articleId,
-              status: 'auto-apply-failed',
-              score: confidenceScore,
-              replacement: bestMatch.suggestedUrl,
-              error: applyError?.message || 'Unknown error'
-            });
-            continue;
+          if (applyError) {
+            results.failed++;
+          } else {
+            results.autoApplied++;
           }
-
-          console.log(`✅ Successfully auto-applied replacement for ${citation.url}`);
-          results.autoApplied++;
-          results.articlesUpdated += applyResult.articlesUpdated || 0;
-          results.details.push({
-            url: citation.url,
-            articleId: citation.articleId,
-            status: 'auto-applied',
-            score: confidenceScore,
-            originalSource: citation.source,
-            replacement: bestMatch.suggestedUrl,
-            replacementSource: bestMatch.sourceName,
-            articlesUpdated: applyResult.articlesUpdated
-          });
         } else {
-          console.log(`📋 Saved for manual review (score: ${confidenceScore}/10)`);
           results.manualReview++;
-          results.details.push({
-            url: citation.url,
-            articleId: citation.articleId,
-            status: 'manual-review',
-            score: confidenceScore,
-            replacement: bestMatch.suggestedUrl,
-            reason: 'Below auto-approval threshold (8.0)'
-          });
         }
 
-      } catch (citationError) {
-        console.error(`Error processing citation ${citation.url}:`, citationError);
-        results.failed++;
-        results.details.push({
-          url: citation.url,
-          articleId: citation.articleId,
-          status: 'error',
-          error: (citationError as Error).message
+        // Update counts
+        await updateJobStatus(supabaseClient, jobId, {
+          auto_applied_count: results.autoApplied,
+          manual_review_count: results.manualReview,
+          failed_count: results.failed,
         });
+
+      } catch (error) {
+        console.error('Error processing citation:', error);
+        results.failed++;
       }
     }
 
-    console.log('\n🎉 Batch replacement complete!');
-    console.log(`📊 Results:
-      - Citations processed: ${results.citationsProcessed}
-      - Auto-applied: ${results.autoApplied}
-      - Manual review needed: ${results.manualReview}
-      - No alternatives found: ${results.noAlternatives}
-      - Already approved: ${results.alreadyApproved}
-      - Failed: ${results.failed}
-      - Articles updated: ${results.articlesUpdated}
-    `);
+    // Mark complete
+    await updateJobStatus(supabaseClient, jobId, {
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+    });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        results
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      }
-    );
+    console.log('Batch complete:', results);
 
   } catch (error) {
-    console.error('Error in batch-replace-non-approved:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: (error as Error).message
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
-      }
-    );
+    console.error('processReplacements error:', error);
+    await updateJobStatus(supabaseClient, jobId, {
+      status: 'failed',
+      error_message: (error as Error).message,
+      completed_at: new Date().toISOString(),
+    });
   }
-});
+}
+
+async function updateJobStatus(supabaseClient: any, jobId: string, updates: any) {
+  const { error } = await supabaseClient
+    .from('citation_replacement_jobs')
+    .update(updates)
+    .eq('id', jobId);
+
+  if (error) {
+    console.error('Failed to update job status:', error);
+  }
+}

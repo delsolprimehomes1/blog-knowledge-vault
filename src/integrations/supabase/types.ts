@@ -442,6 +442,57 @@ export type Database = {
           },
         ]
       }
+      citation_replacement_jobs: {
+        Row: {
+          articles_processed: number | null
+          auto_applied_count: number | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          error_message: string | null
+          failed_count: number | null
+          id: string
+          manual_review_count: number | null
+          progress_current: number | null
+          progress_total: number | null
+          results: Json | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          articles_processed?: number | null
+          auto_applied_count?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          failed_count?: number | null
+          id?: string
+          manual_review_count?: number | null
+          progress_current?: number | null
+          progress_total?: number | null
+          results?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          articles_processed?: number | null
+          auto_applied_count?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          failed_count?: number | null
+          id?: string
+          manual_review_count?: number | null
+          progress_current?: number | null
+          progress_total?: number | null
+          results?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       citation_usage_tracking: {
         Row: {
           anchor_text: string | null

@@ -15,6 +15,8 @@ export function NonApprovedCitationsPanel() {
   const [processingCitation, setProcessingCitation] = useState<string | null>(null);
   const [processingArticles, setProcessingArticles] = useState<Set<string>>(new Set());
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [batchJobId, setBatchJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<any>(null);
   const [failedSuggestions, setFailedSuggestions] = useState<{ 
     articleId: string; 
     url: string; 
@@ -431,7 +433,7 @@ export function NonApprovedCitationsPanel() {
     }
 
     setIsBatchProcessing(true);
-    const toastId = toast.loading("🔄 Processing non-approved citations...");
+    toast.loading("🔄 Starting batch replacement job...", { id: 'batch-job' });
 
     try {
       const { data, error } = await supabase.functions.invoke('batch-replace-non-approved', {
@@ -440,36 +442,51 @@ export function NonApprovedCitationsPanel() {
 
       if (error) throw error;
 
-      const results = data.results;
-      
-      toast.dismiss(toastId);
-      
-      if (results.autoApplied > 0 || results.manualReview > 0) {
-        toast.success(
-          `🎉 Batch replacement complete!\n\n` +
-          `✅ Auto-applied: ${results.autoApplied} citations\n` +
-          `📋 Manual review: ${results.manualReview} citations\n` +
-          `❌ No alternatives: ${results.noAlternatives} citations\n` +
-          `✓ Already approved: ${results.alreadyApproved} citations\n` +
-          `📊 ${results.articlesUpdated} articles updated`,
-          { duration: 12000 }
-        );
-      } else {
-        toast.info(
-          `ℹ️ No replacements made\n\n` +
-          `${results.alreadyApproved} citations already use approved domains\n` +
-          `${results.noAlternatives} citations have no approved alternatives`,
-          { duration: 8000 }
-        );
-      }
+      setBatchJobId(data.jobId);
+      toast.success("✅ Job started! Monitoring progress...", { id: 'batch-job' });
 
-      queryClient.invalidateQueries({ queryKey: ["non-approved-citations"] });
-      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+      // Poll for job status
+      const pollInterval = setInterval(async () => {
+        const { data: job, error: jobError } = await supabase
+          .from('citation_replacement_jobs')
+          .select('*')
+          .eq('id', data.jobId)
+          .single();
+
+        if (jobError) {
+          console.error('Error fetching job:', jobError);
+          return;
+        }
+
+        setJobStatus(job);
+
+        if (job.status === 'completed' || job.status === 'failed') {
+          clearInterval(pollInterval);
+          setIsBatchProcessing(false);
+          setBatchJobId(null);
+
+          if (job.status === 'completed') {
+            toast.success(
+              `🎉 Batch replacement complete!\n\n` +
+              `✅ Auto-applied: ${job.auto_applied_count} citations\n` +
+              `📋 Manual review: ${job.manual_review_count} citations\n` +
+              `❌ Failed: ${job.failed_count} citations`,
+              { id: 'batch-job', duration: 12000 }
+            );
+          } else {
+            toast.error(
+              `❌ Batch replacement failed\n${job.error_message}`,
+              { id: 'batch-job', duration: 8000 }
+            );
+          }
+
+          queryClient.invalidateQueries({ queryKey: ["non-approved-citations"] });
+          queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+        }
+      }, 3000); // Poll every 3 seconds
 
     } catch (error) {
-      toast.dismiss(toastId);
-      toast.error("Failed to batch replace citations: " + (error as Error).message);
-    } finally {
+      toast.error("Failed to start batch job: " + (error as Error).message, { id: 'batch-job' });
       setIsBatchProcessing(false);
     }
   };
@@ -524,7 +541,11 @@ export function NonApprovedCitationsPanel() {
             {isBatchProcessing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Processing...
+                {jobStatus ? (
+                  `Processing ${jobStatus.progress_current || 0}/${jobStatus.progress_total || 0} citations...`
+                ) : (
+                  'Starting...'
+                )}
               </>
             ) : (
               <>
@@ -534,6 +555,43 @@ export function NonApprovedCitationsPanel() {
             )}
           </Button>
         </div>
+      )}
+
+      {isBatchProcessing && jobStatus && (
+        <Card className="border-primary">
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span>Progress</span>
+                <span className="font-medium">
+                  {jobStatus.progress_current || 0} / {jobStatus.progress_total || 0}
+                </span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${((jobStatus.progress_current || 0) / (jobStatus.progress_total || 1)) * 100}%`
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-center text-sm pt-2">
+                <div>
+                  <div className="text-green-600 font-semibold">{jobStatus.auto_applied_count || 0}</div>
+                  <div className="text-muted-foreground">Auto-applied</div>
+                </div>
+                <div>
+                  <div className="text-yellow-600 font-semibold">{jobStatus.manual_review_count || 0}</div>
+                  <div className="text-muted-foreground">Manual review</div>
+                </div>
+                <div>
+                  <div className="text-red-600 font-semibold">{jobStatus.failed_count || 0}</div>
+                  <div className="text-muted-foreground">Failed</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
