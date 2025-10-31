@@ -144,18 +144,26 @@ export const ExternalCitationsSection = ({
               />
             </div>
             <div>
-              <Label>Publication Year</Label>
+              <Label>Publication Year *</Label>
               <Input
                 value={citation.year || new Date().getFullYear()}
                 onChange={(e) => updateCitation(index, "year", parseInt(e.target.value) || new Date().getFullYear())}
-                placeholder="2025"
+                placeholder={new Date().getFullYear().toString()}
                 type="number"
-                min="2000"
+                min="2020"
                 max={new Date().getFullYear() + 1}
+                required
+                className={!citation.year ? 'border-amber-500' : ''}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Used in "According to {citation.source} ({citation.year || new Date().getFullYear()})" format
+                Required for inline citations: "According to {citation.source} ({citation.year || new Date().getFullYear()})"
               </p>
+              {!citation.year && (
+                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Year is required for AEO/EEAT compliance
+                </p>
+              )}
             </div>
             <div>
               <Label>Official URL *</Label>

@@ -23,6 +23,7 @@ import {
   getCharCountStatus,
   uploadImage 
 } from "@/lib/articleUtils";
+import { injectInlineCitations } from "@/lib/linkInjection";
 import { Language, FunnelStage, ArticleStatus, InternalLink, ExternalCitation, FAQEntity } from "@/types/blog";
 import { EEATSection } from "@/components/article-editor/EEATSection";
 import { ExternalCitationsSection } from "@/components/article-editor/ExternalCitationsSection";
@@ -406,6 +407,13 @@ const ArticleEditor = () => {
     } else if (externalCitations.length > 5) {
       newErrors.externalCitations = "Maximum 5 citations allowed";
     }
+    
+    // Phase 4: Validate year field is present for all citations
+    const citationsWithoutYear = externalCitations.filter(c => !c.year);
+    if (citationsWithoutYear.length > 0) {
+      newErrors.externalCitations = `${citationsWithoutYear.length} citation(s) missing required year field`;
+    }
+    
     // Government domains (.gov, .gob.es) are recommended but not required
 
     // Check for unreplaced citation markers
@@ -429,6 +437,9 @@ const ArticleEditor = () => {
       
       if (!validate()) throw new Error("Validation failed");
 
+      // Pre-render inline citations into content for crawlability (Phase 2)
+      const contentWithCitations = injectInlineCitations(detailedContent, externalCitations);
+
       const articleData = {
         headline,
         slug,
@@ -440,7 +451,7 @@ const ArticleEditor = () => {
         meta_description: metaDescription,
         canonical_url: canonicalUrl || null,
         speakable_answer: speakableAnswer,
-        detailed_content: detailedContent,
+        detailed_content: contentWithCitations, // Store pre-rendered citations
         featured_image_url: featuredImageUrl,
         featured_image_alt: featuredImageAlt,
         featured_image_caption: featuredImageCaption || null,

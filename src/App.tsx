@@ -19,6 +19,7 @@ import AEOGuide from "./pages/admin/AEOGuide";
 import BatchImageGeneration from "./pages/admin/BatchImageGeneration";
 import CitationHealth from "./pages/admin/CitationHealth";
 import CitationComplianceReport from "./pages/admin/CitationComplianceReport";
+import CitationCompliance from "./pages/admin/CitationCompliance";
 import ContentUpdates from "./pages/admin/ContentUpdates";
 import FAQBackfill from "./pages/admin/FAQBackfill";
 import Auth from "./pages/Auth";
@@ -72,6 +73,7 @@ const App = () => (
           <Route path="/admin/tools/batch-image-generation" element={<ProtectedRoute><BatchImageGeneration /></ProtectedRoute>} />
           <Route path="/admin/citation-health" element={<ProtectedRoute><CitationHealth /></ProtectedRoute>} />
           <Route path="/admin/citation-compliance-report" element={<ProtectedRoute><CitationComplianceReport /></ProtectedRoute>} />
+          <Route path="/admin/citation-compliance" element={<ProtectedRoute><CitationCompliance /></ProtectedRoute>} />
           <Route path="/admin/content-updates" element={<ProtectedRoute><ContentUpdates /></ProtectedRoute>} />
           <Route path="/admin/faq-backfill" element={<ProtectedRoute><FAQBackfill /></ProtectedRoute>} />
           <Route path="/admin/docs/aeo-sge-guide" element={<ProtectedRoute><AEOGuide /></ProtectedRoute>} />
