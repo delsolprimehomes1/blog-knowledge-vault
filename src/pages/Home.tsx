@@ -96,7 +96,7 @@ const Home = () => {
                          font-semibold text-base md:text-lg rounded-full shadow-2xl
                          hover:shadow-primary/50 hover:scale-105 
                          transition-all duration-300 animate-fade-in-up
-                         min-h-[48px] flex items-center gap-2"
+                         min-h-[48px] flex items-center gap-2 pointer-events-auto"
                 style={{ animationDelay: '400ms' }}
               >
                 Explore Properties
@@ -104,7 +104,7 @@ const Home = () => {
               </Link>
 
               {/* Navigation Pills */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-4xl w-full mb-16 md:mb-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-4xl w-full mb-16 md:mb-0 pointer-events-auto">
                 {navigationLinks.map((link, index) => (
                   <NavigationPill
                     key={link.path}

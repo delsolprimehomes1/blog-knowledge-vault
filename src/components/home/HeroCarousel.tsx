@@ -9,7 +9,6 @@ import {
 import { HERO_IMAGES, type HeroImage } from "@/lib/heroImageSchemas";
 import { cn } from "@/lib/utils";
 
-
 interface HeroCarouselProps {
   children?: React.ReactNode;
 }
@@ -47,7 +46,7 @@ export function HeroCarousel({ children }: HeroCarouselProps) {
 
   return (
     <div 
-      className="absolute inset-0"
+      className="absolute inset-0 bg-black"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={() => setIsHovered(true)}
@@ -61,26 +60,26 @@ export function HeroCarousel({ children }: HeroCarouselProps) {
         }}
         className="w-full h-full"
       >
-        <CarouselContent className="h-full">
+        <CarouselContent className="h-full -ml-0">
           {HERO_IMAGES.map((image: HeroImage, index) => (
-            <CarouselItem key={image.id} className="h-full">
-              <div className="relative w-full h-full">
+            <CarouselItem key={image.id} className="h-full pl-0">
+              <div className="relative w-full h-full overflow-hidden">
                 {/* Background Image with Ken Burns Effect */}
-                <div
-                  className="absolute inset-0 bg-cover bg-center bg-no-repeat ken-burns-effect"
+                <img
+                  src={image.src}
+                  alt={image.alt}
+                  className="absolute inset-0 w-full h-full object-cover ken-burns-effect"
                   style={{
-                    backgroundImage: `url(${image.src})`,
                     animationDelay: `${index * 0.5}s`,
                   }}
-                  role="img"
-                  aria-label={image.alt}
+                  loading={index === 0 ? "eager" : "lazy"}
                 />
 
                 {/* Gradient Overlay - Stronger on mobile for text readability */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70 md:from-black/60 md:via-transparent md:to-black/60" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70 md:from-black/60 md:via-black/40 md:to-black/60" />
 
-                {/* Optional: Category Label */}
-                <div className="absolute top-24 left-4 md:top-32 md:left-8 z-10 opacity-0 md:opacity-100">
+                {/* Category Label */}
+                <div className="absolute top-24 left-4 md:top-32 md:left-8 z-10 hidden md:block">
                   <span className="inline-block px-4 py-2 bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-full text-primary text-sm font-semibold">
                     {image.caption}
                   </span>
