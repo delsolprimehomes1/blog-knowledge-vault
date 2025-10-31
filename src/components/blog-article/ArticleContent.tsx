@@ -90,7 +90,7 @@ export const ArticleContent = ({
               ${clusterLinks.map(link => `
                 <li class="flex items-start gap-2">
                   <span class="text-primary mt-1 font-bold">→</span>
-                  <a href="${link.url}" title="${link.title}" class="text-primary hover:text-primary/80 font-medium transition-colors underline-offset-4 hover:underline">
+                  <a href="${link.url}" title="${link.title}" target="_self" class="text-primary hover:text-primary/80 font-medium transition-colors underline-offset-4 hover:underline">
                     ${link.text}
                   </a>
                 </li>

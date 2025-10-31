@@ -23,6 +23,7 @@ export const ClusterLinksBlock = ({ links }: ClusterLinksBlockProps) => {
               <a
                 href={link.url}
                 title={link.title}
+                target="_self"
                 className="text-primary hover:text-primary/80 font-medium transition-colors underline-offset-4 hover:underline"
               >
                 {link.text}
