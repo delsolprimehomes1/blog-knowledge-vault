@@ -13,14 +13,33 @@ interface ExternalCitation {
 }
 
 const APPROVED_DOMAINS = [
+  // Spanish Government
   'gov.uk', 'gov.es', 'agenciatributaria.es', 'boe.es', 'juntadeandalucia.es',
-  'spain.info', 'eea.europa.eu', 'ine.es', 'mitma.gob.es', 'interior.gob.es'
+  'mitma.gob.es', 'interior.gob.es',
+  
+  // Central Banks & Financial Authorities
+  'bde.es', // Bank of Spain
+  
+  // Official Tourism
+  'spain.info', 'andalucia.org', 'en.andalucia.org',
+  
+  // Transport & Infrastructure
+  'aena.es', // Spanish Airport Authority
+  
+  // EU & International
+  'eea.europa.eu',
+  
+  // Statistics & Data
+  'ine.es', // National Statistics Institute
+  
+  // Established Regional News (High Authority)
+  'surinenglish.com', 'euroweeklynews.com'
 ];
 
 function isApprovedDomain(url: string): boolean {
   try {
-    const domain = new URL(url).hostname.replace('www.', '');
-    return APPROVED_DOMAINS.some(approved => domain.includes(approved));
+    const domain = new URL(url).hostname.replace('www.', '').toLowerCase();
+    return APPROVED_DOMAINS.some(approved => domain.includes(approved.toLowerCase()));
   } catch {
     return false;
   }
