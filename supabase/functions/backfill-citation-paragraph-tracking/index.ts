@@ -1,3 +1,4 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
@@ -8,234 +9,155 @@ const corsHeaders = {
 interface ExternalCitation {
   url: string;
   source: string;
-  text: string;
-  year?: number;
 }
 
 const APPROVED_DOMAINS = [
-  // Spanish Government
-  'gov.uk', 'gov.es', 'agenciatributaria.es', 'boe.es', 'juntadeandalucia.es',
-  'mitma.gob.es', 'interior.gob.es',
-  
-  // Central Banks & Financial Authorities
-  'bde.es', // Bank of Spain
-  
-  // Official Tourism
-  'spain.info', 'andalucia.org', 'en.andalucia.org',
-  
-  // Transport & Infrastructure
-  'aena.es', // Spanish Airport Authority
-  
-  // EU & International
-  'eea.europa.eu',
-  
-  // Statistics & Data
-  'ine.es', // National Statistics Institute
-  
-  // Established Regional News (High Authority)
-  'surinenglish.com', 'euroweeklynews.com'
+  'costaluzlawyers.es', 'spanishsolutions.net', 'lexidy.com', 'aena.es', 'ryanair.com',
+  'easyjet.com', 'britishairways.com', 'gov.uk', 'gov.ie', 'administracion.gob.es',
+  'tourspain.es', 'met.ie', 'metoffice.gov.uk', 'aemet.es', 'bbc.com', 'theguardian.com',
+  'irishtimes.com', 'elpais.com', 'elmundo.es', 'sur.es', 'malagahoy.es', 'boe.es'
 ];
 
 function isApprovedDomain(url: string): boolean {
   try {
-    const domain = new URL(url).hostname.replace('www.', '').toLowerCase();
-    return APPROVED_DOMAINS.some(approved => domain.includes(approved.toLowerCase()));
+    const domain = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    return APPROVED_DOMAINS.some(approved => domain === approved || domain.endsWith(`.${approved}`));
   } catch {
     return false;
   }
 }
 
-function injectInlineCitations(content: string, citations: ExternalCitation[]): { 
-  content: string; 
-  citationMap: Map<string, number> 
-} {
-  const approvedCitations = citations.filter(c => isApprovedDomain(c.url));
-  if (approvedCitations.length === 0) {
-    return { content, citationMap: new Map() };
-  }
-
-  const citationMap = new Map<string, number>();
-  let modifiedContent = content;
-  
-  // Split content into H2 sections
-  const h2Pattern = /<h2[^>]*>.*?<\/h2>/gi;
-  const h2Matches = [...modifiedContent.matchAll(h2Pattern)];
-  
-  if (h2Matches.length === 0) {
-    return { content: modifiedContent, citationMap };
-  }
-
-  let citationIndex = 0;
-  let paragraphIndex = 0;
-
-  // Process each H2 section
-  for (let sectionIdx = 0; sectionIdx < h2Matches.length && citationIndex < approvedCitations.length; sectionIdx++) {
-    const currentH2 = h2Matches[sectionIdx];
-    const nextH2 = h2Matches[sectionIdx + 1];
-    
-    const sectionStart = currentH2.index! + currentH2[0].length;
-    const sectionEnd = nextH2 ? nextH2.index! : modifiedContent.length;
-    const sectionContent = modifiedContent.substring(sectionStart, sectionEnd);
-    
-    // Find all paragraphs in this section
-    const paragraphs = [...sectionContent.matchAll(/<p[^>]*>(.*?)<\/p>/gs)];
-    
-    if (paragraphs.length === 0) continue;
-
-    // Find best paragraph: prefer ones with keywords
-    let bestParagraphIdx = 0;
-    let maxRelevance = 0;
-    
-    const keywords = ['according', 'research', 'study', 'report', 'data', 'statistics', 'analysis'];
-    
-    for (let i = 0; i < paragraphs.length; i++) {
-      const pContent = paragraphs[i][1].toLowerCase();
-      const relevance = keywords.filter(kw => pContent.includes(kw)).length;
-      if (relevance > maxRelevance) {
-        maxRelevance = relevance;
-        bestParagraphIdx = i;
-      }
-    }
-
-    const targetParagraph = paragraphs[bestParagraphIdx];
-    const citation = approvedCitations[citationIndex];
-    
-    if (!targetParagraph || !citation) continue;
-
-    // Build inline citation
-    const year = citation.year || new Date().getFullYear();
-    const inlineCitation = `According to <a href="${citation.url}" 
-      class="inline-citation" 
-      data-citation-source="${citation.source}"
-      data-tooltip="External source verified — click to read original"
-      title="${citation.source} (${year})"
-      target="_blank" 
-      rel="nofollow noopener">${citation.source}</a> (${year}), `;
-
-    // Calculate absolute paragraph index
-    const paragraphsBeforeSection = modifiedContent.substring(0, sectionStart).match(/<p[^>]*>/g)?.length || 0;
-    paragraphIndex = paragraphsBeforeSection + bestParagraphIdx;
-
-    // Track this citation's paragraph
-    citationMap.set(citation.url, paragraphIndex);
-
-    // Inject citation at the start of paragraph content
-    const originalPTag = targetParagraph[0];
-    const pTagMatch = originalPTag.match(/<p[^>]*>/);
-    if (pTagMatch) {
-      const openingTag = pTagMatch[0];
-      const innerContent = targetParagraph[1];
-      const newParagraph = `${openingTag}${inlineCitation}${innerContent}</p>`;
-      
-      modifiedContent = modifiedContent.substring(0, sectionStart + targetParagraph.index!) +
-                       newParagraph +
-                       modifiedContent.substring(sectionStart + targetParagraph.index! + originalPTag.length);
-    }
-
-    citationIndex++;
-  }
-
-  return { content: modifiedContent, citationMap };
+interface BestMatch {
+  paragraphIndex: number;
+  score: number;
+  section: number;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+function injectInlineCitations(content: string, citations: ExternalCitation[]): { content: string; citationMap: Map<string, number> } {
+  const citationMap = new Map<string, number>();
+  const validCitations = citations.filter(c => c?.url && c?.source && isApprovedDomain(c.url));
+  
+  if (validCitations.length === 0) return { content, citationMap };
+  
+  let processedContent = content;
+  const usedCitations = new Set<string>();
+  const paragraphPattern = /<p[^>]*>(.*?)<\/p>/gs;
+  const paragraphs = [...processedContent.matchAll(paragraphPattern)];
+  const h2Pattern = /<h2[^>]*>(.*?)<\/h2>/gs;
+  const h2Sections = [...processedContent.matchAll(h2Pattern)];
+  
+  const paragraphSections: number[] = [];
+  let currentSection = 0;
+  
+  paragraphs.forEach((paragraph) => {
+    const paragraphStart = processedContent.indexOf(paragraph[0]);
+    for (let i = currentSection; i < h2Sections.length; i++) {
+      const h2Match = h2Sections[i];
+      const h2Position = processedContent.indexOf(h2Match[0]);
+      if (h2Position < paragraphStart) currentSection = i + 1;
+      else break;
+    }
+    paragraphSections.push(currentSection);
+  });
+  
+  const sectionsWithCitations = new Set<number>();
+  
+  validCitations.forEach((citation) => {
+    const citationYear = new Date().getFullYear();
+    let bestMatch: BestMatch | null = null;
+    
+    paragraphs.forEach((paragraph, idx) => {
+      const paragraphContent = paragraph[1];
+      const paragraphSection = paragraphSections[idx];
+      if (usedCitations.has(paragraph[0]) || paragraphContent.length < 100) return;
+      
+      let score = 5;
+      if (!sectionsWithCitations.has(paragraphSection)) score += 10;
+      
+      if (score > 0 && (!bestMatch || score > bestMatch.score)) {
+        bestMatch = { paragraphIndex: idx, score, section: paragraphSection };
+      }
+    });
+    
+    if (bestMatch !== null) {
+      const match: BestMatch = bestMatch;
+      const paragraph = paragraphs[match.paragraphIndex];
+      const citationLink = `<a href="${citation.url}" class="inline-citation" target="_blank" rel="noopener nofollow sponsored" data-citation-source="${citation.source}">${citation.source}</a>`;
+      const citationPhrase = `According to ${citationLink} (${citationYear}), `;
+      const updatedParagraph = citationPhrase + paragraph[1];
+      processedContent = processedContent.replace(paragraph[0], paragraph[0].replace(paragraph[1], updatedParagraph));
+      usedCitations.add(paragraph[0]);
+      sectionsWithCitations.add(match.section);
+      citationMap.set(citation.url, match.paragraphIndex);
+    }
+  });
+  
+  return { content: processedContent, citationMap };
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  const supabaseClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     console.log('Starting citation paragraph tracking backfill...');
 
-    // Fetch all published articles
-    const { data: articles, error: articlesError } = await supabase
+    const { data: articles, error: articlesError } = await supabaseClient
       .from('blog_articles')
-      .select('id, slug, headline, detailed_content, external_citations')
-      .eq('status', 'published');
+      .select('id, slug, detailed_content, external_citations')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false });
 
     if (articlesError) throw articlesError;
+    console.log(`Found ${articles?.length || 0} published articles`);
 
-    let totalUpdated = 0;
-    let totalProcessed = 0;
-    let errors = 0;
+    let processedCount = 0;
+    let updatedCitationsCount = 0;
+    const errors: any[] = [];
 
     for (const article of articles || []) {
-      console.log(`Processing article: ${article.slug}`);
-      totalProcessed++;
-
       try {
-        // Inject inline citations and get paragraph mapping
-        const { content: newContent, citationMap } = injectInlineCitations(
-          article.detailed_content,
-          article.external_citations || []
-        );
+        const citations = (article.external_citations as ExternalCitation[]) || [];
+        if (citations.length === 0) continue;
 
-        // Update article with new content if citations were injected
+        console.log(`Processing ${article.slug} with ${citations.length} citations...`);
+        const { content: newContent, citationMap } = injectInlineCitations(article.detailed_content, citations);
+
         if (citationMap.size > 0) {
-          const { error: contentError } = await supabase
-            .from('blog_articles')
-            .update({ detailed_content: newContent })
-            .eq('id', article.id);
-
-          if (contentError) {
-            console.error(`Error updating content for ${article.slug}:`, contentError);
-            errors++;
-            continue;
-          }
+          await supabaseClient.from('blog_articles').update({ detailed_content: newContent }).eq('id', article.id);
         }
 
-        // Update citation tracking with paragraph indices
-        for (const [url, paragraphIdx] of citationMap.entries()) {
-          const { error: trackingError } = await supabase
+        for (const [citationUrl, paragraphIndex] of citationMap.entries()) {
+          const { error: trackingError } = await supabaseClient
             .from('citation_usage_tracking')
-            .update({
-              context_paragraph_index: paragraphIdx,
-              updated_at: new Date().toISOString()
-            })
+            .update({ context_paragraph_index: paragraphIndex, updated_at: new Date().toISOString() })
             .eq('article_id', article.id)
-            .eq('citation_url', url);
+            .eq('citation_url', citationUrl);
 
-          if (trackingError) {
-            console.error(`Error updating tracking for ${url}:`, trackingError);
-            errors++;
-          } else {
-            totalUpdated++;
-          }
+          if (trackingError) errors.push({ article: article.slug, citation: citationUrl, error: trackingError.message });
+          else updatedCitationsCount++;
         }
 
-        console.log(`✓ Processed ${citationMap.size} citations for ${article.slug}`);
-      } catch (error) {
-        console.error(`Error processing article ${article.slug}:`, error);
-        errors++;
+        processedCount++;
+        console.log(`✓ Processed ${article.slug}: ${citationMap.size} citations`);
+      } catch (articleError) {
+        errors.push({ article: article.slug, error: (articleError as Error).message });
       }
     }
 
-    const summary = {
+    return new Response(JSON.stringify({
       totalArticles: articles?.length || 0,
-      articlesProcessed: totalProcessed,
-      citationsUpdated: totalUpdated,
-      errors,
-      status: 'completed',
-      completedAt: new Date().toISOString()
-    };
-
-    console.log('Backfill complete:', summary);
-
-    return new Response(
-      JSON.stringify(summary),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      processedArticles: processedCount,
+      updatedCitations: updatedCitationsCount,
+      errors: errors.length,
+      errorDetails: errors
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error('Backfill error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: errorMessage, status: 'failed' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

@@ -51,6 +51,21 @@ function extractParagraph(content: string, position: number, maxLength: number):
   return paragraph;
 }
 
+function extractParagraphIndex(content: string, citationUrl: string): number | null {
+  if (!content || !citationUrl) return null;
+  
+  const paragraphs = content.match(/<p[^>]*>.*?<\/p>/gs) || [];
+  
+  for (let i = 0; i < paragraphs.length; i++) {
+    if (paragraphs[i].includes(citationUrl) || 
+        paragraphs[i].includes(`href="${citationUrl}"`)) {
+      return i;
+    }
+  }
+  
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -144,7 +159,15 @@ serve(async (req) => {
 
         console.log(`Processing citation: ${citation.url}`);
 
+        // Extract context and paragraph index for tracking
         const citationContext = extractCitationContext(citation.articleContent, citation.url);
+        
+        // Fetch article to get content for paragraph tracking
+        const { data: article } = await supabaseClient
+          .from('blog_articles')
+          .select('id, detailed_content')
+          .eq('id', citation.articleId)
+          .single();
 
         const { data: discoveryResult, error: discoveryError } = await supabaseClient.functions.invoke(
           'discover-better-links',
@@ -221,6 +244,21 @@ serve(async (req) => {
               results.failed++;
             } else {
               results.autoApplied++;
+              
+              // Update paragraph tracking for the new citation URL
+              if (article) {
+                const paragraphIndex = extractParagraphIndex(article.detailed_content, bestMatch.suggestedUrl);
+                if (paragraphIndex !== null) {
+                  await supabaseClient
+                    .from('citation_usage_tracking')
+                    .update({ 
+                      context_paragraph_index: paragraphIndex,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('article_id', citation.articleId)
+                    .eq('citation_url', bestMatch.suggestedUrl);
+                }
+              }
             }
           }
         } else {

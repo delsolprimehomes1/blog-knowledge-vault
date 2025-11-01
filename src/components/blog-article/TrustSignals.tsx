@@ -48,9 +48,9 @@ export const TrustSignals = ({ reviewerName, dateModified, citations }: TrustSig
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-purple-600" />
           <div>
-            <p className="text-sm font-medium">Sources Cited</p>
+            <p className="text-sm font-medium">Inline Citations</p>
             <p className="text-xs text-muted-foreground">
-              {citations.length} authoritative sources
+              {citations.length} contextual links
             </p>
           </div>
         </div>

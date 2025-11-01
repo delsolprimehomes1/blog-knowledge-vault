@@ -112,7 +112,9 @@ export function extractParagraphIndex(content: string, citationUrl: string): num
   const paragraphs = content.match(/<p[^>]*>.*?<\/p>/gs) || [];
   
   for (let i = 0; i < paragraphs.length; i++) {
-    if (paragraphs[i].includes(citationUrl)) {
+    // Check for direct URL match or citation anchor tag with href
+    if (paragraphs[i].includes(citationUrl) || 
+        paragraphs[i].includes(`href="${citationUrl}"`)) {
       return i;
     }
   }
@@ -248,8 +250,17 @@ export function generateArticleSchema(
         "@type": "CreativeWork",
         "name": citation.source,
         "url": citation.url,
+        "encodingFormat": "text/html",
+        "isAccessibleForFree": true,
+        "inLanguage": article.language,
         ...(paragraphIndex !== null && { 
-          "position": `paragraph-${paragraphIndex}` 
+          "position": `paragraph-${paragraphIndex}`,
+          // Add contextual relationship for AI engines
+          "citation": {
+            "@type": "Claim",
+            "position": `inline-paragraph-${paragraphIndex}`,
+            "appearance": "contextual-hyperlink"
+          }
         }),
         ...(citation.year && { 
           "datePublished": `${citation.year}-01-01` 
@@ -273,7 +284,7 @@ export function generateArticleSchema(
 }
 
 export function generateSpeakableSchema(article: BlogArticle): any {
-  const cssSelectors = [".speakable-answer", ".qa-summary"];
+  const cssSelectors = [".speakable-answer", ".qa-summary", ".inline-citation"];
   const xpaths = ["/html/body/article/section[@class='speakable-answer']"];
   
   // Add FAQ selectors for AI/LLM optimization
