@@ -74,7 +74,7 @@ interface BestMatch {
 
 function injectInlineCitations(content: string, citations: ExternalCitation[]): { content: string; citationMap: Map<string, number> } {
   const citationMap = new Map<string, number>();
-  const validCitations = citations.filter(c => c?.url && c?.source && isApprovedDomain(c.url));
+  const validCitations = citations.filter(c => c?.url && c?.source);
   
   if (validCitations.length === 0) {
     return { content, citationMap };
