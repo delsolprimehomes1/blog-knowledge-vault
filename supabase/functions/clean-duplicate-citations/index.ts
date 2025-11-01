@@ -68,7 +68,7 @@ serve(async (req) => {
         // Remove duplicate "According to" phrases, keeping only the first occurrence
         let cleanedContent = content.replace(
           duplicatePattern,
-          (match) => {
+          (match: string) => {
             // Extract just the first occurrence
             const firstOccurrence = match.match(/According to [^(]+\([0-9]{4}\),\s*/)?.[0];
             return firstOccurrence || match;

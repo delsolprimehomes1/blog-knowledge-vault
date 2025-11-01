@@ -8,11 +8,13 @@ const corsHeaders = {
 
 interface ExternalCitation {
   url: string;
-  source: string;
+  sourceName: string;
   sourceType?: 'government' | 'news' | 'legal' | 'academic' | 'organization' | 'commercial';
   authorityScore?: number;
   verificationDate?: string;
   year?: number;
+  contextInArticle?: string;
+  anchorText?: string;
 }
 
 const APPROVED_DOMAINS = [
@@ -74,7 +76,7 @@ interface BestMatch {
 
 function injectInlineCitations(content: string, citations: ExternalCitation[]): { content: string; citationMap: Map<string, number> } {
   const citationMap = new Map<string, number>();
-  const validCitations = citations.filter(c => c?.url && c?.source);
+  const validCitations = citations.filter(c => c?.url && c?.sourceName);
   
   if (validCitations.length === 0) {
     return { content, citationMap };
@@ -113,9 +115,10 @@ function injectInlineCitations(content: string, citations: ExternalCitation[]): 
   
     validCitations.forEach((citation) => {
     const citationYear = citation.year || new Date().getFullYear();
-    const citationSource = citation.source;
+    const citationSource = citation.sourceName;
     const citationType = citation.sourceType || 'organization';
     const authorityScore = citation.authorityScore || 75;
+    const citationContext = citation.contextInArticle || citation.anchorText || '';
     
     let bestMatch: BestMatch | null = null;
     
@@ -146,8 +149,9 @@ function injectInlineCitations(content: string, citations: ExternalCitation[]): 
         score += 10;
       }
       
-      const paragraphKeywords = extractKeyPhrases(paragraphContent);
-      const citationKeywords = extractKeyPhrases(citationSource);
+      // Extract keywords from citation context and paragraph
+      const citationKeywords = extractKeyPhrases(citationContext);
+      const paragraphKeywords = extractKeyPhrases(textOnly);
       const matchingKeywords = paragraphKeywords.filter(k => citationKeywords.includes(k));
       score += matchingKeywords.length * 3;
       
@@ -190,7 +194,7 @@ function injectInlineCitations(content: string, citations: ExternalCitation[]): 
         // Inject the first citation as a fallback
         const citation = validCitations[0];
         const citationYear = citation.year || new Date().getFullYear();
-        const citationSource = citation.source;
+        const citationSource = citation.sourceName;
         const citationType = citation.sourceType || 'organization';
         const authorityScore = citation.authorityScore || 75;
         
