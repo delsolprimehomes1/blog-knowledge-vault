@@ -134,6 +134,27 @@ const CitationHealth = () => {
     },
   });
 
+  const { data: paragraphTrackingStats } = useQuery({
+    queryKey: ["paragraph-tracking-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("citation_usage_tracking")
+        .select("context_paragraph_index");
+      
+      if (error) throw error;
+      
+      const total = data.length;
+      const withContext = data.filter(c => c.context_paragraph_index !== null).length;
+      
+      return {
+        total,
+        withContext,
+        percentage: total > 0 ? Math.round((withContext / total) * 100) : 0
+      };
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   const runHealthCheck = useMutation({
     mutationFn: async () => {
       setCheckProgress({ current: 0, total: 100 });
@@ -280,6 +301,29 @@ const CitationHealth = () => {
     },
     onError: (error) => {
       toast.error(`Failed to replace slow citations: ${error.message}`);
+    }
+  });
+
+  const backfillParagraphTracking = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('backfill-citation-paragraph-tracking');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success('✅ Paragraph tracking backfill complete!', {
+        description: `📚 Processed ${data.articlesProcessed} articles\n🔗 Updated ${data.citationsUpdated} citation records\n📝 Average ${data.avgCitationsPerArticle?.toFixed(1)} citations per article`,
+        duration: 8000
+      });
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+      queryClient.invalidateQueries({ queryKey: ["citation-usage-tracking"] });
+      queryClient.invalidateQueries({ queryKey: ["paragraph-tracking-stats"] });
+    },
+    onError: (error) => {
+      toast.error(`Backfill failed: ${error.message}`, {
+        description: 'Check edge function logs for details',
+        duration: 5000
+      });
     }
   });
 
@@ -610,6 +654,24 @@ const CitationHealth = () => {
               )}
             </Button>
             <Button 
+              onClick={() => backfillParagraphTracking.mutate()}
+              disabled={backfillParagraphTracking.isPending}
+              variant="outline"
+              title="Populate paragraph context for all inline citations (one-time backfill)"
+            >
+              {backfillParagraphTracking.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                  Backfilling... (may take 15-20 min)
+                </>
+              ) : (
+                <>
+                  <Activity className="mr-2 h-4 w-4" /> 
+                  Backfill Paragraph Tracking
+                </>
+              )}
+            </Button>
+            <Button 
               onClick={() => cleanupUnusedCitations.mutate()}
               disabled={cleanupUnusedCitations.isPending}
               variant="outline"
@@ -680,11 +742,36 @@ const CitationHealth = () => {
           </Card>
         )}
 
-        <div className="grid gap-4 md:grid-cols-4">
+        {backfillParagraphTracking.isPending && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Backfilling Paragraph Context (15-20 minutes)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Processing 212 Articles</AlertTitle>
+                <AlertDescription>
+                  The system is analyzing article content to determine which paragraph each citation appears in.
+                  This data improves AI context mapping and citation schema accuracy.
+                  <br /><br />
+                  <strong>You can safely close this page</strong> - the process runs in the background.
+                  Refresh after 20 minutes to see updated statistics.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-5">
           <Card><CardHeader><CardTitle className="text-sm">Total Citations</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>
           <Card><CardHeader><CardTitle className="text-sm">Health Score</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{healthPercentage}%</div><p className="text-xs text-muted-foreground mt-1">{stats.healthy} healthy citations</p></CardContent></Card>
           <Card><CardHeader><CardTitle className="text-sm">Needs Attention</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{stats.broken}</div><p className="text-xs text-muted-foreground mt-1">Broken or unreachable</p></CardContent></Card>
           <Card><CardHeader><CardTitle className="text-sm">Optimization</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-orange-600">{stats.redirected + stats.slow}</div><p className="text-xs text-muted-foreground mt-1">{stats.redirected} redirected, {stats.slow} slow</p></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-sm">Paragraph Context</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-blue-600">{paragraphTrackingStats?.percentage ?? 0}%</div><p className="text-xs text-muted-foreground mt-1">{paragraphTrackingStats?.withContext ?? 0} of {paragraphTrackingStats?.total ?? 0} tracked</p></CardContent></Card>
         </div>
 
         {healthData && healthData.length > 0 && (
