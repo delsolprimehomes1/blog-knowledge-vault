@@ -311,8 +311,8 @@ export const injectInlineCitations = (
       const paragraph = paragraphs[bestMatch.paragraphIndex];
       const paragraphContent = paragraph[1];
       
-      // Create the inline citation in the new format
-      const citationLink = `<a href="${citation.url}" class="inline-citation" target="_blank" rel="noopener nofollow" title="Source: ${citation.source}">${citation.source}</a>`;
+      // Create the inline citation in the new format with tooltip
+      const citationLink = `<a href="${citation.url}" class="inline-citation" target="_blank" rel="noopener nofollow sponsored" data-citation-source="${citation.source}" data-tooltip="External source verified — click to read original" title="Source: ${citation.source}">${citation.source}</a>`;
       const citationPhrase = `According to ${citationLink} (${citationYear}), `;
       
       // Insert at the beginning of the first sentence

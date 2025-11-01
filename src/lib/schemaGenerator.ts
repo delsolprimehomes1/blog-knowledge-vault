@@ -105,6 +105,21 @@ export function countWordsInHtml(html: string): number {
   return text.split(/\s+/).filter(w => w).length;
 }
 
+export function extractParagraphIndex(content: string, citationUrl: string): number | null {
+  if (!content || !citationUrl) return null;
+  
+  // Extract all <p> tags from HTML content
+  const paragraphs = content.match(/<p[^>]*>.*?<\/p>/gs) || [];
+  
+  for (let i = 0; i < paragraphs.length; i++) {
+    if (paragraphs[i].includes(citationUrl)) {
+      return i;
+    }
+  }
+  
+  return null;
+}
+
 export function generateArticleSchema(
   article: BlogArticle,
   author: Author | null,
@@ -225,25 +240,33 @@ export function generateArticleSchema(
   }
   
   if (article.external_citations && article.external_citations.length > 0) {
-    schema.citation = article.external_citations.map(citation => ({
-      "@type": "CreativeWork",
-      "name": citation.source,
-      "url": citation.url,
-      ...(citation.year && { 
-        "datePublished": `${citation.year}-01-01` 
-      }),
-      ...(citation.sourceType && { 
-        "genre": citation.sourceType 
-      }),
-      ...(citation.authorityScore && { 
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": (citation.authorityScore / 20).toFixed(1), // Convert 0-100 to 0-5
-          "bestRating": "5",
-          "worstRating": "0"
-        }
-      }),
-    }));
+    schema.citation = article.external_citations.map((citation, index) => {
+      // Extract paragraph index from article content
+      const paragraphIndex = extractParagraphIndex(article.detailed_content, citation.url);
+      
+      return {
+        "@type": "CreativeWork",
+        "name": citation.source,
+        "url": citation.url,
+        ...(paragraphIndex !== null && { 
+          "position": `paragraph-${paragraphIndex}` 
+        }),
+        ...(citation.year && { 
+          "datePublished": `${citation.year}-01-01` 
+        }),
+        ...(citation.sourceType && { 
+          "genre": citation.sourceType 
+        }),
+        ...(citation.authorityScore && { 
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": (citation.authorityScore / 20).toFixed(1), // Convert 0-100 to 0-5
+            "bestRating": "5",
+            "worstRating": "0"
+          }
+        }),
+      };
+    });
   }
   
   return { schema, errors };

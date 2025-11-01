@@ -13,7 +13,6 @@ import { ArticleContent } from "@/components/blog-article/ArticleContent";
 import { InternalLinksSection } from "@/components/blog-article/InternalLinksSection";
 import { RelatedArticles } from "@/components/blog-article/RelatedArticles";
 import { TrustSignals } from "@/components/blog-article/TrustSignals";
-import { LegalReferences } from "@/components/blog-article/LegalReferences";
 import { AuthorBio } from "@/components/blog-article/AuthorBio";
 import { FunnelCTA } from "@/components/blog-article/FunnelCTA";
 import { StickyMobileCTA } from "@/components/blog-article/StickyMobileCTA";
@@ -323,13 +322,13 @@ const BlogArticle = () => {
 
             <InternalLinksSection links={article.internal_links as InternalLink[]} />
 
-            <TrustSignals
-              reviewerName={reviewer?.name}
-              dateModified={article.date_modified || undefined}
-              citations={article.external_citations as ExternalCitation[]}
-            />
-
-            <LegalReferences citations={article.external_citations as ExternalCitation[]} />
+            {article.reviewer_id && (
+              <TrustSignals
+                reviewerName={reviewer?.name}
+                dateModified={article.date_modified}
+                citations={article.external_citations as ExternalCitation[]}
+              />
+            )}
 
             {author && <AuthorBio author={author} />}
 

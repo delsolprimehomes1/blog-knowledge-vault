@@ -73,55 +73,46 @@ export const TrustSignals = ({ reviewerName, dateModified, citations }: TrustSig
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="w-full">
               <ChevronDown className={`h-4 w-4 mr-2 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-              {isOpen ? "Hide" : "View"} All Sources
+              📚 Sources Referenced ({citations.length})
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4">
-            <ol className="list-decimal list-inside space-y-3 text-sm">
+            <div className="space-y-2">
               {citations.map((citation, index) => {
                 const isOfficial = citation.sourceType === 'government' || citation.sourceType === 'legal' || 
                                    citation.url.includes('.gov') || citation.url.includes('.gob.');
+                const domain = new URL(citation.url).hostname;
                 
                 return (
-                  <li key={index} id={`citation-${index + 1}`} className="p-3 bg-background rounded border scroll-mt-24">
-                    <div className="flex items-start gap-2">
-                      <span className="font-mono text-xs text-muted-foreground shrink-0">[{index + 1}]</span>
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-start gap-2 flex-wrap">
-                          <a
-                            href={citation.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline font-medium break-all flex-1"
-                          >
-                            {citation.source}
-                          </a>
-                          {isOfficial && (
-                            <Badge variant="secondary" className="text-xs gap-1">
-                              <Shield className="h-3 w-3" />
-                              Official
-                            </Badge>
-                          )}
-                          {citation.authorityScore && citation.authorityScore >= 70 && (
-                            <Badge variant="default" className="text-xs bg-green-600">
-                              High Authority
-                            </Badge>
-                          )}
-                        </div>
-                        {citation.text && (
-                          <p className="text-muted-foreground text-xs">{citation.text}</p>
-                        )}
-                        {citation.verificationDate && (
-                          <p className="text-xs text-muted-foreground">
-                            Verified: {new Date(citation.verificationDate).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
+                  <div key={index} className="flex items-center gap-2 text-sm p-2 rounded bg-background/50">
+                    <span className="text-xs text-muted-foreground font-mono shrink-0">
+                      {domain}
+                    </span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {isOfficial && (
+                        <Badge variant="secondary" className="text-xs gap-1">
+                          <Shield className="h-3 w-3" />
+                          Official
+                        </Badge>
+                      )}
+                      {citation.authorityScore && citation.authorityScore >= 80 && (
+                        <Badge variant="default" className="text-xs bg-green-600">
+                          High Authority
+                        </Badge>
+                      )}
+                      {citation.verificationDate && (
+                        <span className="text-xs text-muted-foreground">
+                          ✓ Verified
+                        </span>
+                      )}
                     </div>
-                  </li>
+                  </div>
                 );
               })}
-            </ol>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3 italic">
+              All sources appear as inline hyperlinks within the article text above.
+            </p>
           </CollapsibleContent>
         </Collapsible>
       )}

@@ -561,6 +561,7 @@ export type Database = {
           article_id: string | null
           citation_source: string | null
           citation_url: string
+          context_paragraph_index: number | null
           created_at: string | null
           first_added_at: string | null
           id: string
@@ -574,6 +575,7 @@ export type Database = {
           article_id?: string | null
           citation_source?: string | null
           citation_url: string
+          context_paragraph_index?: number | null
           created_at?: string | null
           first_added_at?: string | null
           id?: string
@@ -587,6 +589,7 @@ export type Database = {
           article_id?: string | null
           citation_source?: string | null
           citation_url?: string
+          context_paragraph_index?: number | null
           created_at?: string | null
           first_added_at?: string | null
           id?: string
