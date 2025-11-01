@@ -90,6 +90,14 @@ export const ExternalLinkFinder = ({
       return;
     }
 
+    // Check if URL is a PDF
+    const isPDF = link.url.toLowerCase().includes('.pdf') || 
+                  link.url.includes('blobcol=urldata');
+    
+    if (isPDF) {
+      toast.warning("⚠️ This is a PDF file. Consider finding the source webpage instead for better user experience.");
+    }
+
     const newCitation: ExternalCitation = {
       source: link.sourceName,
       url: link.url,
@@ -98,7 +106,7 @@ export const ExternalLinkFinder = ({
     };
 
     onCitationsChange([...currentCitations, newCitation]);
-    toast.success("Citation added!");
+    toast.success(isPDF ? "PDF citation added (consider replacing with webpage)" : "Citation added!");
   };
 
   const isOfficialGovernment = (url: string) => {

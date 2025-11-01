@@ -111,7 +111,7 @@ function injectInlineCitations(content: string, citations: ExternalCitation[]): 
   
   const sectionsWithCitations = new Set<number>();
   
-  validCitations.forEach((citation) => {
+    validCitations.forEach((citation) => {
     const citationYear = citation.year || new Date().getFullYear();
     const citationSource = citation.source;
     const citationType = citation.sourceType || 'organization';
@@ -127,6 +127,16 @@ function injectInlineCitations(content: string, citations: ExternalCitation[]): 
       const textOnly = paragraphContent.replace(/<[^>]*>/g, '').trim();
       
       if (usedCitations.has(paragraph[0]) || textOnly.length < 50) {
+        return;
+      }
+      
+      // Check if this paragraph already has a citation for this source
+      const alreadyHasCitation = 
+        paragraphContent.includes(`According to ${citationSource}`) ||
+        paragraphContent.includes(`${citationSource} (${citationYear})`);
+      
+      if (alreadyHasCitation) {
+        console.log(`⏭️  Skipping citation for ${citationSource} - already exists in paragraph`);
         return;
       }
       
@@ -205,7 +215,18 @@ function injectInlineCitations(content: string, citations: ExternalCitation[]): 
 }
 
 function hasInlineCitations(content: string): boolean {
-  return content.includes('According to') && content.includes('class="inline-citation"');
+  // Check for HTML linked citations
+  if (content.includes('class="inline-citation"')) {
+    return true;
+  }
+  
+  // Check for plain text citation patterns: "According to SourceName (Year)"
+  const plainTextPattern = /According to [A-Z][^(]{2,50}\s*\(\d{4}\)/;
+  if (plainTextPattern.test(content)) {
+    return true;
+  }
+  
+  return false;
 }
 
 serve(async (req) => {
