@@ -205,7 +205,7 @@ function injectInlineCitations(content: string, citations: ExternalCitation[]): 
 }
 
 function hasInlineCitations(content: string): boolean {
-  return content.includes('class="inline-citation"');
+  return content.includes('According to') && content.includes('class="inline-citation"');
 }
 
 serve(async (req) => {
