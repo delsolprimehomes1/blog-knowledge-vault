@@ -20,7 +20,7 @@ import {
   TrendingDown, TrendingUp, XCircle, Clock, ArrowRight, ThumbsUp, ThumbsDown, Play, Undo2, Zap
 } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ChangePreviewModal } from "@/components/admin/ChangePreviewModal";
 import { BulkReplacementDialog } from "@/components/admin/BulkReplacementDialog";
@@ -28,6 +28,7 @@ import { CitationHealthAnalysis } from "@/components/admin/CitationHealthAnalysi
 import { NonApprovedCitationsPanel } from "@/components/admin/NonApprovedCitationsPanel";
 import { CitationComplianceAlerts } from "@/components/admin/CitationComplianceAlerts";
 import { ReplacementHistoryPanel } from "@/components/admin/ReplacementHistoryPanel";
+import { BatchReplacementMonitor } from "@/components/admin/BatchReplacementMonitor";
 import { Progress } from "@/components/ui/progress";
 
 interface CitationHealth {
@@ -71,6 +72,31 @@ const CitationHealth = () => {
   const [bulkProgress, setBulkProgress] = useState(0);
   const [bulkResults, setBulkResults] = useState<any[]>([]);
   const [checkProgress, setCheckProgress] = useState({ current: 0, total: 0 });
+  const [currentJobId, setCurrentJobId] = useState<string | undefined>(undefined);
+
+  // Fetch the most recent job
+  const { data: latestJob } = useQuery({
+    queryKey: ["latest-citation-job"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("citation_replacement_jobs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
+      return data;
+    },
+    refetchInterval: 10000, // Check for new jobs every 10 seconds
+  });
+
+  // Auto-set job ID when a new job is detected
+  useEffect(() => {
+    if (latestJob?.id && latestJob.id !== currentJobId) {
+      setCurrentJobId(latestJob.id);
+    }
+  }, [latestJob?.id]);
 
   const { data: healthData, isLoading } = useQuery({
     queryKey: ["citation-health"],
@@ -672,12 +698,20 @@ const CitationHealth = () => {
 
         <Tabs defaultValue="pending">
           <TabsList>
+            <TabsTrigger value="monitor">
+              <Activity className="h-4 w-4 mr-2" />
+              Batch Monitor
+            </TabsTrigger>
             <TabsTrigger value="pending">Pending ({replacements?.length || 0})</TabsTrigger>
             <TabsTrigger value="approved">Approved ({approvedReplacements?.length || 0})</TabsTrigger>
             <TabsTrigger value="applied">Applied ({appliedReplacements?.length || 0})</TabsTrigger>
             <TabsTrigger value="history">Replacement History</TabsTrigger>
             <TabsTrigger value="non-approved">Non-Approved Sources</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="monitor">
+            <BatchReplacementMonitor jobId={currentJobId} />
+          </TabsContent>
 
           <TabsContent value="pending">
             {replacements && replacements.length > 0 ? (
