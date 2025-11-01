@@ -5,17 +5,118 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function findParagraphIndex(content: string, citationUrl: string): number | null {
-  // Extract all <p> tags from HTML content
-  const paragraphs = content.match(/<p[^>]*>.*?<\/p>/gs) || [];
-  
-  for (let i = 0; i < paragraphs.length; i++) {
-    if (paragraphs[i].includes(citationUrl)) {
-      return i;
-    }
+interface ExternalCitation {
+  url: string;
+  source: string;
+  text: string;
+  year?: number;
+}
+
+const APPROVED_DOMAINS = [
+  'gov.uk', 'gov.es', 'agenciatributaria.es', 'boe.es', 'juntadeandalucia.es',
+  'spain.info', 'eea.europa.eu', 'ine.es', 'mitma.gob.es', 'interior.gob.es'
+];
+
+function isApprovedDomain(url: string): boolean {
+  try {
+    const domain = new URL(url).hostname.replace('www.', '');
+    return APPROVED_DOMAINS.some(approved => domain.includes(approved));
+  } catch {
+    return false;
   }
+}
+
+function injectInlineCitations(content: string, citations: ExternalCitation[]): { 
+  content: string; 
+  citationMap: Map<string, number> 
+} {
+  const approvedCitations = citations.filter(c => isApprovedDomain(c.url));
+  if (approvedCitations.length === 0) {
+    return { content, citationMap: new Map() };
+  }
+
+  const citationMap = new Map<string, number>();
+  let modifiedContent = content;
   
-  return null;
+  // Split content into H2 sections
+  const h2Pattern = /<h2[^>]*>.*?<\/h2>/gi;
+  const h2Matches = [...modifiedContent.matchAll(h2Pattern)];
+  
+  if (h2Matches.length === 0) {
+    return { content: modifiedContent, citationMap };
+  }
+
+  let citationIndex = 0;
+  let paragraphIndex = 0;
+
+  // Process each H2 section
+  for (let sectionIdx = 0; sectionIdx < h2Matches.length && citationIndex < approvedCitations.length; sectionIdx++) {
+    const currentH2 = h2Matches[sectionIdx];
+    const nextH2 = h2Matches[sectionIdx + 1];
+    
+    const sectionStart = currentH2.index! + currentH2[0].length;
+    const sectionEnd = nextH2 ? nextH2.index! : modifiedContent.length;
+    const sectionContent = modifiedContent.substring(sectionStart, sectionEnd);
+    
+    // Find all paragraphs in this section
+    const paragraphs = [...sectionContent.matchAll(/<p[^>]*>(.*?)<\/p>/gs)];
+    
+    if (paragraphs.length === 0) continue;
+
+    // Find best paragraph: prefer ones with keywords
+    let bestParagraphIdx = 0;
+    let maxRelevance = 0;
+    
+    const keywords = ['according', 'research', 'study', 'report', 'data', 'statistics', 'analysis'];
+    
+    for (let i = 0; i < paragraphs.length; i++) {
+      const pContent = paragraphs[i][1].toLowerCase();
+      const relevance = keywords.filter(kw => pContent.includes(kw)).length;
+      if (relevance > maxRelevance) {
+        maxRelevance = relevance;
+        bestParagraphIdx = i;
+      }
+    }
+
+    const targetParagraph = paragraphs[bestParagraphIdx];
+    const citation = approvedCitations[citationIndex];
+    
+    if (!targetParagraph || !citation) continue;
+
+    // Build inline citation
+    const year = citation.year || new Date().getFullYear();
+    const inlineCitation = `According to <a href="${citation.url}" 
+      class="inline-citation" 
+      data-citation-source="${citation.source}"
+      data-tooltip="External source verified — click to read original"
+      title="${citation.source} (${year})"
+      target="_blank" 
+      rel="nofollow noopener">${citation.source}</a> (${year}), `;
+
+    // Calculate absolute paragraph index
+    const paragraphsBeforeSection = modifiedContent.substring(0, sectionStart).match(/<p[^>]*>/g)?.length || 0;
+    paragraphIndex = paragraphsBeforeSection + bestParagraphIdx;
+
+    // Track this citation's paragraph
+    citationMap.set(citation.url, paragraphIndex);
+
+    // Inject citation at the start of paragraph content
+    const originalPTag = targetParagraph[0];
+    const pTagMatch = originalPTag.match(/<p[^>]*>/);
+    if (pTagMatch) {
+      const openingTag = pTagMatch[0];
+      const innerContent = targetParagraph[1];
+      const newParagraph = `${openingTag}${inlineCitation}${innerContent}</p>`;
+      
+      modifiedContent = modifiedContent.substring(0, sectionStart + targetParagraph.index!) +
+                       newParagraph +
+                       modifiedContent.substring(sectionStart + targetParagraph.index! + originalPTag.length);
+    }
+
+    citationIndex++;
+  }
+
+  return { content: modifiedContent, citationMap };
 }
 
 Deno.serve(async (req) => {
@@ -47,47 +148,50 @@ Deno.serve(async (req) => {
       console.log(`Processing article: ${article.slug}`);
       totalProcessed++;
 
-      for (const citation of article.external_citations || []) {
-        try {
-          // Find paragraph index for this citation
-          const paragraphIndex = findParagraphIndex(article.detailed_content, citation.url);
+      try {
+        // Inject inline citations and get paragraph mapping
+        const { content: newContent, citationMap } = injectInlineCitations(
+          article.detailed_content,
+          article.external_citations || []
+        );
 
-          if (paragraphIndex !== null) {
-            // Update citation_usage_tracking with paragraph context
-            const { error: updateError } = await supabase
-              .from('citation_usage_tracking')
-              .update({ 
-                context_paragraph_index: paragraphIndex,
-                updated_at: new Date().toISOString()
-              })
-              .eq('article_id', article.id)
-              .eq('citation_url', citation.url);
+        // Update article with new content if citations were injected
+        if (citationMap.size > 0) {
+          const { error: contentError } = await supabase
+            .from('blog_articles')
+            .update({ detailed_content: newContent })
+            .eq('id', article.id);
 
-            if (updateError) {
-              console.error(`Error updating citation for ${article.slug}:`, updateError);
-              errors++;
-            } else {
-              totalUpdated++;
-              console.log(`✓ Updated paragraph index ${paragraphIndex} for ${citation.source}`);
-            }
-          } else {
-            // Citation URL not found in content - log warning
-            console.warn(`⚠️ Citation URL not found in content: ${citation.source} in ${article.slug}`);
-            
-            // Still try to update with null to mark as checked
-            await supabase
-              .from('citation_usage_tracking')
-              .update({ 
-                context_paragraph_index: null,
-                updated_at: new Date().toISOString()
-              })
-              .eq('article_id', article.id)
-              .eq('citation_url', citation.url);
+          if (contentError) {
+            console.error(`Error updating content for ${article.slug}:`, contentError);
+            errors++;
+            continue;
           }
-        } catch (error) {
-          console.error(`Error processing citation ${citation.source}:`, error);
-          errors++;
         }
+
+        // Update citation tracking with paragraph indices
+        for (const [url, paragraphIdx] of citationMap.entries()) {
+          const { error: trackingError } = await supabase
+            .from('citation_usage_tracking')
+            .update({
+              context_paragraph_index: paragraphIdx,
+              updated_at: new Date().toISOString()
+            })
+            .eq('article_id', article.id)
+            .eq('citation_url', url);
+
+          if (trackingError) {
+            console.error(`Error updating tracking for ${url}:`, trackingError);
+            errors++;
+          } else {
+            totalUpdated++;
+          }
+        }
+
+        console.log(`✓ Processed ${citationMap.size} citations for ${article.slug}`);
+      } catch (error) {
+        console.error(`Error processing article ${article.slug}:`, error);
+        errors++;
       }
     }
 
@@ -109,8 +213,9 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Backfill error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: error.message, status: 'failed' }),
+      JSON.stringify({ error: errorMessage, status: 'failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
