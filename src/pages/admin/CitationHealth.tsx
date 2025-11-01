@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import {
   Activity, AlertCircle, CheckCircle2, ExternalLink, Loader2, RefreshCw,
-  TrendingDown, TrendingUp, XCircle, Clock, ArrowRight, ThumbsUp, ThumbsDown, Play, Undo2, Zap
+  TrendingDown, TrendingUp, XCircle, Clock, ArrowRight, ThumbsUp, ThumbsDown, Play, Undo2, Zap, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -415,6 +415,25 @@ const CitationHealth = () => {
     }
   };
 
+  const generateMissingCitations = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('generate-missing-citations');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Generated citations for ${data.successful} articles`, {
+        description: data.failed > 0 ? `${data.failed} articles failed` : 'All articles processed successfully'
+      });
+      queryClient.invalidateQueries({ queryKey: ['citation-health'] });
+    },
+    onError: (error: Error) => {
+      toast.error('Failed to generate citations', {
+        description: error.message
+      });
+    }
+  });
+
   const autoFixBrokenLinks = useMutation({
     mutationFn: async () => {
       // Get all broken/unreachable citations
@@ -754,6 +773,23 @@ const CitationHealth = () => {
                 )}
               </Button>
             )}
+            <Button 
+              onClick={() => generateMissingCitations.mutate()}
+              disabled={generateMissingCitations.isPending}
+              variant="default"
+            >
+              {generateMissingCitations.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generate Missing Citations
+                </>
+              )}
+            </Button>
             <Button 
               onClick={() => { setIsRunningCheck(true); runHealthCheck.mutateAsync().finally(() => setIsRunningCheck(false)); }} 
               disabled={isRunningCheck}

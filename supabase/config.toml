@@ -30,6 +30,9 @@ verify_jwt = false
 [functions.get-cluster-articles]
 verify_jwt = false
 
+[functions.generate-missing-citations]
+verify_jwt = false
+
 [functions.find-external-links]
 verify_jwt = false
 
