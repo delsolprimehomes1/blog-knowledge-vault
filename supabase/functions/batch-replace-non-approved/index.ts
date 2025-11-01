@@ -185,31 +185,11 @@ serve(async (req) => {
   }
 });
 
-// Background processing function with timeout handling
+// Coordinator function: Split citations into chunks and queue them
 async function processReplacements(supabaseClient: any, jobId: string, limit: number | null) {
-  const startTime = Date.now();
-  const MAX_EXECUTION_TIME = 540000; // 9 minutes (leave buffer before edge function timeout)
-  const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-  let lastHeartbeat = Date.now();
-
-  // Heartbeat function to keep job status updated
-  const updateHeartbeat = async () => {
-    const now = Date.now();
-    if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
-      await supabaseClient
-        .from('citation_replacement_jobs')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', jobId);
-      lastHeartbeat = now;
-      console.log(`Heartbeat updated for job ${jobId}`);
-    }
-  };
-  
   try {
-    console.log(`Starting batch replacement job ${jobId}`);
+    console.log(`Starting batch replacement coordinator for job ${jobId}`);
     
-    // Clean up any stuck jobs first
-    await supabaseClient.rpc('check_stuck_citation_jobs');
     // Fetch articles
     let query = supabaseClient
       .from('blog_articles')
@@ -242,186 +222,79 @@ async function processReplacements(supabaseClient: any, jobId: string, limit: nu
       }
     }
 
-    // Update total progress
-    await updateJobStatus(supabaseClient, jobId, {
-      progress_total: nonApprovedCitations.length,
-    });
-
     console.log(`Found ${nonApprovedCitations.length} non-approved citations`);
 
-    const results = { autoApplied: 0, manualReview: 0, failed: 0 };
-    let currentProgress = 0;
-
-    // Process each citation
-    for (const citation of nonApprovedCitations) {
-      // Update heartbeat
-      await updateHeartbeat();
-      
-      // Check for timeout
-      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-        console.warn('Approaching timeout limit, stopping processing');
-        await updateJobStatus(supabaseClient, jobId, {
-          status: 'partial',
-          error_message: `Processed ${currentProgress} of ${nonApprovedCitations.length} citations before timeout`,
+    if (nonApprovedCitations.length === 0) {
+      await supabaseClient
+        .from('citation_replacement_jobs')
+        .update({
+          status: 'completed',
+          progress_total: 0,
+          progress_current: 0,
           completed_at: new Date().toISOString(),
-        });
-        return;
-      }
+        })
+        .eq('id', jobId);
+      return;
+    }
 
-      try {
-        currentProgress++;
-        
-        // Update progress every 5 citations
-        if (currentProgress % 5 === 0) {
-          await updateJobStatus(supabaseClient, jobId, { 
-            progress_current: currentProgress,
-            auto_applied_count: results.autoApplied,
-            manual_review_count: results.manualReview,
-            failed_count: results.failed
-          });
-        }
+    // Split into chunks of 25
+    const CHUNK_SIZE = 25;
+    const chunks = [];
+    for (let i = 0; i < nonApprovedCitations.length; i += CHUNK_SIZE) {
+      chunks.push({
+        chunk_number: Math.floor(i / CHUNK_SIZE) + 1,
+        citations: nonApprovedCitations.slice(i, i + CHUNK_SIZE),
+        progress_total: Math.min(CHUNK_SIZE, nonApprovedCitations.length - i)
+      });
+    }
 
-        console.log(`Processing: ${citation.url}`);
+    console.log(`Created ${chunks.length} chunks of ${CHUNK_SIZE} citations each`);
 
-        const citationContext = extractCitationContext(citation.articleContent, citation.url);
-
-        const { data: discoveryResult, error: discoveryError } = await supabaseClient.functions.invoke(
-          'discover-better-links',
-          {
-            body: {
-              originalUrl: citation.url,
-              articleHeadline: citation.articleHeadline,
-              articleContent: citation.articleContent,
-              citationContext: citationContext,
-              articleLanguage: citation.articleLanguage,
-              context: 'Batch replacement',
-              mustBeApproved: true
-            }
-          }
-        );
-
-        if (discoveryError || !discoveryResult?.suggestions?.length) {
-          console.log('No alternatives found');
-          results.failed++;
-          continue;
-        }
-
-        const bestMatch = discoveryResult.suggestions.find((s: any) => s.verified) || discoveryResult.suggestions[0];
-        
-        if (!bestMatch.verified) {
-          results.failed++;
-          continue;
-        }
-
-        // Calculate confidence (0-10 scale)
-        const relevanceScore = bestMatch.relevanceScore || 75;
-        const authorityScore = bestMatch.authorityScore || 7;
-        
-        let confidenceScore = 5.0;
-        if (relevanceScore >= 90 && authorityScore >= 8) confidenceScore = 9.5;
-        else if (relevanceScore >= 85 && authorityScore >= 8) confidenceScore = 9.0;
-        else if (relevanceScore >= 80 && authorityScore >= 9) confidenceScore = 8.5;
-        else if (relevanceScore >= 80 && authorityScore >= 8) confidenceScore = 8.0;
-        else if (relevanceScore >= 75 && authorityScore >= 7) confidenceScore = 7.5;
-
-        if (confidenceScore >= 8.0) {
-          // Auto-apply high confidence replacements
-          // First, create a replacement record in dead_link_replacements
-          const { data: replacement, error: replError } = await supabaseClient
-            .from('dead_link_replacements')
-            .insert({
-              original_url: citation.url,
-              original_source: citation.source,
-              replacement_url: bestMatch.suggestedUrl,
-              replacement_source: bestMatch.sourceName,
-              replacement_reason: `Auto-replacement: ${bestMatch.reason}`,
-              confidence_score: confidenceScore,
-              status: 'approved',
-              suggested_by: 'auto',
-            })
-            .select()
-            .single();
-
-          if (replError) {
-            console.error('Failed to create replacement record:', replError);
-            results.failed++;
-          } else {
-            // Now call apply-citation-replacement with the record ID
-            const { error: applyError } = await supabaseClient.functions.invoke(
-              'apply-citation-replacement',
-              {
-                body: {
-                  replacementIds: [replacement.id],
-                  preview: false
-                },
-              }
-            );
-
-            if (applyError) {
-              console.error('Failed to apply replacement:', applyError);
-              results.failed++;
-            } else {
-              results.autoApplied++;
-            }
-          }
-        } else {
-          results.manualReview++;
-        }
-
-        // Update counts
-        await updateJobStatus(supabaseClient, jobId, {
-          auto_applied_count: results.autoApplied,
-          manual_review_count: results.manualReview,
-          failed_count: results.failed,
+    // Create chunk records in database
+    for (const chunk of chunks) {
+      const { error: chunkError } = await supabaseClient
+        .from('citation_replacement_chunks')
+        .insert({
+          parent_job_id: jobId,
+          chunk_number: chunk.chunk_number,
+          chunk_size: chunk.citations.length,
+          citations: chunk.citations,
+          progress_total: chunk.progress_total,
+          status: 'pending'
         });
 
-      } catch (citationError) {
-        console.error('Error processing citation:', citationError);
-        results.failed++;
+      if (chunkError) {
+        console.error('Failed to create chunk:', chunkError);
+        throw chunkError;
       }
     }
 
-    // Mark complete
-    const executionTime = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Job ${jobId} completed in ${executionTime}s:`, results);
-    
-    await updateJobStatus(supabaseClient, jobId, {
-      status: 'completed',
-      progress_current: nonApprovedCitations.length,
-      auto_applied_count: results.autoApplied,
-      manual_review_count: results.manualReview,
-      failed_count: results.failed,
-      completed_at: new Date().toISOString(),
+    // Update parent job with chunk info
+    await supabaseClient
+      .from('citation_replacement_jobs')
+      .update({
+        total_chunks: chunks.length,
+        chunk_size: CHUNK_SIZE,
+        progress_total: nonApprovedCitations.length,
+      })
+      .eq('id', jobId);
+
+    console.log(`Job ${jobId} coordinator complete. Triggering first chunk processor.`);
+
+    // Trigger first chunk processor (it will chain to others)
+    await supabaseClient.functions.invoke('process-citation-chunk', {
+      body: { parentJobId: jobId }
     });
 
   } catch (error) {
-    console.error(`Job ${jobId} failed with error:`, error);
-    const executionTime = Math.round((Date.now() - startTime) / 1000);
-    
-    // Always mark job as failed on error
-    await updateJobStatus(supabaseClient, jobId, {
-      status: 'failed',
-      error_message: `${(error as Error).message} (after ${executionTime}s)`,
-      completed_at: new Date().toISOString(),
-    });
-  } finally {
-    // Final heartbeat to ensure job status is updated
+    console.error(`Coordinator for job ${jobId} failed:`, error);
     await supabaseClient
       .from('citation_replacement_jobs')
-      .update({ updated_at: new Date().toISOString() })
+      .update({
+        status: 'failed',
+        error_message: `Coordinator failed: ${(error as Error).message}`,
+        completed_at: new Date().toISOString(),
+      })
       .eq('id', jobId);
-    
-    console.log(`Job ${jobId} processing finished`);
-  }
-}
-
-async function updateJobStatus(supabaseClient: any, jobId: string, updates: any) {
-  const { error } = await supabaseClient
-    .from('citation_replacement_jobs')
-    .update(updates)
-    .eq('id', jobId);
-
-  if (error) {
-    console.error('Failed to update job status:', error);
   }
 }

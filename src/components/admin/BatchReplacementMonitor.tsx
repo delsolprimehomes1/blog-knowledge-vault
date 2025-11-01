@@ -35,6 +35,26 @@ export function BatchReplacementMonitor({ jobId }: BatchReplacementMonitorProps)
     enabled: !!jobId
   });
 
+  // Fetch chunks for the job
+  const { data: chunks } = useQuery({
+    queryKey: ['citation-chunks', jobId],
+    queryFn: async () => {
+      if (!jobId) return null;
+      const { data, error } = await supabase
+        .from('citation_replacement_chunks')
+        .select('*')
+        .eq('parent_job_id', jobId)
+        .order('chunk_number', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: (query) => {
+      return job?.status === 'running' ? 5000 : false;
+    },
+    enabled: !!jobId
+  });
+
   // Fetch recent replacements
   const { data: recentReplacements } = useQuery({
     queryKey: ['recent-replacements'],
@@ -129,6 +149,36 @@ export function BatchReplacementMonitor({ jobId }: BatchReplacementMonitorProps)
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
+  const retryFailedChunks = async () => {
+    if (!jobId) return;
+    
+    try {
+      await supabase.functions.invoke('restart-citation-chunk', {
+        body: { parentJobId: jobId }
+      });
+      
+      toast({
+        title: "Retrying Failed Chunks",
+        description: "Failed chunks have been reset and will be reprocessed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to restart chunks. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getChunkStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300';
+      case 'processing': return 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 animate-pulse';
+      case 'failed': return 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400';
+    }
+  };
+
   const isOfficialSource = (url: string) => {
     const officialDomains = ['gov.es', 'gov.uk', 'boe.es', 'aena.es', 'ine.es', 'bde.es', 'spain.info'];
     return officialDomains.some(domain => url.includes(domain));
@@ -181,6 +231,39 @@ export function BatchReplacementMonitor({ jobId }: BatchReplacementMonitorProps)
               <p className="text-2xl font-bold">{job.articles_processed}</p>
             </div>
           </div>
+
+          {/* Chunk Progress Grid */}
+          {chunks && chunks.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Chunk Progress</h4>
+                <span className="text-sm text-muted-foreground">
+                  {job.completed_chunks} / {job.total_chunks} chunks completed
+                </span>
+              </div>
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                {chunks.map((chunk: any) => (
+                  <div 
+                    key={chunk.id} 
+                    className={`p-2 rounded text-xs text-center font-medium ${getChunkStatusColor(chunk.status)}`}
+                    title={`Chunk ${chunk.chunk_number}: ${chunk.status} (${chunk.progress_current}/${chunk.progress_total})`}
+                  >
+                    {chunk.chunk_number}
+                  </div>
+                ))}
+              </div>
+              {job.failed_chunks > 0 && (
+                <Button 
+                  onClick={retryFailedChunks}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  Retry {job.failed_chunks} Failed Chunks
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Rate & ETA */}
           {job.status === 'running' && (

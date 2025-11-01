@@ -504,14 +504,82 @@ export type Database = {
           },
         ]
       }
+      citation_replacement_chunks: {
+        Row: {
+          auto_applied_count: number | null
+          chunk_number: number
+          chunk_size: number
+          citations: Json
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          failed_count: number | null
+          id: string
+          manual_review_count: number | null
+          parent_job_id: string | null
+          progress_current: number | null
+          progress_total: number
+          started_at: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          auto_applied_count?: number | null
+          chunk_number: number
+          chunk_size: number
+          citations: Json
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          failed_count?: number | null
+          id?: string
+          manual_review_count?: number | null
+          parent_job_id?: string | null
+          progress_current?: number | null
+          progress_total: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          auto_applied_count?: number | null
+          chunk_number?: number
+          chunk_size?: number
+          citations?: Json
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          failed_count?: number | null
+          id?: string
+          manual_review_count?: number | null
+          parent_job_id?: string | null
+          progress_current?: number | null
+          progress_total?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citation_replacement_chunks_parent_job_id_fkey"
+            columns: ["parent_job_id"]
+            isOneToOne: false
+            referencedRelation: "citation_replacement_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       citation_replacement_jobs: {
         Row: {
           articles_processed: number | null
           auto_applied_count: number | null
+          chunk_size: number | null
           completed_at: string | null
+          completed_chunks: number | null
           created_at: string | null
           created_by: string | null
           error_message: string | null
+          failed_chunks: number | null
           failed_count: number | null
           id: string
           manual_review_count: number | null
@@ -520,15 +588,19 @@ export type Database = {
           results: Json | null
           started_at: string | null
           status: string
+          total_chunks: number | null
           updated_at: string | null
         }
         Insert: {
           articles_processed?: number | null
           auto_applied_count?: number | null
+          chunk_size?: number | null
           completed_at?: string | null
+          completed_chunks?: number | null
           created_at?: string | null
           created_by?: string | null
           error_message?: string | null
+          failed_chunks?: number | null
           failed_count?: number | null
           id?: string
           manual_review_count?: number | null
@@ -537,15 +609,19 @@ export type Database = {
           results?: Json | null
           started_at?: string | null
           status?: string
+          total_chunks?: number | null
           updated_at?: string | null
         }
         Update: {
           articles_processed?: number | null
           auto_applied_count?: number | null
+          chunk_size?: number | null
           completed_at?: string | null
+          completed_chunks?: number | null
           created_at?: string | null
           created_by?: string | null
           error_message?: string | null
+          failed_chunks?: number | null
           failed_count?: number | null
           id?: string
           manual_review_count?: number | null
@@ -554,6 +630,7 @@ export type Database = {
           results?: Json | null
           started_at?: string | null
           status?: string
+          total_chunks?: number | null
           updated_at?: string | null
         }
         Relationships: []
