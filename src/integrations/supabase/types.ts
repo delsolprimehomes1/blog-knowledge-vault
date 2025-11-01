@@ -520,6 +520,7 @@ export type Database = {
           results: Json | null
           started_at: string | null
           status: string
+          updated_at: string | null
         }
         Insert: {
           articles_processed?: number | null
@@ -536,6 +537,7 @@ export type Database = {
           results?: Json | null
           started_at?: string | null
           status?: string
+          updated_at?: string | null
         }
         Update: {
           articles_processed?: number | null
@@ -552,6 +554,7 @@ export type Database = {
           results?: Json | null
           started_at?: string | null
           status?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
