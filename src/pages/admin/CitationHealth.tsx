@@ -327,6 +327,31 @@ const CitationHealth = () => {
     }
   });
 
+  const backfillInlineCitations = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('backfill-inline-citations', {
+        body: { dryRun: false }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success('✅ Inline citations backfill complete!', {
+        description: `📚 Processed ${data.processedArticles} articles\n🔗 Injected ${data.totalCitationsInjected} inline citations\n⏭️ Skipped ${data.skippedArticles} (already had citations)`,
+        duration: 10000
+      });
+      queryClient.invalidateQueries({ queryKey: ["citation-health"] });
+      queryClient.invalidateQueries({ queryKey: ["citation-usage-tracking"] });
+      queryClient.invalidateQueries({ queryKey: ["paragraph-tracking-stats"] });
+    },
+    onError: (error) => {
+      toast.error(`Inline citation backfill failed: ${error.message}`, {
+        description: 'Check edge function logs for details',
+        duration: 5000
+      });
+    }
+  });
+
   const approveReplacement = useMutation({
     mutationFn: async (replacementId: string) => {
       const { error } = await supabase.from("dead_link_replacements").update({ status: "approved" }).eq("id", replacementId);
@@ -654,6 +679,24 @@ const CitationHealth = () => {
               )}
             </Button>
             <Button 
+              onClick={() => backfillInlineCitations.mutate()}
+              disabled={backfillInlineCitations.isPending}
+              variant="default"
+              title="Inject inline citations into all articles without them (117 articles)"
+            >
+              {backfillInlineCitations.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                  Injecting... (10-15 min)
+                </>
+              ) : (
+                <>
+                  <Zap className="mr-2 h-4 w-4" /> 
+                  Backfill Inline Citations
+                </>
+              )}
+            </Button>
+            <Button 
               onClick={() => backfillParagraphTracking.mutate()}
               disabled={backfillParagraphTracking.isPending}
               variant="outline"
@@ -662,7 +705,7 @@ const CitationHealth = () => {
               {backfillParagraphTracking.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-                  Backfilling... (may take 15-20 min)
+                  Backfilling... (15-20 min)
                 </>
               ) : (
                 <>
