@@ -255,11 +255,15 @@ export function generateArticleSchema(
         "inLanguage": article.language,
         ...(paragraphIndex !== null && { 
           "position": `paragraph-${paragraphIndex}`,
-          // Add contextual relationship for AI engines
+          // Enhanced contextual relationship for AI engines (ChatGPT, Perplexity, Claude, SGE)
           "citation": {
             "@type": "Claim",
             "position": `inline-paragraph-${paragraphIndex}`,
-            "appearance": "contextual-hyperlink"
+            "appearance": "contextual-hyperlink",
+            "isInline": true,
+            "format": "According to {source} ({year})",
+            "anchorText": citation.text || citation.source,
+            "citationStyle": "APA-inline"
           }
         }),
         ...(citation.year && { 
@@ -273,7 +277,8 @@ export function generateArticleSchema(
             "@type": "AggregateRating",
             "ratingValue": (citation.authorityScore / 20).toFixed(1), // Convert 0-100 to 0-5
             "bestRating": "5",
-            "worstRating": "0"
+            "worstRating": "0",
+            "ratingExplanation": "Authority score based on domain reputation and source type"
           }
         }),
       };

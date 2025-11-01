@@ -96,8 +96,13 @@ export const ArticleContent = ({
   const processContent = (htmlContent: string) => {
     let processed = sanitizeContent(htmlContent);
     
-    // Convert markdown to HTML if detected (handles legacy content with asterisks)
-    if (processed.includes('**') || /^\s*\*\s+/m.test(processed)) {
+    // STEP 1: Convert markdown-style bold markers to HTML (BEFORE markdown processing)
+    // Fixes visible asterisks like **Mijas Pueblo:** that should be <strong>Mijas Pueblo:</strong>
+    processed = processed.replace(/\*\*([^*]+?):\*\*/g, '<strong>$1:</strong>');
+    processed = processed.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+    
+    // STEP 2: Convert full markdown to HTML only if markdown patterns detected
+    if (/^\s*\*\s+/m.test(processed) || /^#{1,6}\s/m.test(processed)) {
       processed = marked(processed) as string;
     }
     
