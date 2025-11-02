@@ -3,6 +3,7 @@ import { Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { prefetchArticle, prefetchImage } from "@/lib/prefetch";
+import { transformImage, getResponsiveSrcSet, getResponsiveSizes } from "@/lib/imageTransform";
 import { ArrowRight } from "lucide-react";
 
 interface ArticleCardProps {
@@ -21,6 +22,7 @@ interface ArticleCardProps {
     name: string;
     photo_url: string;
   } | null;
+  priority?: boolean;
 }
 
 const LANGUAGE_FLAGS: Record<string, string> = {
@@ -34,9 +36,14 @@ const LANGUAGE_FLAGS: Record<string, string> = {
   hu: "🇭🇺",
 };
 
-export const ArticleCard = ({ article, author }: ArticleCardProps) => {
-  const imageUrl = article.featured_image_url || 
-    'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
+export const ArticleCard = ({ article, author, priority = false }: ArticleCardProps) => {
+  const fallbackImage = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
+  const imageUrl = article.featured_image_url || fallbackImage;
+  
+  // Transform image for optimal loading (800px is max card width)
+  const optimizedSrc = transformImage(imageUrl, 800, 85);
+  const srcSet = getResponsiveSrcSet(imageUrl);
+  const sizes = getResponsiveSizes();
 
   const handleMouseEnter = () => {
     // Prefetch article and featured image on hover
@@ -59,10 +66,13 @@ export const ArticleCard = ({ article, author }: ArticleCardProps) => {
         <Link to={`/blog/${article.slug}`} className="block">
           <div className="relative overflow-hidden aspect-[16/10]">
             <OptimizedImage
-              src={imageUrl}
+              src={optimizedSrc}
+              srcSet={srcSet}
+              sizes={sizes}
               alt={article.headline}
-              width={600}
-              height={375}
+              width={800}
+              height={500}
+              priority={priority}
               className="w-full h-full object-cover group-hover:scale-105 active:scale-95 transition-transform duration-300"
               onError={handleImageError}
             />

@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/utils/analytics";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo-new.png";
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -72,6 +75,36 @@ export const Navbar = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Prefetch blog articles on hover for instant loading
+  const handleBlogHover = () => {
+    queryClient.prefetchQuery({
+      queryKey: ["blog-articles", "all", "all", "", 1],
+      queryFn: async () => {
+        const { data, count } = await supabase
+          .from("blog_articles")
+          .select(`
+            id,
+            slug,
+            headline,
+            category,
+            language,
+            featured_image_url,
+            date_published,
+            status,
+            meta_description,
+            funnel_stage,
+            read_time,
+            authors!blog_articles_author_id_fkey(name, photo_url)
+          `, { count: 'exact' })
+          .eq("status", "published")
+          .order("date_published", { ascending: false })
+          .range(0, 8);
+        
+        return { articles: data, total: count || data?.length || 0 };
+      },
+    });
+  };
+
   return (
     <nav
       className={cn(
@@ -100,6 +133,7 @@ export const Navbar = () => {
           <div className="hidden md:flex items-center gap-2">
             <NavLink
               to="/blog"
+              onMouseEnter={handleBlogHover}
               className={cn(
                 "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
                 "transition-all duration-200",
@@ -196,6 +230,7 @@ export const Navbar = () => {
               <nav className="flex flex-col gap-4 mt-8">
                 <NavLink
                   to="/blog"
+                  onMouseEnter={handleBlogHover}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
                     "px-4 py-3 rounded-lg font-medium text-lg",

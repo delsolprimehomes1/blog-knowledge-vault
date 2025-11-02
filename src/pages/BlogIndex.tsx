@@ -275,6 +275,7 @@ const BlogIndex = () => {
                   <ArticleCard
                     article={article}
                     author={authorInfo}
+                    priority={index < 3}
                   />
                 </div>
               );

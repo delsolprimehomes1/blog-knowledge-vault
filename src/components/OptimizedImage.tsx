@@ -1,12 +1,14 @@
 import { useState, ImgHTMLAttributes } from 'react';
 
-interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> {
+interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'srcSet' | 'sizes'> {
   src: string;
   alt: string;
   width?: number;
   height?: number;
   priority?: boolean;
   className?: string;
+  srcSet?: string;
+  sizes?: string;
 }
 
 export const OptimizedImage = ({
@@ -16,6 +18,8 @@ export const OptimizedImage = ({
   height,
   priority = false,
   className = '',
+  srcSet,
+  sizes,
   ...props
 }: OptimizedImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -30,8 +34,11 @@ export const OptimizedImage = ({
         alt={alt}
         width={width}
         height={height}
+        srcSet={srcSet}
+        sizes={sizes}
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
+        fetchPriority={priority ? 'high' : 'auto'}
         onLoad={() => setIsLoaded(true)}
         className={`transition-all duration-500 ${
           isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm scale-105'
