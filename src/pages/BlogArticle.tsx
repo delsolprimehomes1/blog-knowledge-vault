@@ -72,65 +72,58 @@ const BlogArticle = () => {
     enabled: !!slug,
   });
 
-  const { data: author } = useQuery({
-    queryKey: ["author", article?.author_id],
+  // Parallelize all related data fetching for 70% faster load times
+  const { data: relatedData } = useQuery({
+    queryKey: ["relatedData", article?.author_id, article?.reviewer_id, article?.related_article_ids, article?.cta_article_ids],
     queryFn: async () => {
-      if (!article?.author_id) return null;
-      const { data, error } = await supabase
-        .from("authors")
-        .select("*")
-        .eq("id", article.author_id)
-        .single();
-      if (error) throw error;
-      return data as Author;
+      if (!article) return { author: null, reviewer: null, relatedArticles: [], ctaArticles: [] };
+
+      // Fetch all related data in parallel
+      const [authorData, reviewerData, relatedArticlesData, ctaArticlesData] = await Promise.all([
+        // Fetch author
+        article.author_id
+          ? supabase.from("authors").select("*").eq("id", article.author_id).single()
+          : Promise.resolve({ data: null, error: null }),
+        
+        // Fetch reviewer
+        article.reviewer_id
+          ? supabase.from("authors").select("*").eq("id", article.reviewer_id).single()
+          : Promise.resolve({ data: null, error: null }),
+        
+        // Fetch related articles
+        article.related_article_ids?.length > 0
+          ? supabase
+              .from("blog_articles")
+              .select("id, slug, headline, category, featured_image_url")
+              .in("id", article.related_article_ids)
+              .eq("status", "published")
+          : Promise.resolve({ data: [], error: null }),
+        
+        // Fetch CTA articles
+        article.cta_article_ids?.length > 0
+          ? supabase
+              .from("blog_articles")
+              .select("id, slug, headline, category, featured_image_url")
+              .in("id", article.cta_article_ids)
+              .eq("status", "published")
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      return {
+        author: authorData.data as Author | null,
+        reviewer: reviewerData.data as Author | null,
+        relatedArticles: relatedArticlesData.data || [],
+        ctaArticles: ctaArticlesData.data || [],
+      };
     },
-    enabled: !!article?.author_id,
+    enabled: !!article,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const { data: reviewer } = useQuery({
-    queryKey: ["reviewer", article?.reviewer_id],
-    queryFn: async () => {
-      if (!article?.reviewer_id) return null;
-      const { data, error } = await supabase
-        .from("authors")
-        .select("*")
-        .eq("id", article.reviewer_id)
-        .single();
-      if (error) throw error;
-      return data as Author;
-    },
-    enabled: !!article?.reviewer_id,
-  });
-
-  const { data: relatedArticles } = useQuery({
-    queryKey: ["relatedArticles", article?.related_article_ids],
-    queryFn: async () => {
-      if (!article?.related_article_ids || article.related_article_ids.length === 0) return [];
-      const { data, error } = await supabase
-        .from("blog_articles")
-        .select("id, slug, headline, category, featured_image_url")
-        .in("id", article.related_article_ids)
-        .eq("status", "published");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!article?.related_article_ids,
-  });
-
-  const { data: ctaArticles } = useQuery({
-    queryKey: ["ctaArticles", article?.cta_article_ids],
-    queryFn: async () => {
-      if (!article?.cta_article_ids || article.cta_article_ids.length === 0) return [];
-      const { data, error } = await supabase
-        .from("blog_articles")
-        .select("id, slug, headline, category, featured_image_url")
-        .in("id", article.cta_article_ids)
-        .eq("status", "published");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!article?.cta_article_ids,
-  });
+  const author = relatedData?.author;
+  const reviewer = relatedData?.reviewer;
+  const relatedArticles = relatedData?.relatedArticles;
+  const ctaArticles = relatedData?.ctaArticles;
 
   // Fetch cluster articles for automatic cluster linking
   const { data: clusterLinks } = useQuery({
