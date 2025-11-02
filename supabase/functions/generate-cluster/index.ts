@@ -2541,7 +2541,7 @@ Return ONLY valid JSON:
           .update({
             cta_article_ids: ctaIds,
             related_article_ids: relatedIds,
-            internal_links: article.internal_links || []
+            internal_links: [] // Will be populated after cluster generation
           })
           .eq('id', article.id);
         
@@ -2568,34 +2568,41 @@ Return ONLY valid JSON:
     
     for (const article of articles) {
       try {
-        // Skip BOFU articles (they should have no CTAs)
+        // Build sibling articles data based on funnel stage
+        let relatedClusterArticles;
+        
         if (article.funnel_stage === 'BOFU') {
-          const { error: updateError } = await supabase
-            .from('blog_articles')
-            .update({ related_cluster_articles: [] })
-            .eq('id', article.id);
+          // BOFU articles show MOFU siblings for "Related Reading" opportunities
+          relatedClusterArticles = articles
+            .filter((a: any) => 
+              a.id !== article.id && 
+              a.status === 'published' &&
+              a.funnel_stage === 'MOFU'
+            )
+            .map((a: any) => ({
+              id: a.id,
+              slug: a.slug,
+              headline: a.headline,
+              stage: a.funnel_stage,
+              featured_image_url: a.featured_image_url
+            }));
           
-          if (!updateError) {
-            console.log(`[Job ${jobId}] ✅ BOFU article "${article.headline}" - no CTAs (correct)`);
-          }
-          
-          article.related_cluster_articles = [];
-          continue;
+          console.log(`[Job ${jobId}] ✅ BOFU article "${article.headline}" - linked to ${relatedClusterArticles.length} MOFU siblings`);
+        } else {
+          // TOFU/MOFU articles show all published siblings
+          relatedClusterArticles = articles
+            .filter((a: any) => 
+              a.id !== article.id && 
+              a.status === 'published'
+            )
+            .map((a: any) => ({
+              id: a.id,
+              slug: a.slug,
+              headline: a.headline,
+              stage: a.funnel_stage,
+              featured_image_url: a.featured_image_url
+            }));
         }
-
-        // Build sibling articles data (published only, exclude self)
-        const relatedClusterArticles = articles
-          .filter((a: any) => 
-            a.id !== article.id && 
-            a.status === 'published'
-          )
-          .map((a: any) => ({
-            id: a.id,
-            slug: a.slug,
-            headline: a.headline,
-            stage: a.funnel_stage,
-            featured_image_url: a.featured_image_url
-          }));
 
         // Update database with related cluster articles
         const { error: updateError } = await supabase
@@ -2621,6 +2628,76 @@ Return ONLY valid JSON:
 
     console.log(`[Job ${jobId}] ✅ Related cluster articles populated for all articles`);
     checkTimeout(); // Check after populating
+
+    // STEP 7: Auto-populate internal links using AI
+    console.log(`[Job ${jobId}] 🔗 Generating internal links for all articles...`);
+    await updateProgress(supabase, jobId, 11.5, 'Generating internal links...');
+    
+    let linksSuccessCount = 0;
+    let linksErrorCount = 0;
+    
+    for (const article of articles) {
+      try {
+        console.log(`[Job ${jobId}]   Finding links for: "${article.headline}" (${article.language})`);
+
+        // Call find-internal-links edge function
+        const { data: linksData, error: linksError } = await supabase.functions.invoke('find-internal-links', {
+          body: {
+            content: article.detailed_content || '',
+            headline: article.headline,
+            currentArticleId: article.id,
+            language: article.language,
+            funnelStage: article.funnel_stage,
+            availableArticles: articles.map((a: any) => ({
+              id: a.id,
+              slug: a.slug,
+              headline: a.headline,
+              speakable_answer: a.speakable_answer,
+              category: a.category,
+              funnel_stage: a.funnel_stage,
+              language: a.language
+            }))
+          }
+        });
+
+        if (!linksError && linksData?.links && linksData.links.length > 0) {
+          // Convert to internal_links format
+          const internalLinks = linksData.links.map((link: any) => ({
+            text: link.text || link.anchorText,
+            url: link.url,
+            title: link.title || link.targetHeadline
+          }));
+
+          // Update article in database
+          const { error: updateError } = await supabase
+            .from('blog_articles')
+            .update({ internal_links: internalLinks })
+            .eq('id', article.id);
+
+          if (!updateError) {
+            console.log(`[Job ${jobId}]   ✅ Added ${internalLinks.length} internal links to "${article.headline}"`);
+            article.internal_links = internalLinks;
+            linksSuccessCount++;
+          } else {
+            console.error(`[Job ${jobId}]   ⚠️ Failed to update internal links:`, updateError);
+            linksErrorCount++;
+          }
+        } else {
+          console.log(`[Job ${jobId}]   ⚠️ No internal links found for "${article.headline}"`);
+          linksSuccessCount++; // Still count as success
+        }
+
+        // Small delay to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (error) {
+        console.error(`[Job ${jobId}]   ❌ Error generating links for "${article.headline}":`, error);
+        linksErrorCount++;
+      }
+    }
+
+    console.log(`[Job ${jobId}] ✅ Internal links generation complete: ${linksSuccessCount} success, ${linksErrorCount} errors`);
+    checkTimeout(); // Check after internal links
 
     await updateProgress(supabase, jobId, 12, 'Completed!');
     console.log(`[Job ${jobId}] Generation complete!`);

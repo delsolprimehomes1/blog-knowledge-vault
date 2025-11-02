@@ -1,7 +1,53 @@
 import { AdminLayout } from "@/components/AdminLayout";
 import { ContentFreshnessPanel } from "@/components/admin/ContentFreshnessPanel";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Link2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 const ContentUpdates = () => {
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<any>(null);
+
+  const handleBackfillInternalLinks = async () => {
+    try {
+      setIsBackfilling(true);
+      setBackfillResult(null);
+      
+      toast.info("🔗 Starting internal links backfill...", {
+        description: "This may take several minutes for large article counts"
+      });
+
+      const { data, error } = await supabase.functions.invoke('backfill-internal-links', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      setBackfillResult(data);
+      
+      if (data.success) {
+        toast.success(`✅ Internal links backfill complete!`, {
+          description: `${data.success_count}/${data.total_articles} articles updated successfully`
+        });
+      } else {
+        toast.error("❌ Backfill failed", {
+          description: data.error
+        });
+      }
+    } catch (error) {
+      console.error('Backfill error:', error);
+      toast.error("❌ Failed to backfill internal links", {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -11,6 +57,86 @@ const ContentUpdates = () => {
             Monitor and maintain content freshness for optimal AI citation likelihood.
           </p>
         </div>
+
+        {/* Internal Links Backfill Section */}
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Internal Links Backfill
+            </CardTitle>
+            <CardDescription>
+              Auto-populate internal links for all articles missing them using AI-powered link discovery
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>This tool will:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Find all published articles with 0 internal links</li>
+                <li>Generate 5-8 relevant internal links per article using AI</li>
+                <li>Update the internal_links field in the database</li>
+                <li>Process articles in batches to avoid rate limits</li>
+              </ul>
+            </div>
+
+            {backfillResult && (
+              <Alert className={backfillResult.success ? "border-green-500 bg-green-50 dark:bg-green-950/20" : "border-red-500 bg-red-50 dark:bg-red-950/20"}>
+                <div className="flex items-start gap-2">
+                  {backfillResult.success ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                  )}
+                  <AlertDescription className="text-sm">
+                    <div className="font-semibold mb-1">
+                      {backfillResult.success ? "Backfill Complete" : "Backfill Failed"}
+                    </div>
+                    <div className="space-y-1">
+                      {backfillResult.total_articles !== undefined && (
+                        <p>Total articles processed: {backfillResult.total_articles}</p>
+                      )}
+                      {backfillResult.success_count !== undefined && (
+                        <p className="text-green-600 dark:text-green-400">
+                          ✅ Successfully updated: {backfillResult.success_count}
+                        </p>
+                      )}
+                      {backfillResult.error_count > 0 && (
+                        <p className="text-red-600 dark:text-red-400">
+                          ❌ Errors: {backfillResult.error_count}
+                        </p>
+                      )}
+                      {backfillResult.error && (
+                        <p className="text-red-600 dark:text-red-400">
+                          Error: {backfillResult.error}
+                        </p>
+                      )}
+                    </div>
+                  </AlertDescription>
+                </div>
+              </Alert>
+            )}
+
+            <Button 
+              onClick={handleBackfillInternalLinks}
+              disabled={isBackfilling}
+              size="lg"
+              className="w-full"
+            >
+              {isBackfilling ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Backfilling Internal Links...
+                </>
+              ) : (
+                <>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Run Internal Links Backfill
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
         <ContentFreshnessPanel />
 

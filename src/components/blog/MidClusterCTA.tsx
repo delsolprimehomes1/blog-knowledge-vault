@@ -31,8 +31,10 @@ export const MidClusterCTA = ({ relatedArticles, stage, currentArticleId }: MidC
     } else if (stage === "MOFU") {
       // MOFU → Show BOFU articles (guide toward conversion)
       filtered = relatedArticles.filter(a => a.stage === "BOFU");
+    } else if (stage === "BOFU") {
+      // BOFU → Show MOFU articles for "Related Reading" (prevent dead-end)
+      filtered = relatedArticles.filter(a => a.stage === "MOFU");
     }
-    // BOFU → Show nothing (already at conversion point)
     
     if (filtered.length === 0) {
       setCta(null);
@@ -68,7 +70,7 @@ export const MidClusterCTA = ({ relatedArticles, stage, currentArticleId }: MidC
         <div className="flex items-center gap-2 mb-3">
           <BookOpen className="h-5 w-5 text-primary" />
           <p className="text-sm uppercase text-primary font-semibold tracking-wide">
-            Learn More Within This Guide
+            {stage === "BOFU" ? "Related Reading" : "Learn More Within This Guide"}
           </p>
         </div>
         

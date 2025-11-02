@@ -64,36 +64,41 @@ serve(async (req) => {
         // Update each article with sibling data
         for (const article of clusterArticles) {
           try {
-            // Skip BOFU articles (they should have no CTAs)
+            // Build sibling articles based on funnel stage
+            let relatedClusterArticles;
+            
             if (article.funnel_stage === 'BOFU') {
-              const { error: updateError } = await supabase
-                .from('blog_articles')
-                .update({ related_cluster_articles: [] })
-                .eq('id', article.id);
+              // BOFU articles show MOFU siblings for "Related Reading"
+              relatedClusterArticles = clusterArticles
+                .filter((a: any) => 
+                  a.id !== article.id && 
+                  a.status === 'published' &&
+                  a.funnel_stage === 'MOFU'
+                )
+                .map((a: any) => ({
+                  id: a.id,
+                  slug: a.slug,
+                  headline: a.headline,
+                  stage: a.funnel_stage,
+                  featured_image_url: a.featured_image_url
+                }));
               
-              if (!updateError) {
-                console.log(`  ✅ Cleared CTAs for BOFU article "${article.headline}"`);
-                totalArticlesUpdated++;
-              } else {
-                console.error(`  ❌ Error clearing BOFU article ${article.id}:`, updateError);
-                totalErrors++;
-              }
-              continue;
+              console.log(`  ✅ BOFU article "${article.headline}" - linked to ${relatedClusterArticles.length} MOFU siblings`);
+            } else {
+              // TOFU/MOFU articles show all published siblings
+              relatedClusterArticles = clusterArticles
+                .filter((a: any) => 
+                  a.id !== article.id && 
+                  a.status === 'published'
+                )
+                .map((a: any) => ({
+                  id: a.id,
+                  slug: a.slug,
+                  headline: a.headline,
+                  stage: a.funnel_stage,
+                  featured_image_url: a.featured_image_url
+                }));
             }
-
-            // Build sibling articles array (published only, exclude self)
-            const relatedClusterArticles = clusterArticles
-              .filter((a: any) => 
-                a.id !== article.id && 
-                a.status === 'published'
-              )
-              .map((a: any) => ({
-                id: a.id,
-                slug: a.slug,
-                headline: a.headline,
-                stage: a.funnel_stage,
-                featured_image_url: a.featured_image_url
-              }));
 
             // Update article
             const { error: updateError } = await supabase
