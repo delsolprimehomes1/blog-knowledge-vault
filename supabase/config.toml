@@ -129,3 +129,4 @@ verify_jwt = false
 
 [functions.backfill-diagrams]
 verify_jwt = false
+timeout = 300

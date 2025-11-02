@@ -36,6 +36,7 @@ serve(async (req) => {
     let successCount = 0;
     let errorCount = 0;
     const errors: any[] = [];
+    const startTime = Date.now();
 
     const diagramTypeMap: Record<string, 'flowchart' | 'timeline' | 'comparison'> = {
       'TOFU': 'timeline',
@@ -43,10 +44,18 @@ serve(async (req) => {
       'BOFU': 'flowchart'
     };
 
-    // Process in batches of 5 to avoid rate limits
-    for (let i = 0; i < articles.length; i += 5) {
-      const batch = articles.slice(i, i + 5);
-      console.log(`\n📦 Processing batch ${Math.floor(i / 5) + 1}/${Math.ceil(articles.length / 5)}`);
+    // Process in batches of 3 to avoid rate limits and manage timeout
+    for (let i = 0; i < articles.length; i += 3) {
+      // Check if we're approaching timeout (280 seconds = 4m 40s)
+      const elapsedSeconds = (Date.now() - startTime) / 1000;
+      if (elapsedSeconds > 280) {
+        console.log(`⏱️ Approaching timeout at ${elapsedSeconds}s, stopping early`);
+        console.log(`✅ Processed ${successCount} articles before timeout`);
+        break;
+      }
+
+      const batch = articles.slice(i, i + 3);
+      console.log(`\n📦 Processing batch ${Math.floor(i / 3) + 1}/${Math.ceil(articles.length / 3)} (${elapsedSeconds.toFixed(0)}s elapsed)`);
 
       for (const article of batch) {
         try {
@@ -94,10 +103,15 @@ serve(async (req) => {
         }
       }
 
-      // Wait 5 seconds between batches to respect rate limits
-      if (i + 5 < articles.length) {
-        console.log('⏳ Waiting 5 seconds before next batch...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
+      // Progress milestone logging
+      if ((successCount + errorCount) % 10 === 0 && (successCount + errorCount) > 0) {
+        console.log(`\n🎯 Progress Milestone: ${successCount + errorCount}/${articles.length} articles processed`);
+      }
+
+      // Wait 3 seconds between batches to respect rate limits
+      if (i + 3 < articles.length) {
+        console.log('⏳ Waiting 3 seconds before next batch...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
 
