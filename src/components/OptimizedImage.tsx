@@ -9,6 +9,7 @@ interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 
   className?: string;
   srcSet?: string;
   sizes?: string;
+  blurDataURL?: string;
 }
 
 export const OptimizedImage = ({
@@ -20,6 +21,7 @@ export const OptimizedImage = ({
   className = '',
   srcSet,
   sizes,
+  blurDataURL,
   ...props
 }: OptimizedImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -29,6 +31,14 @@ export const OptimizedImage = ({
       className={`relative overflow-hidden ${className}`}
       style={width && height ? { aspectRatio: `${width}/${height}` } : undefined}
     >
+      {blurDataURL && !isLoaded && (
+        <img
+          src={blurDataURL}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover blur-xl scale-110"
+        />
+      )}
       <img
         src={src}
         alt={alt}
@@ -40,12 +50,12 @@ export const OptimizedImage = ({
         decoding="async"
         fetchPriority={priority ? 'high' : 'auto'}
         onLoad={() => setIsLoaded(true)}
-        className={`transition-all duration-500 ${
+        className={`transition-all duration-200 ${
           isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm scale-105'
         } ${className}`}
         {...props}
       />
-      {!isLoaded && (
+      {!isLoaded && !blurDataURL && (
         <div className="absolute inset-0 bg-muted">
           <div className="w-full h-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted animate-pulse" />
         </div>

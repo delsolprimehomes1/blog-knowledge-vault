@@ -15,6 +15,7 @@ import { Navbar } from "@/components/Navbar";
 import { SchemaMeta } from "@/components/SchemaMeta";
 import { generateAllBlogIndexSchemas } from "@/lib/blogIndexSchemaGenerator";
 import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
+import { transformImage } from "@/lib/imageTransform";
 
 const ARTICLES_PER_PAGE = 9;
 
@@ -177,6 +178,32 @@ const BlogIndex = () => {
   const totalArticles = articlesData?.total || 0;
   const totalPages = Math.ceil(totalArticles / ARTICLES_PER_PAGE);
   const currentArticles = articlesData?.articles || [];
+
+  // Preload first 3 images for instant loading
+  useEffect(() => {
+    if (currentArticles.length >= 3) {
+      const preloadLinks = currentArticles.slice(0, 3).map((article) => {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = transformImage(article.featured_image_url, 800, 85);
+        link.type = 'image/webp';
+        if ('fetchPriority' in HTMLLinkElement.prototype) {
+          (link as any).fetchPriority = 'high';
+        }
+        document.head.appendChild(link);
+        return link;
+      });
+      
+      return () => {
+        preloadLinks.forEach(link => {
+          if (document.head.contains(link)) {
+            document.head.removeChild(link);
+          }
+        });
+      };
+    }
+  }, [currentArticles]);
 
   // Generate schemas with article data
   const schemas = generateAllBlogIndexSchemas(currentArticles as any || [], baseUrl);

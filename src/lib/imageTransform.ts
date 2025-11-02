@@ -6,11 +6,11 @@ export const transformImage = (url: string, width: number, quality = 80): string
     return url;
   }
   
-  // Convert storage URL to render URL with transformations
+  // Convert storage URL to render URL with WebP format and transformations
   return url.replace(
     '/storage/v1/object/public/',
     '/storage/v1/render/image/public/'
-  ) + `?width=${width}&quality=${quality}`;
+  ) + `?width=${width}&quality=${quality}&resize=contain&format=webp`;
 };
 
 export const getResponsiveSrcSet = (url: string): string => {

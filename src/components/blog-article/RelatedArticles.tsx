@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { prefetchArticle, prefetchImage } from "@/lib/prefetch";
+import { transformImage, getResponsiveSrcSet, getResponsiveSizes } from "@/lib/imageTransform";
 
 interface Article {
   id: string;
@@ -28,32 +29,39 @@ export const RelatedArticles = ({ articles }: RelatedArticlesProps) => {
     <section className="my-12">
       <h2 className="text-2xl font-bold mb-6">People Also Read</h2>
       <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
-        {articles.map((article) => (
-          <Link
-            key={article.id}
-            to={`/blog/${article.slug}`}
-            className="flex-shrink-0 w-80 snap-start"
-            onMouseEnter={() => handleArticleHover(article)}
-          >
-            <Card className="h-full hover:shadow-lg transition-shadow">
-              <CardContent className="p-4">
-                <OptimizedImage
-                  src={article.featured_image_url}
-                  alt={article.headline}
-                  width={320}
-                  height={192}
-                  className="w-full h-48 object-cover rounded-md mb-3"
-                />
-                <Badge variant="secondary" className="mb-2">
-                  {article.category}
-                </Badge>
-                <h3 className="font-semibold text-lg line-clamp-2">
-                  {article.headline}
-                </h3>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+        {articles.map((article) => {
+          const optimizedSrc = transformImage(article.featured_image_url, 400, 85);
+          const srcSet = getResponsiveSrcSet(article.featured_image_url);
+          
+          return (
+            <Link
+              key={article.id}
+              to={`/blog/${article.slug}`}
+              className="flex-shrink-0 w-80 snap-start"
+              onMouseEnter={() => handleArticleHover(article)}
+            >
+              <Card className="h-full hover:shadow-lg transition-shadow">
+                <CardContent className="p-4">
+                  <OptimizedImage
+                    src={optimizedSrc}
+                    srcSet={srcSet}
+                    sizes="320px"
+                    alt={article.headline}
+                    width={320}
+                    height={192}
+                    className="w-full h-48 object-cover rounded-md mb-3"
+                  />
+                  <Badge variant="secondary" className="mb-2">
+                    {article.category}
+                  </Badge>
+                  <h3 className="font-semibold text-lg line-clamp-2">
+                    {article.headline}
+                  </h3>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );

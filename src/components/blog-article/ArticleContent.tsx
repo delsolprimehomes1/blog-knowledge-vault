@@ -6,6 +6,7 @@ import { injectExternalLinks, injectInternalLinks, injectInlineCitations, inject
 import { ClusterLinksBlock } from "./ClusterLinksBlock";
 import { MidClusterCTA } from "@/components/blog/MidClusterCTA";
 import { marked } from 'marked';
+import { transformImage, getResponsiveSrcSet, getResponsiveSizes } from "@/lib/imageTransform";
 
 interface RelatedClusterArticle {
   id: string;
@@ -186,13 +187,20 @@ export const ArticleContent = ({
     ? processedContent.split('<!-- MID_CLUSTER_CTA_PLACEHOLDER -->')
     : [processedContent, ''];
 
+  // Transform featured image for optimal loading
+  const optimizedFeaturedSrc = transformImage(featuredImageUrl, 1200, 85);
+  const featuredSrcSet = getResponsiveSrcSet(featuredImageUrl);
+  const featuredSizes = getResponsiveSizes();
+
   return (
     <article ref={contentRef} className="space-y-12 md:space-y-16">
       {/* Featured Image Hero - Full prominence before content */}
       {featuredImageUrl && (
         <figure className="my-0 -mx-6 sm:mx-0">
           <OptimizedImage
-            src={featuredImageUrl}
+            src={optimizedFeaturedSrc}
+            srcSet={featuredSrcSet}
+            sizes={featuredSizes}
             alt={featuredImageAlt}
             width={1200}
             height={675}
