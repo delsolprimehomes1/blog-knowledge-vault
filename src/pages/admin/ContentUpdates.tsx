@@ -1,12 +1,19 @@
 import { AdminLayout } from "@/components/AdminLayout";
-import { ContentFreshnessPanel } from "@/components/admin/ContentFreshnessPanel";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link2, CheckCircle2, AlertTriangle, Image } from "lucide-react";
 import { toast } from "sonner";
+
+// Lazy load the heavy ContentFreshnessPanel component
+const ContentFreshnessPanel = lazy(() => 
+  import("@/components/admin/ContentFreshnessPanel").then(module => ({
+    default: module.ContentFreshnessPanel
+  }))
+);
 
 const ContentUpdates = () => {
   const [isBackfilling, setIsBackfilling] = useState(false);
@@ -247,8 +254,8 @@ const ContentUpdates = () => {
                 <li>Find all published articles without diagrams</li>
                 <li>Generate BOFU → Flowcharts | MOFU → Comparisons | TOFU → Timelines</li>
                 <li>Include AI-generated alt text, caption, and description for each diagram</li>
-                <li>Process in batches of 5 with delays to respect rate limits</li>
-                <li>⏱️ Estimated time: ~30 minutes for 200+ articles</li>
+                <li>Process in batches of 3 with delays to respect rate limits</li>
+                <li>⏱️ Estimated time: ~5 minutes per run (30-35 articles each)</li>
               </ul>
             </div>
 
@@ -304,7 +311,7 @@ const ContentUpdates = () => {
               {isDiagramBackfilling ? (
                 <>
                   <span className="animate-spin mr-2">🎨</span>
-                  Generating Diagrams... (This takes ~30min)
+                  Generating Diagrams... (This takes ~5min per run)
                 </>
               ) : (
                 <>
@@ -316,7 +323,34 @@ const ContentUpdates = () => {
           </CardContent>
         </Card>
 
-        <ContentFreshnessPanel />
+        {/* Lazy-loaded Content Freshness Panel with Suspense */}
+        <Suspense
+          fallback={
+            <Card className="p-6">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-6 w-64" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-40" />
+                    <Skeleton className="h-9 w-24" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              </div>
+            </Card>
+          }
+        >
+          <ContentFreshnessPanel />
+        </Suspense>
 
         <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg p-6">
           <h3 className="font-semibold mb-3 text-blue-900 dark:text-blue-100">

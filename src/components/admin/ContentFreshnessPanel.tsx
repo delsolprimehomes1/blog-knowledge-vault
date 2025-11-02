@@ -3,25 +3,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Calendar, RefreshCw, TrendingUp, PlayCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle, Calendar, RefreshCw, TrendingUp, PlayCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { ContentFreshnessReport } from "@/types/contentUpdates";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
 
+const PAGE_SIZE = 50;
+
 export const ContentFreshnessPanel = () => {
   const [isInitializing, setIsInitializing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  
   const { data: freshnessReport, isLoading, refetch } = useQuery({
-    queryKey: ['content-freshness'],
+    queryKey: ['content-freshness', currentPage],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('content_freshness_report')
         .select('*')
-        .order('days_since_update', { ascending: false });
+        .order('days_since_update', { ascending: false })
+        .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
       
       if (error) throw error;
       return data as ContentFreshnessReport[];
-    }
+    },
+    staleTime: 15 * 60 * 1000, // 15 minutes cache
   });
 
   const handleInitialize = async () => {
@@ -60,11 +67,23 @@ export const ContentFreshnessPanel = () => {
   if (isLoading) {
     return (
       <Card className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-muted rounded w-1/3" />
-          <div className="space-y-2">
-            <div className="h-4 bg-muted rounded" />
-            <div className="h-4 bg-muted rounded w-5/6" />
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-64" />
+            <div className="flex gap-2">
+              <Skeleton className="h-9 w-40" />
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
+          </div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
           </div>
         </div>
       </Card>
@@ -94,6 +113,8 @@ export const ContentFreshnessPanel = () => {
     }
   };
 
+  const hasMorePages = freshnessReport && freshnessReport.length === PAGE_SIZE;
+
   return (
     <div className="space-y-4">
       <Card className="p-6">
@@ -117,7 +138,7 @@ export const ContentFreshnessPanel = () => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="text-center">
             <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-sm text-muted-foreground">Total Articles</div>
+            <div className="text-sm text-muted-foreground">On This Page</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">{stats.fresh}</div>
@@ -155,18 +176,47 @@ export const ContentFreshnessPanel = () => {
             </div>
           </div>
         )}
+
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between pt-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            Showing {currentPage * PAGE_SIZE + 1}-{currentPage * PAGE_SIZE + stats.total} of many
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              variant="outline"
+              size="sm"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground px-2">
+              Page {currentPage + 1}
+            </span>
+            <Button
+              onClick={() => setCurrentPage(p => p + 1)}
+              disabled={!hasMorePages}
+              variant="outline"
+              size="sm"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
       </Card>
 
       <Card className="p-6">
         <h4 className="font-semibold mb-4 flex items-center gap-2">
           <Calendar className="h-4 w-4" />
-          Articles Requiring Attention
+          Articles Requiring Attention (Page {currentPage + 1})
         </h4>
         
-        <div className="space-y-3 max-h-96 overflow-y-auto">
+        <div className="space-y-3 max-h-[600px] overflow-y-auto">
           {freshnessReport
             ?.filter((article) => article.freshness_status !== 'fresh')
-            .slice(0, 20)
             .map((article) => (
               <div key={article.id} className="flex items-center justify-between gap-4 p-3 bg-muted/50 rounded-lg">
                 <div className="flex-1 min-w-0">
