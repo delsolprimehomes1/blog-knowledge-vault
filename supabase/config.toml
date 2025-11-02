@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.backfill-cluster-related-articles]
 verify_jwt = false
+
+[functions.backfill-diagrams]
+verify_jwt = false

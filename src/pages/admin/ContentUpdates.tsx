@@ -5,12 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Link2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Link2, CheckCircle2, AlertTriangle, Image } from "lucide-react";
 import { toast } from "sonner";
 
 const ContentUpdates = () => {
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<any>(null);
+  const [isDiagramBackfilling, setIsDiagramBackfilling] = useState(false);
+  const [diagramBackfillResult, setDiagramBackfillResult] = useState<any>(null);
 
   const handleBackfillInternalLinks = async () => {
     try {
@@ -45,6 +47,42 @@ const ContentUpdates = () => {
       });
     } finally {
       setIsBackfilling(false);
+    }
+  };
+
+  const handleBackfillDiagrams = async () => {
+    try {
+      setIsDiagramBackfilling(true);
+      setDiagramBackfillResult(null);
+      
+      toast.info("🎨 Starting diagram backfill...", {
+        description: "This may take 30+ minutes for 200+ articles"
+      });
+
+      const { data, error } = await supabase.functions.invoke('backfill-diagrams', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      setDiagramBackfillResult(data);
+      
+      if (data.success) {
+        toast.success(`✅ Diagram backfill complete!`, {
+          description: `${data.success_count}/${data.total_articles} diagrams generated successfully`
+        });
+      } else {
+        toast.error("❌ Backfill failed", {
+          description: data.error
+        });
+      }
+    } catch (error) {
+      console.error('Diagram backfill error:', error);
+      toast.error("❌ Failed to backfill diagrams", {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsDiagramBackfilling(false);
     }
   };
 
@@ -132,6 +170,93 @@ const ContentUpdates = () => {
                 <>
                   <Link2 className="mr-2 h-4 w-4" />
                   Run Internal Links Backfill
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Diagram Backfill Section */}
+        <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-background">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Image className="h-5 w-5" />
+              AI Diagram Generation Backfill
+            </CardTitle>
+            <CardDescription>
+              Auto-generate funnel-stage-aware diagrams with full metadata for all articles
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>This tool will:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Find all published articles without diagrams</li>
+                <li>Generate BOFU → Flowcharts | MOFU → Comparisons | TOFU → Timelines</li>
+                <li>Include AI-generated alt text, caption, and description for each diagram</li>
+                <li>Process in batches of 5 with delays to respect rate limits</li>
+                <li>⏱️ Estimated time: ~30 minutes for 200+ articles</li>
+              </ul>
+            </div>
+
+            {diagramBackfillResult && (
+              <Alert className={diagramBackfillResult.success ? "border-green-500 bg-green-50 dark:bg-green-950/20" : "border-red-500 bg-red-50 dark:bg-red-950/20"}>
+                <div className="flex items-start gap-2">
+                  {diagramBackfillResult.success ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                  )}
+                  <AlertDescription className="text-sm">
+                    <div className="font-semibold mb-1">
+                      {diagramBackfillResult.success ? "Diagram Backfill Complete" : "Backfill Failed"}
+                    </div>
+                    <div className="space-y-1">
+                      {diagramBackfillResult.total_articles !== undefined && (
+                        <p>Total articles processed: {diagramBackfillResult.total_articles}</p>
+                      )}
+                      {diagramBackfillResult.success_count !== undefined && (
+                        <p className="text-green-600 dark:text-green-400">
+                          ✅ Diagrams generated: {diagramBackfillResult.success_count}
+                        </p>
+                      )}
+                      {diagramBackfillResult.error_count > 0 && (
+                        <p className="text-red-600 dark:text-red-400">
+                          ❌ Errors: {diagramBackfillResult.error_count}
+                        </p>
+                      )}
+                      {diagramBackfillResult.errors && diagramBackfillResult.errors.length > 0 && (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-xs text-muted-foreground">
+                            View Errors ({diagramBackfillResult.errors.length})
+                          </summary>
+                          <pre className="text-xs mt-2 p-2 bg-muted rounded max-h-40 overflow-auto">
+                            {JSON.stringify(diagramBackfillResult.errors, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  </AlertDescription>
+                </div>
+              </Alert>
+            )}
+
+            <Button 
+              onClick={handleBackfillDiagrams}
+              disabled={isDiagramBackfilling}
+              size="lg"
+              className="w-full"
+              variant="secondary"
+            >
+              {isDiagramBackfilling ? (
+                <>
+                  <span className="animate-spin mr-2">🎨</span>
+                  Generating Diagrams... (This takes ~30min)
+                </>
+              ) : (
+                <>
+                  <Image className="mr-2 h-4 w-4" />
+                  Run Diagram Backfill
                 </>
               )}
             </Button>

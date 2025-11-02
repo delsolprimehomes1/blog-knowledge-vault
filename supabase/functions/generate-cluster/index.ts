@@ -2699,6 +2699,77 @@ Return ONLY valid JSON:
     console.log(`[Job ${jobId}] ✅ Internal links generation complete: ${linksSuccessCount} success, ${linksErrorCount} errors`);
     checkTimeout(); // Check after internal links
 
+    // STEP 8: Auto-generate diagrams for each article
+    console.log(`[Job ${jobId}] 🎨 Generating AI-powered diagrams with metadata...`);
+    await updateProgress(supabase, jobId, 11.75, 'Generating diagrams...');
+    
+    const diagramTypeMap: Record<string, 'flowchart' | 'timeline' | 'comparison'> = {
+      'TOFU': 'timeline',      // Educational journey
+      'MOFU': 'comparison',    // Option evaluation
+      'BOFU': 'flowchart'      // Decision process
+    };
+    
+    let diagramSuccessCount = 0;
+    let diagramErrorCount = 0;
+    
+    for (const article of articles) {
+      try {
+        const diagramType = diagramTypeMap[article.funnel_stage] || 'timeline';
+        
+        console.log(`[Job ${jobId}]   🎨 Generating ${diagramType} diagram for: "${article.headline}"`);
+
+        // Call generate-diagram-image edge function
+        const { data: diagramData, error: diagramError } = await supabase.functions.invoke('generate-diagram-image', {
+          body: {
+            headline: article.headline,
+            articleContent: article.detailed_content?.substring(0, 500) || '',
+            diagramType: diagramType,
+            language: article.language
+          }
+        });
+
+        if (!diagramError && diagramData?.imageUrl) {
+          // Update article with diagram URL and AI-generated metadata
+          const { error: updateError } = await supabase
+            .from('blog_articles')
+            .update({
+              diagram_url: diagramData.imageUrl,
+              diagram_alt: diagramData.altText || `${diagramType} diagram for ${article.headline}`,
+              diagram_caption: diagramData.caption || `Visual guide for ${article.headline.substring(0, 60)}`,
+              diagram_description: diagramData.description || `AI-generated ${diagramType} infographic illustrating key concepts`
+            })
+            .eq('id', article.id);
+
+          if (!updateError) {
+            console.log(`[Job ${jobId}]   ✅ Diagram added: ${diagramType}`);
+            diagramSuccessCount++;
+            
+            // Update local article object for schema generation
+            article.diagram_url = diagramData.imageUrl;
+            article.diagram_alt = diagramData.altText;
+            article.diagram_caption = diagramData.caption;
+            article.diagram_description = diagramData.description;
+          } else {
+            console.error(`[Job ${jobId}]   ⚠️ Failed to save diagram:`, updateError);
+            diagramErrorCount++;
+          }
+        } else {
+          console.error(`[Job ${jobId}]   ⚠️ Diagram generation failed:`, diagramError);
+          diagramErrorCount++;
+        }
+        
+        // Wait 3 seconds between diagram generations to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+      } catch (error) {
+        console.error(`[Job ${jobId}]   ❌ Error generating diagram for "${article.headline}":`, error);
+        diagramErrorCount++;
+      }
+    }
+
+    console.log(`[Job ${jobId}] ✅ Diagram generation complete: ${diagramSuccessCount} success, ${diagramErrorCount} errors`);
+    checkTimeout(); // Check after diagrams
+
     await updateProgress(supabase, jobId, 12, 'Completed!');
     console.log(`[Job ${jobId}] Generation complete!`);
     

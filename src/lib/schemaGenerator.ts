@@ -165,7 +165,7 @@ export function generateArticleSchema(
               "height": 225
             }
           },
-          // Diagram image (secondary)
+          // Diagram image (secondary) with enhanced AI metadata
           {
             "@type": "ImageObject",
             "url": article.diagram_url,
@@ -178,7 +178,30 @@ export function generateArticleSchema(
             "width": 1200,
             "height": 1200,
             "encodingFormat": "image/png",
-            "contentType": "Infographic"
+            "contentType": "Infographic",
+            // Enhanced metadata for AI/LLM understanding
+            "inLanguage": article.language || "en",
+            "accessMode": ["visual", "textual"],
+            "accessibilityFeature": ["alternativeText", "longDescription"],
+            "educationalUse": "explanation",
+            "learningResourceType": "diagram",
+            "isAccessibleForFree": true,
+            "about": {
+              "@type": "Thing",
+              "name": article.category,
+              "description": article.meta_description
+            },
+            "thumbnail": {
+              "@type": "ImageObject",
+              "url": article.diagram_url,
+              "width": 400,
+              "height": 400
+            },
+            "hasPart": {
+              "@type": "WebPageElement",
+              "cssSelector": "figure img[alt*='diagram'], figure img[alt*='infographic']",
+              "position": "mid-article"
+            }
           }
         ]
       : {
