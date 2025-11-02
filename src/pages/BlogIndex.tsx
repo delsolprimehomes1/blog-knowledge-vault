@@ -18,9 +18,9 @@ import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
 
 const ARTICLES_PER_PAGE = 9;
 
-// Stagger animation delays for cards
+// Stagger animation delays for cards (reduced for faster perceived loading)
 const getCardDelay = (index: number) => {
-  return `${(index % 9) * 100}ms`;
+  return `${(index % 9) * 50}ms`;
 };
 
 const BlogIndex = () => {
@@ -72,6 +72,18 @@ const BlogIndex = () => {
     queryFn: async () => {
       console.log('Fetching articles with filters:', { selectedCategory, selectedLanguage, searchQuery, currentPage });
       
+      // Resolve category name on-the-fly if needed (eliminates sequential dependency)
+      let categoryName = null;
+      if (selectedCategory !== "all") {
+        const { data: categoryData } = await supabase
+          .from("categories")
+          .select("name")
+          .eq("id", selectedCategory)
+          .single();
+        categoryName = categoryData?.name;
+        console.log('Resolved category name:', categoryName);
+      }
+      
       // Only fetch fields needed for article cards (90% size reduction)
       let query = supabase
         .from("blog_articles")
@@ -88,18 +100,12 @@ const BlogIndex = () => {
           funnel_stage,
           read_time,
           authors!blog_articles_author_id_fkey(name, photo_url)
-        `)
+        `, { count: 'exact' })
         .eq("status", "published")
         .order("date_published", { ascending: false });
 
-      if (selectedCategory !== "all" && categories) {
-        const category = categories.find(c => c.id === selectedCategory);
-        if (category) {
-          console.log('Filtering by category:', category.name);
-          query = query.eq("category", category.name);
-        } else {
-          console.warn('Category not found for ID:', selectedCategory);
-        }
+      if (categoryName) {
+        query = query.eq("category", categoryName);
       }
 
       if (selectedLanguage !== "all") {
@@ -122,11 +128,9 @@ const BlogIndex = () => {
       console.log('Articles loaded:', data?.length, 'articles');
       return { articles: data, total: count || data?.length || 0 };
     },
-    // Fix race condition: only fetch when categories are loaded (if filtering)
-    enabled: selectedCategory === "all" || !!categories,
-    // Improve caching for better UX
+    // No dependency on categories - loads immediately, resolves category inline
     staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes (was cacheTime)
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 
   // Reset to page 1 when filters change
@@ -166,7 +170,8 @@ const BlogIndex = () => {
     setSearchQuery("");
   };
 
-  const isLoading = categoriesLoading || articlesLoading;
+  // Only show loading state for articles (categories load in background)
+  const isLoading = articlesLoading;
   const hasError = categoriesError || articlesError;
   
   const totalArticles = articlesData?.total || 0;
@@ -234,11 +239,11 @@ const BlogIndex = () => {
       />
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="bg-muted h-64 rounded-lg mb-4" />
-              <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+          {[...Array(9)].map((_, i) => (
+            <div key={i} className="space-y-4">
+              <div className="animate-pulse bg-muted h-48 w-full rounded-lg" />
+              <div className="animate-pulse space-y-2">
                 <div className="h-4 bg-muted rounded w-3/4" />
                 <div className="h-4 bg-muted rounded w-1/2" />
               </div>
