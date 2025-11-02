@@ -48,10 +48,9 @@ export const OptimizedImage = ({
         sizes={sizes}
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
-        fetchPriority={priority ? 'high' : 'auto'}
         onLoad={() => setIsLoaded(true)}
-        className={`transition-all duration-200 ${
-          isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm scale-105'
+        className={`transition-opacity duration-200 ${
+          isLoaded ? 'opacity-100' : 'opacity-90'
         } ${className}`}
         {...props}
       />
