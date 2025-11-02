@@ -122,6 +122,7 @@ verify_jwt = false
 
 [functions.backfill-internal-links]
 verify_jwt = false
+timeout = 120
 
 [functions.backfill-cluster-related-articles]
 verify_jwt = false

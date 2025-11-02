@@ -19,31 +19,84 @@ const ContentUpdates = () => {
       setIsBackfilling(true);
       setBackfillResult(null);
       
-      toast.info("🔗 Starting internal links backfill...", {
-        description: "This may take several minutes for large article counts"
-      });
-
-      const { data, error } = await supabase.functions.invoke('backfill-internal-links', {
-        body: {}
-      });
-
-      if (error) throw error;
-
-      setBackfillResult(data);
+      const BATCH_SIZE = 25;
       
-      if (data.success) {
-        toast.success(`✅ Internal links backfill complete!`, {
-          description: `${data.success_count}/${data.total_articles} articles updated successfully`
+      // First, check how many articles need processing
+      const { count } = await supabase
+        .from('blog_articles')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'published')
+        .or('internal_links.is.null,internal_links.eq.[]');
+      
+      const totalArticles = count || 0;
+      if (totalArticles === 0) {
+        toast.info("✅ No articles need internal links");
+        setBackfillResult({
+          success: true,
+          total_articles: 0,
+          success_count: 0,
+          error_count: 0
         });
-      } else {
-        toast.error("❌ Backfill failed", {
-          description: data.error
-        });
+        return;
       }
+
+      const totalBatches = Math.ceil(totalArticles / BATCH_SIZE);
+      
+      toast.info(`🔗 Processing ${totalArticles} articles in ${totalBatches} batches...`, {
+        description: "Each batch takes ~30 seconds"
+      });
+
+      let totalSuccess = 0;
+      let totalErrors = 0;
+      let allErrors: any[] = [];
+      
+      for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+        const offset = batchNum * BATCH_SIZE;
+        
+        toast.info(`Processing batch ${batchNum + 1}/${totalBatches}...`, {
+          description: `Articles ${offset + 1}-${Math.min(offset + BATCH_SIZE, totalArticles)}`
+        });
+        
+        const { data, error } = await supabase.functions.invoke('backfill-internal-links', {
+          body: { 
+            limit: BATCH_SIZE, 
+            offset 
+          }
+        });
+        
+        if (error) throw error;
+        
+        totalSuccess += data.success_count || 0;
+        totalErrors += data.error_count || 0;
+        if (data.errors) allErrors.push(...data.errors);
+        
+        // Wait 2 seconds between batches to avoid rate limits
+        if (batchNum < totalBatches - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+      
+      const finalResult = {
+        success: true,
+        total_articles: totalArticles,
+        success_count: totalSuccess,
+        error_count: totalErrors,
+        errors: allErrors.slice(0, 10)
+      };
+      
+      setBackfillResult(finalResult);
+      
+      toast.success(`✅ Internal links backfill complete!`, {
+        description: `${totalSuccess}/${totalArticles} articles updated successfully${totalErrors > 0 ? ` (${totalErrors} errors)` : ''}`
+      });
     } catch (error) {
       console.error('Backfill error:', error);
       toast.error("❌ Failed to backfill internal links", {
         description: error instanceof Error ? error.message : 'Unknown error'
+      });
+      setBackfillResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     } finally {
       setIsBackfilling(false);

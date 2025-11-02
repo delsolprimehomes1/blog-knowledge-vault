@@ -16,14 +16,27 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🔗 Starting internal links backfill...');
+    // Parse batch parameters from request body
+    const { limit, offset = 0 } = await req.json().catch(() => ({}));
 
-    // Fetch all published articles missing internal links
-    const { data: articles, error: fetchError } = await supabase
+    console.log('🔗 Starting internal links backfill...');
+    if (limit) {
+      console.log(`📦 Batch mode: Processing ${limit} articles starting from offset ${offset}`);
+    }
+
+    // Fetch published articles missing internal links
+    let query = supabase
       .from('blog_articles')
       .select('id, slug, headline, detailed_content, language, funnel_stage')
       .eq('status', 'published')
       .or('internal_links.is.null,internal_links.eq.[]');
+
+    // Apply batch parameters if provided
+    if (limit) {
+      query = query.range(offset, offset + limit - 1);
+    }
+
+    const { data: articles, error: fetchError } = await query;
 
     if (fetchError) {
       throw new Error(`Failed to fetch articles: ${fetchError.message}`);
@@ -119,6 +132,11 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        batch_info: limit ? {
+          offset,
+          limit,
+          processed: articles.length
+        } : null,
         total_articles: articles.length,
         success_count: successCount,
         error_count: errorCount,
