@@ -38,12 +38,8 @@ const LANGUAGE_FLAGS: Record<string, string> = {
 
 export const ArticleCard = ({ article, author, priority = false }: ArticleCardProps) => {
   const fallbackImage = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
+  // EMERGENCY FIX: Use direct URL without transformation
   const imageUrl = article.featured_image_url || fallbackImage;
-  
-  // Transform image for optimal loading (800px is max card width)
-  const optimizedSrc = transformImage(imageUrl, 800, 85);
-  const srcSet = getResponsiveSrcSet(imageUrl);
-  const sizes = getResponsiveSizes();
 
   const handleMouseEnter = () => {
     // Prefetch article and featured image on hover
@@ -66,9 +62,7 @@ export const ArticleCard = ({ article, author, priority = false }: ArticleCardPr
         <Link to={`/blog/${article.slug}`} className="block">
           <div className="relative overflow-hidden aspect-[16/10]">
             <OptimizedImage
-              src={optimizedSrc}
-              srcSet={srcSet}
-              sizes={sizes}
+              src={imageUrl}
               alt={article.headline}
               width={800}
               height={500}
