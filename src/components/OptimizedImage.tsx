@@ -28,7 +28,7 @@ export const OptimizedImage = ({
 
   return (
     <div 
-      className={`relative overflow-hidden ${className}`}
+      className="relative"
       style={width && height ? { aspectRatio: `${width}/${height}` } : undefined}
     >
       {blurDataURL && !isLoaded && (
