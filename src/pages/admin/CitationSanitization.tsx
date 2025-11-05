@@ -26,7 +26,7 @@ const CitationSanitization = () => {
       const { data, error } = await supabase
         .from("citation_compliance_alerts")
         .select("*")
-        .eq("alert_type", "competitor_citation")
+        .eq("alert_type", "competitor")
         .is("resolved_at", null)
         .order("detected_at", { ascending: false });
 
