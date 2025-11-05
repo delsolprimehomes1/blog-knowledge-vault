@@ -75,6 +75,28 @@ export const ORGANIZATION_SCHEMA = {
   ]
 };
 
+export const LOCAL_BUSINESS_REVIEWED_ITEM = {
+  "@type": "LocalBusiness",
+  "@id": "https://delsolprimehomes.com/#organization",
+  "name": "Del Sol Prime Homes",
+  "url": "https://delsolprimehomes.com",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Calle Alfonso XIII, 6-1º",
+    "addressLocality": "Fuengirola",
+    "addressRegion": "Costa del Sol",
+    "addressCountry": "ES"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "reviewCount": "127",
+    "ratingCount": "127",
+    "bestRating": "5",
+    "worstRating": "1"
+  }
+};
+
 export function generatePersonSchema(author: Author | null) {
   if (!author) return null;
   

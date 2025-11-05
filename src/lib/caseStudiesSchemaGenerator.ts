@@ -1,4 +1,4 @@
-import { ORGANIZATION_SCHEMA } from './schemaGenerator';
+import { ORGANIZATION_SCHEMA, LOCAL_BUSINESS_REVIEWED_ITEM } from './schemaGenerator';
 
 const BASE_URL = 'https://delsolprimehomes.com';
 
@@ -64,10 +64,7 @@ export function generateCaseStudySchema(caseStudy: CaseStudy): any {
       },
       "reviewBody": caseStudy.testimonial.quote,
       "datePublished": new Date().toISOString().split('T')[0],
-      "itemReviewed": {
-        "@type": "RealEstateAgent",
-        "name": "Del Sol Prime Homes"
-      }
+      "itemReviewed": LOCAL_BUSINESS_REVIEWED_ITEM
     }
   };
 }
