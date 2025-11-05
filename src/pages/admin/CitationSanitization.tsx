@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
@@ -76,19 +76,21 @@ const CitationSanitization = () => {
   });
 
   // Update progress state when polling data changes
-  if (liveJobProgress && currentJobId) {
-    setJobProgress(liveJobProgress);
-    
-    // Check if job is complete
-    if (liveJobProgress.status === 'completed') {
-      setIsReplacing(false);
-      setCurrentJobId(null);
-      queryClient.invalidateQueries({ queryKey: ["citation-sanitization-alerts"] });
-      toast.success("Replacement complete!", {
-        description: `Auto-applied: ${liveJobProgress.auto_applied_count}, Manual review: ${liveJobProgress.manual_review_count}, Failed: ${liveJobProgress.failed_count}`,
-      });
+  useEffect(() => {
+    if (liveJobProgress && currentJobId) {
+      setJobProgress(liveJobProgress);
+      
+      // Check if job is complete
+      if (liveJobProgress.status === 'completed') {
+        setIsReplacing(false);
+        setCurrentJobId(null);
+        queryClient.invalidateQueries({ queryKey: ["citation-sanitization-alerts"] });
+        toast.success("Replacement complete!", {
+          description: `Auto-applied: ${liveJobProgress.auto_applied_count}, Manual review: ${liveJobProgress.manual_review_count}, Failed: ${liveJobProgress.failed_count}`,
+        });
+      }
     }
-  }
+  }, [liveJobProgress, currentJobId, queryClient]);
 
   // Batch replace banned citations
   const replaceMutation = useMutation({
