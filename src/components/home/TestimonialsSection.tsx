@@ -18,7 +18,7 @@ export const TESTIMONIALS: Testimonial[] = [
     rating: 5,
     quote: "Our experience buying in Marbella was incredible. The team guided us through every step, from viewings to final paperwork. Their multilingual support made everything seamless.",
     propertyType: "Beachfront Apartment",
-    date: "2024-11"
+    date: "2024-11-01"
   },
   {
     name: "Henrik L.",
@@ -26,7 +26,7 @@ export const TESTIMONIALS: Testimonial[] = [
     rating: 5,
     quote: "Professional, knowledgeable, and genuinely caring. They found us the perfect villa in Estepona and handled all the legal complexities with ease.",
     propertyType: "Luxury Villa",
-    date: "2024-09"
+    date: "2024-09-15"
   },
   {
     name: "Claudia & Franz B.",
@@ -34,7 +34,7 @@ export const TESTIMONIALS: Testimonial[] = [
     rating: 5,
     quote: "We felt supported throughout the entire purchase process. The team's local expertise and attention to detail made our dream of owning property in Spain a reality.",
     propertyType: "Modern Townhouse",
-    date: "2024-10"
+    date: "2024-10-22"
   },
   {
     name: "Anna K.",
@@ -42,7 +42,7 @@ export const TESTIMONIALS: Testimonial[] = [
     rating: 5,
     quote: "Exceptional service from start to finish. Communication in my native language was invaluable, and they helped navigate all the legal requirements smoothly.",
     propertyType: "Coastal Apartment",
-    date: "2024-08"
+    date: "2024-08-10"
   }
 ];
 

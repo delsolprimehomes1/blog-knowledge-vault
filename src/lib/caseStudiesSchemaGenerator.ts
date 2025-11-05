@@ -62,7 +62,12 @@ export function generateCaseStudySchema(caseStudy: CaseStudy): any {
         "bestRating": "5",
         "worstRating": "1"
       },
-      "reviewBody": caseStudy.testimonial.quote
+      "reviewBody": caseStudy.testimonial.quote,
+      "datePublished": new Date().toISOString().split('T')[0],
+      "itemReviewed": {
+        "@type": "RealEstateAgent",
+        "name": "Del Sol Prime Homes"
+      }
     }
   };
 }

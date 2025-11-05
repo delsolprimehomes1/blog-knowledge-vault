@@ -90,18 +90,18 @@ export function generateHomeReviewsSchema() {
         "@type": "Review",
         "position": 1,
         "author": { "@type": "Person", "name": "James & Sarah M." },
-        "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+        "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5", "worstRating": "1" },
         "reviewBody": "Our experience buying in Marbella was incredible. The team guided us through every step, from viewings to final paperwork. Their multilingual support made everything seamless.",
-        "datePublished": "2024-11",
+        "datePublished": "2024-11-01",
         "itemReviewed": { "@type": "RealEstateAgent", "name": "Del Sol Prime Homes" }
       },
       {
         "@type": "Review",
         "position": 2,
         "author": { "@type": "Person", "name": "Henrik L." },
-        "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+        "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5", "worstRating": "1" },
         "reviewBody": "Professional, knowledgeable, and genuinely caring. They found us the perfect villa in Estepona and handled all the legal complexities with ease.",
-        "datePublished": "2024-09",
+        "datePublished": "2024-09-15",
         "itemReviewed": { "@type": "RealEstateAgent", "name": "Del Sol Prime Homes" }
       }
     ]
