@@ -134,6 +134,9 @@ timeout = 300
 [functions.scan-banned-citations]
 verify_jwt = false
 
+[functions.scheduled-citation-hygiene]
+verify_jwt = false
+
 [functions.batch-replace-banned-citations]
 verify_jwt = false
 timeout = 300

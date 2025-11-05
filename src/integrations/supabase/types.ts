@@ -504,6 +504,63 @@ export type Database = {
           },
         ]
       }
+      citation_hygiene_reports: {
+        Row: {
+          articles_cleaned: number | null
+          articles_with_violations: number
+          auto_replacement_triggered: boolean | null
+          banned_citations_found: number
+          clean_replacements_applied: number | null
+          compliance_score: number
+          created_at: string
+          id: string
+          next_scan_scheduled: string | null
+          scan_date: string
+          scan_duration_ms: number | null
+          top_offenders: Json | null
+          total_articles_scanned: number
+          total_citations_scanned: number
+          violations_by_domain: Json | null
+          violations_by_language: Json | null
+        }
+        Insert: {
+          articles_cleaned?: number | null
+          articles_with_violations: number
+          auto_replacement_triggered?: boolean | null
+          banned_citations_found: number
+          clean_replacements_applied?: number | null
+          compliance_score: number
+          created_at?: string
+          id?: string
+          next_scan_scheduled?: string | null
+          scan_date?: string
+          scan_duration_ms?: number | null
+          top_offenders?: Json | null
+          total_articles_scanned: number
+          total_citations_scanned: number
+          violations_by_domain?: Json | null
+          violations_by_language?: Json | null
+        }
+        Update: {
+          articles_cleaned?: number | null
+          articles_with_violations?: number
+          auto_replacement_triggered?: boolean | null
+          banned_citations_found?: number
+          clean_replacements_applied?: number | null
+          compliance_score?: number
+          created_at?: string
+          id?: string
+          next_scan_scheduled?: string | null
+          scan_date?: string
+          scan_duration_ms?: number | null
+          top_offenders?: Json | null
+          total_articles_scanned?: number
+          total_citations_scanned?: number
+          violations_by_domain?: Json | null
+          violations_by_language?: Json | null
+        }
+        Relationships: []
+      }
       citation_replacement_chunks: {
         Row: {
           auto_applied_count: number | null

@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Shield, AlertTriangle, RefreshCw, Trash2, ExternalLink, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { CitationHygieneReport } from "@/components/admin/CitationHygieneReport";
 
 const CitationSanitization = () => {
   const queryClient = useQueryClient();
@@ -120,6 +122,14 @@ const CitationSanitization = () => {
             </p>
           </div>
         </div>
+
+        <Tabs defaultValue="violations" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="violations">Active Violations</TabsTrigger>
+            <TabsTrigger value="hygiene">Domain Hygiene</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="violations" className="space-y-6">
 
         {/* Status Overview */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -353,6 +363,12 @@ const CitationSanitization = () => {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="hygiene" className="space-y-6">
+            <CitationHygieneReport />
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );

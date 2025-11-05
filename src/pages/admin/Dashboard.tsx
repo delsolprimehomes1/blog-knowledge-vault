@@ -4,7 +4,7 @@ import { BlogArticle } from "@/types/blog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, TrendingUp, Globe, Plus, AlertCircle, CheckCircle2, Shield, RefreshCw, Rocket, Sparkles } from "lucide-react";
+import { FileText, TrendingUp, Globe, Plus, AlertCircle, CheckCircle2, Shield, RefreshCw, Rocket, Sparkles, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { validateSchemaRequirements } from "@/lib/schemaGenerator";
@@ -131,6 +131,22 @@ const Dashboard = () => {
   const faqCoverage = articles && articles.length > 0
     ? Math.round((faqStats!.withFAQs / articles.length) * 100)
     : 0;
+
+  // Fetch latest hygiene report for dashboard widget
+  const { data: latestHygieneReport } = useQuery({
+    queryKey: ['dashboard-hygiene-report'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('citation_hygiene_reports')
+        .select('*')
+        .order('scan_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const handleRebuildSite = async () => {
     setIsRebuilding(true);
@@ -321,36 +337,97 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Citation Health Card */}
-        <Card className="border-2 border-amber-200 dark:border-amber-900/50 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+        {/* Citation Hygiene Status */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-amber-600" />
-              Citation Health
+              <Activity className="h-5 w-5 text-primary" />
+              Citation Hygiene Status
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Compliance Status</span>
-                <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Monitoring Active
-                </Badge>
+            {latestHygieneReport ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-muted rounded-lg">
+                    <div className="text-xs text-muted-foreground">Compliance Score</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className={`text-2xl font-bold ${
+                        latestHygieneReport.compliance_score >= 90 ? 'text-green-600' : 
+                        latestHygieneReport.compliance_score >= 70 ? 'text-yellow-600' : 
+                        'text-destructive'
+                      }`}>
+                        {latestHygieneReport.compliance_score}%
+                      </div>
+                      {latestHygieneReport.compliance_score >= 90 ? (
+                        <Badge variant="default" className="bg-green-600">Clean</Badge>
+                      ) : (
+                        <Badge variant="destructive">Action Needed</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-muted rounded-lg">
+                    <div className="text-xs text-muted-foreground">Violations</div>
+                    <div className="text-2xl font-bold text-destructive mt-1">
+                      {latestHygieneReport.banned_citations_found}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Last Scan</span>
+                    <span className="font-medium">
+                      {new Date(latestHygieneReport.scan_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Articles Scanned</span>
+                    <span className="font-medium">{latestHygieneReport.total_articles_scanned}</span>
+                  </div>
+                  {latestHygieneReport.clean_replacements_applied > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Auto-Fixed</span>
+                      <span className="font-medium text-green-600">
+                        {latestHygieneReport.clean_replacements_applied}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <Button 
+                  onClick={() => navigate('/admin/citation-sanitization')}
+                  size="sm"
+                  className="w-full"
+                >
+                  <Shield className="mr-2 h-4 w-4" />
+                  View Full Report
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Automated scanning prevents competitor citations from appearing in your content
-              </p>
-              <Button 
-                onClick={() => navigate('/admin/citation-sanitization')}
-                size="sm"
-                variant="outline"
-                className="w-full"
-              >
-                <Shield className="mr-2 h-4 w-4" />
-                View Citation Dashboard
-              </Button>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Compliance Status</span>
+                  <Badge variant="outline">
+                    <Clock className="h-3 w-3 mr-1" />
+                    No Scans Yet
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Run your first citation hygiene scan to monitor competitor domains
+                </p>
+                <Button 
+                  onClick={() => navigate('/admin/citation-sanitization')}
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Shield className="mr-2 h-4 w-4" />
+                  Run First Scan
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
