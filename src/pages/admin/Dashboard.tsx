@@ -31,6 +31,22 @@ const Dashboard = () => {
     },
   });
 
+  // Fetch latest hygiene report for dashboard widget
+  const { data: latestHygieneReport } = useQuery({
+    queryKey: ['dashboard-hygiene-report'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('citation_hygiene_reports')
+        .select('*')
+        .order('scan_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -132,22 +148,6 @@ const Dashboard = () => {
   const faqCoverage = articles && articles.length > 0
     ? Math.round((faqStats!.withFAQs / articles.length) * 100)
     : 0;
-
-  // Fetch latest hygiene report for dashboard widget
-  const { data: latestHygieneReport } = useQuery({
-    queryKey: ['dashboard-hygiene-report'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('citation_hygiene_reports')
-        .select('*')
-        .order('scan_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const handleRebuildSite = async () => {
     setIsRebuilding(true);
