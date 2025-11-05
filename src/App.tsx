@@ -22,6 +22,7 @@ import CitationComplianceReport from "./pages/admin/CitationComplianceReport";
 import CitationCompliance from "./pages/admin/CitationCompliance";
 import ContentUpdates from "./pages/admin/ContentUpdates";
 import FAQBackfill from "./pages/admin/FAQBackfill";
+import CitationSanitization from "./pages/admin/CitationSanitization";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import BlogArticle from "./pages/BlogArticle";
@@ -84,6 +85,7 @@ const App = () => (
           <Route path="/admin/citation-compliance" element={<ProtectedRoute><CitationCompliance /></ProtectedRoute>} />
           <Route path="/admin/content-updates" element={<ProtectedRoute><ContentUpdates /></ProtectedRoute>} />
           <Route path="/admin/faq-backfill" element={<ProtectedRoute><FAQBackfill /></ProtectedRoute>} />
+          <Route path="/admin/citation-sanitization" element={<ProtectedRoute><CitationSanitization /></ProtectedRoute>} />
           <Route path="/admin/docs/aeo-sge-guide" element={<ProtectedRoute><AEOGuide /></ProtectedRoute>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

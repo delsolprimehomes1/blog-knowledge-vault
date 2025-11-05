@@ -130,3 +130,10 @@ verify_jwt = false
 [functions.backfill-diagrams]
 verify_jwt = false
 timeout = 300
+
+[functions.scan-banned-citations]
+verify_jwt = false
+
+[functions.batch-replace-banned-citations]
+verify_jwt = false
+timeout = 300

@@ -1,5 +1,18 @@
 import { BlogArticle, Author } from "@/types/blog";
 
+// Banned competitor domains (shared with backend)
+const BANNED_DOMAINS = [
+  'idealista.com', 'fotocasa.es', 'pisos.com', 'habitaclia.com',
+  'kyero.com', 'propertyguides.com', 'spanishpropertychoice.com',
+  're-max.es', 'remax.com', 'engel-voelkers.com', 'engelvoelkers.com',
+  'sothebysrealty.com', 'century21.es', 'century21.com',
+  'spaansedroomhuizen.com', 'realestate-space.com', 'spaineasy.com',
+  'investinspain.be', 'youroverseashome.com', 'amahomespain.com',
+  'mdrluxuryhomes.com', 'immoabroad.com', 'casaaandecostablanca.nl',
+  'mediterraneanhomes.eu', 'spainhomes.com', 'panoramamarbella.com',
+  'spanjespecials.com', 'marbella-estates.com', 'hihomes.es',
+];
+
 export interface SchemaValidationError {
   field: string;
   message: string;
@@ -96,6 +109,28 @@ export const LOCAL_BUSINESS_REVIEWED_ITEM = {
     "worstRating": "1"
   }
 };
+
+/**
+ * Filter out banned competitor domains from citations
+ */
+export function filterBannedCitations(citations: any[]): any[] {
+  if (!citations || !Array.isArray(citations)) return [];
+  
+  return citations.filter(citation => {
+    try {
+      const url = new URL(citation.url);
+      const hostname = url.hostname.replace('www.', '').toLowerCase();
+      
+      // Check if hostname matches any banned domain
+      return !BANNED_DOMAINS.some(banned => 
+        hostname.includes(banned) || banned.includes(hostname)
+      );
+    } catch {
+      // Invalid URL, filter it out
+      return false;
+    }
+  });
+}
 
 export function generatePersonSchema(author: Author | null) {
   if (!author) return null;

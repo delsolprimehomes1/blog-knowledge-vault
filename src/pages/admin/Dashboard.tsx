@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle } from "@/types/blog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { FileText, TrendingUp, Globe, Plus, AlertCircle, CheckCircle2, Shield, RefreshCw, Rocket, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
@@ -316,6 +317,39 @@ const Dashboard = () => {
                   />
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Citation Health Card */}
+        <Card className="border-2 border-amber-200 dark:border-amber-900/50 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-amber-600" />
+              Citation Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Compliance Status</span>
+                <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Monitoring Active
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Automated scanning prevents competitor citations from appearing in your content
+              </p>
+              <Button 
+                onClick={() => navigate('/admin/citation-sanitization')}
+                size="sm"
+                variant="outline"
+                className="w-full"
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                View Citation Dashboard
+              </Button>
             </div>
           </CardContent>
         </Card>
