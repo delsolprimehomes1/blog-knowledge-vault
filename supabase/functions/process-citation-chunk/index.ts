@@ -83,6 +83,8 @@ serve(async (req) => {
       throw new Error('parentJobId is required');
     }
 
+    console.log(`🔄 process-citation-chunk invoked for job: ${parentJobId}`);
+    console.log(`📊 Looking for pending chunks...`);
     console.log(`Processing chunk for job ${parentJobId}`);
 
     // Get next pending chunk

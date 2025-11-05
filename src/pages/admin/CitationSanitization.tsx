@@ -111,6 +111,22 @@ const CitationSanitization = () => {
         toast.success("Processing started!", {
           description: `Processing ${data.totalCitations} citations in ${data.totalChunks} chunks`,
         });
+
+        // Fallback: If job doesn't start processing within 10 seconds, trigger manually
+        setTimeout(async () => {
+          const { data: checkJob } = await supabase
+            .from('citation_replacement_jobs')
+            .select('progress_current')
+            .eq('id', data.jobId)
+            .single();
+            
+          if (checkJob?.progress_current === 0) {
+            console.log('Job stuck at 0%, manually triggering first chunk...');
+            await supabase.functions.invoke('process-citation-chunk', {
+              body: { parentJobId: data.jobId }
+            });
+          }
+        }, 10000);
       } else {
         toast.info(data.message || "No citations to process");
         setIsReplacing(false);

@@ -178,7 +178,7 @@ const QA = () => {
         </section>
 
         {/* Q&A Content */}
-        <section className="py-16 px-4 md:px-8">
+        <section className="py-16 px-4 md:px-8" itemScope itemType="https://schema.org/QAPage">
           <div className="max-w-4xl mx-auto space-y-8">
             {Object.entries(filteredCategories)
               .filter(([key]) => !activeCategory || key === activeCategory)
@@ -193,14 +193,25 @@ const QA = () => {
                         key={index}
                         value={`${key}-${index}`}
                         className="bg-card border border-border rounded-lg px-6 py-2"
+                        itemScope
+                        itemProp="mainEntity"
+                        itemType="https://schema.org/Question"
                       >
                         <AccordionTrigger className="text-left hover:no-underline">
-                          <span className="font-semibold text-base text-foreground pr-4">
+                          <span 
+                            className="font-semibold text-base text-foreground pr-4"
+                            itemProp="name"
+                          >
                             {item.q}
                           </span>
                         </AccordionTrigger>
-                        <AccordionContent className="text-muted-foreground leading-relaxed pt-2 pb-4">
-                          {item.a}
+                        <AccordionContent 
+                          className="text-muted-foreground leading-relaxed pt-2 pb-4"
+                          itemScope
+                          itemProp="acceptedAnswer"
+                          itemType="https://schema.org/Answer"
+                        >
+                          <div itemProp="text">{item.a}</div>
                         </AccordionContent>
                       </AccordionItem>
                     ))}

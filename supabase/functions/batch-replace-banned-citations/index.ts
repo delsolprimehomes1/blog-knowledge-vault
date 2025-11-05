@@ -120,10 +120,14 @@ serve(async (req) => {
 
     console.log(`✅ Created ${chunks.length} chunks`);
 
-    // Trigger first chunk processing (it will chain to the rest)
+    // Trigger first chunk processing asynchronously
     supabase.functions.invoke('process-citation-chunk', {
       body: { parentJobId: job.id }
-    }).catch(err => console.error('Failed to trigger first chunk:', err));
+    }).then(() => {
+      console.log('✅ First chunk triggered successfully');
+    }).catch(err => {
+      console.error('❌ Failed to trigger first chunk:', err);
+    });
 
     return new Response(
       JSON.stringify({

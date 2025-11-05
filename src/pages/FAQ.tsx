@@ -105,7 +105,7 @@ const FAQ = () => {
         </section>
 
         {/* FAQ Content */}
-        <section className="py-16 px-4 md:px-8">
+        <section className="py-16 px-4 md:px-8" itemScope itemType="https://schema.org/FAQPage">
           <div className="max-w-4xl mx-auto">
             <Accordion type="single" collapsible className="space-y-4">
               {FAQ_ITEMS.map((item, index) => (
@@ -113,14 +113,25 @@ const FAQ = () => {
                   key={index}
                   value={`item-${index}`}
                   className="bg-card border border-border rounded-lg px-6 py-2"
+                  itemScope
+                  itemProp="mainEntity"
+                  itemType="https://schema.org/Question"
                 >
                   <AccordionTrigger className="text-left hover:no-underline">
-                    <span className="font-semibold text-lg text-foreground pr-4">
+                    <span 
+                      className="font-semibold text-lg text-foreground pr-4"
+                      itemProp="name"
+                    >
                       {item.question}
                     </span>
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground leading-relaxed pt-2 pb-4">
-                    {item.answer}
+                  <AccordionContent 
+                    className="text-muted-foreground leading-relaxed pt-2 pb-4"
+                    itemScope
+                    itemProp="acceptedAnswer"
+                    itemType="https://schema.org/Answer"
+                  >
+                    <div itemProp="text">{item.answer}</div>
                   </AccordionContent>
                 </AccordionItem>
               ))}
