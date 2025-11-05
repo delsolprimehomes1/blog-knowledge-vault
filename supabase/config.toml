@@ -137,3 +137,6 @@ verify_jwt = false
 [functions.batch-replace-banned-citations]
 verify_jwt = false
 timeout = 300
+
+[functions.sanitize-html-content]
+verify_jwt = false

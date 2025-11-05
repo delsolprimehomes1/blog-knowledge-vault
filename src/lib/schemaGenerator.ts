@@ -321,8 +321,10 @@ export function generateArticleSchema(
     schema.reviewedBy = generatePersonSchema(reviewer);
   }
   
-  if (article.external_citations && article.external_citations.length > 0) {
-    schema.citation = article.external_citations.map((citation, index) => {
+  // Filter out banned competitor citations from schema
+  const safeCitations = filterBannedCitations(article.external_citations || []);
+  if (safeCitations.length > 0) {
+    schema.citation = safeCitations.map((citation, index) => {
       // Extract paragraph index from article content
       const paragraphIndex = extractParagraphIndex(article.detailed_content, citation.url);
       
