@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { filterBannedCitations, getBannedDomainsPrompt } from "../shared/citationFilter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,6 +69,8 @@ Headline: ${articleData.headline}
 Current content: ${articleData.detailed_content}
 Language: ${articleData.language}
 Funnel stage: ${articleData.funnel_stage}
+
+${getBannedDomainsPrompt()}
 
 Improve the content with:
 - Better structure and flow
@@ -203,7 +206,12 @@ Return ONLY JSON: { "metaDescription": "..." }`;
     } else if (section === 'meta_description') {
       updates = { meta_description: result.metaDescription };
     } else if (section === 'content') {
-      updates = { detailed_content: result.detailedContent };
+      // Filter banned citations from content
+      const { cleanedContent, violationCount } = filterBannedCitations(result.detailedContent);
+      if (violationCount > 0) {
+        console.warn(`⚠️ Filtered ${violationCount} banned citations from regenerated content`);
+      }
+      updates = { detailed_content: cleanedContent };
     } else if (section === 'eeat' || section === 'links') {
       updates = {}; // Handled differently
     }

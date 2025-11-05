@@ -81,7 +81,76 @@ serve(async (req) => {
       }
     }
 
-    // Step 4: Generate and save report
+    // Step 4: Generate detailed violations breakdown
+    const detailedViolations: {
+      article_violations: any[];
+      domain_breakdown: Record<string, any>;
+    } = {
+      article_violations: [],
+      domain_breakdown: {}
+    };
+
+    // Get all current unresolved alerts with article details
+    const { data: violationDetails } = await supabase
+      .from('citation_compliance_alerts')
+      .select(`
+        id,
+        article_id,
+        article_title,
+        citation_url,
+        alert_type,
+        severity,
+        detected_at
+      `)
+      .is('resolved_at', null)
+      .eq('alert_type', 'competitor_citation');
+
+    if (violationDetails && violationDetails.length > 0) {
+      // Group by article
+      const articleMap = new Map();
+      const domainMap = new Map();
+
+      violationDetails.forEach((alert) => {
+        // Extract domain from URL
+        const domain = alert.citation_url.match(/(?:https?:\/\/)?(?:www\.)?([^\/]+)/)?.[1] || alert.citation_url;
+
+        // Add to article violations
+        if (!articleMap.has(alert.article_id)) {
+          articleMap.set(alert.article_id, {
+            article_id: alert.article_id,
+            article_title: alert.article_title,
+            violations: []
+          });
+        }
+        articleMap.get(alert.article_id).violations.push({
+          domain,
+          url: alert.citation_url,
+          status: 'pending',
+          detected_at: alert.detected_at
+        });
+
+        // Add to domain breakdown
+        if (!domainMap.has(domain)) {
+          domainMap.set(domain, {
+            total_violations: 0,
+            affected_articles: [],
+            auto_replaced: 0,
+            manual_review: 0
+          });
+        }
+        const domainInfo = domainMap.get(domain);
+        domainInfo.total_violations++;
+        if (!domainInfo.affected_articles.includes(alert.article_id)) {
+          domainInfo.affected_articles.push(alert.article_id);
+        }
+        domainInfo.manual_review++;
+      });
+
+      detailedViolations.article_violations = Array.from(articleMap.values());
+      detailedViolations.domain_breakdown = Object.fromEntries(domainMap);
+    }
+
+    // Step 5: Generate and save report
     const nextScanScheduled = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h from now
     const scanDuration = Date.now() - startTime;
 
@@ -100,6 +169,7 @@ serve(async (req) => {
       next_scan_scheduled: nextScanScheduled.toISOString(),
       scan_duration_ms: scanDuration,
       auto_replacement_triggered: autoReplacementTriggered,
+      detailed_violations: detailedViolations,
     };
 
     // Save report to database
@@ -113,7 +183,7 @@ serve(async (req) => {
       console.log('✅ Report saved to database');
     }
 
-    // Step 5: Check if alert threshold exceeded
+    // Step 6: Check if alert threshold exceeded
     const shouldAlert = scanResult.bannedCitationsFound > CONFIG.ALERT_THRESHOLD;
     
     const summary = {

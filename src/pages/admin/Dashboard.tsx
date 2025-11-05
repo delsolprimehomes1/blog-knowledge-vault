@@ -11,6 +11,7 @@ import { validateSchemaRequirements } from "@/lib/schemaGenerator";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ContentFreshnessPanel } from "@/components/admin/ContentFreshnessPanel";
+import { CitationHealthWidget } from "@/components/admin/CitationHealthWidget";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -337,12 +338,16 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Citation Hygiene Status */}
+        {/* Citation Health Widget */}
+        <CitationHealthWidget />
+
+        {/* Citation Hygiene Details (kept for historical data) */}
+        {latestHygieneReport && (
         <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-primary" />
-              Citation Hygiene Status
+              Citation Hygiene Details
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -430,6 +435,7 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* FAQ Statistics */}
         <Card>

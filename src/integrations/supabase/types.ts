@@ -513,6 +513,7 @@ export type Database = {
           clean_replacements_applied: number | null
           compliance_score: number
           created_at: string
+          detailed_violations: Json | null
           id: string
           next_scan_scheduled: string | null
           scan_date: string
@@ -531,6 +532,7 @@ export type Database = {
           clean_replacements_applied?: number | null
           compliance_score: number
           created_at?: string
+          detailed_violations?: Json | null
           id?: string
           next_scan_scheduled?: string | null
           scan_date?: string
@@ -549,6 +551,7 @@ export type Database = {
           clean_replacements_applied?: number | null
           compliance_score?: number
           created_at?: string
+          detailed_violations?: Json | null
           id?: string
           next_scan_scheduled?: string | null
           scan_date?: string

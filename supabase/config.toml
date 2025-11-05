@@ -143,3 +143,6 @@ timeout = 300
 
 [functions.sanitize-html-content]
 verify_jwt = false
+
+[functions.validate-article-citations]
+verify_jwt = false

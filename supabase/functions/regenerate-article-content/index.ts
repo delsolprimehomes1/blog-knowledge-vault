@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { filterBannedCitations, getBannedDomainsPrompt } from "../shared/citationFilter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,6 +79,8 @@ META DESCRIPTION: ${article.meta_description}
 
 ${processedPrompt}
 
+${getBannedDomainsPrompt()}
+
 CRITICAL INSTRUCTIONS:
 - Write the FULL ARTICLE CONTENT immediately
 - Start with the first H2 section, not with any meta-commentary
@@ -138,13 +141,20 @@ Write the article content now in HTML format:`
       throw new Error('Generated content is too short. Please try again.');
     }
 
+    // Filter banned citations from generated content
+    const { cleanedContent, removedCitations, violationCount } = filterBannedCitations(generatedContent);
+
+    if (violationCount > 0) {
+      console.warn(`⚠️ Removed ${violationCount} banned citations during content generation:`, removedCitations);
+    }
+
     // Update article with new content
     const now = new Date().toISOString();
     const readTime = Math.ceil(wordCount / 200); // Estimate 200 words per minute
     const { error: updateError } = await supabase
       .from('blog_articles')
       .update({
-        detailed_content: generatedContent,
+        detailed_content: cleanedContent,
         read_time: readTime,
         date_modified: now,
         updated_at: now
@@ -161,7 +171,12 @@ Write the article content now in HTML format:`
       update_type: 'content',
       updated_fields: ['detailed_content', 'read_time'],
       new_date_modified: now,
-      update_notes: 'Regenerated article content'
+      update_notes: `Regenerated article content${violationCount > 0 ? ` (removed ${violationCount} banned citations)` : ''}`
+    });
+
+    // Validate citations in real-time
+    await supabase.functions.invoke('validate-article-citations', {
+      body: { articleId }
     });
 
     console.log(`Successfully regenerated content: ${wordCount} words`);
@@ -169,8 +184,9 @@ Write the article content now in HTML format:`
     return new Response(
       JSON.stringify({
         success: true,
-        content: generatedContent,
+        content: cleanedContent,
         wordCount,
+        removedViolations: violationCount,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
