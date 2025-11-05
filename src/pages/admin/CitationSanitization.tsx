@@ -296,7 +296,7 @@ const CitationSanitization = () => {
 
               <Button
                 onClick={() => replaceMutation.mutate()}
-                disabled={isReplacing || bannedCount === 0}
+                disabled={isReplacing || (bannedCount === 0 && !scanResults?.bannedCitationsFound)}
                 size="lg"
                 className="flex-1"
               >
