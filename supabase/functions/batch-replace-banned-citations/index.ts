@@ -19,7 +19,7 @@ serve(async (req) => {
 
     const { articleIds } = await req.json();
 
-    console.log('🔄 Starting batch replacement for banned citations...');
+    console.log('🔄 Starting chunked batch replacement for banned citations...');
 
     // Fetch articles with banned citations
     const { data: articles, error: articlesError } = await supabase
@@ -31,190 +31,109 @@ serve(async (req) => {
 
     if (articlesError) throw articlesError;
 
-    let processedCount = 0;
-    let autoAppliedCount = 0;
-    let manualReviewCount = 0;
-    let failedCount = 0;
-
-    const results: Array<{
+    // Collect all banned citations across articles
+    const allCitations: Array<{
       articleId: string;
-      articleTitle: string;
-      originalUrl: string;
-      replacementUrl: string | null;
-      confidence: number;
-      action: 'auto_applied' | 'manual_review' | 'failed';
+      articleHeadline: string;
+      articleContent: string;
+      articleLanguage: string;
+      url: string;
+      source: string;
     }> = [];
 
     for (const article of articles || []) {
       const citations = (article.external_citations as any[]) || [];
       const bannedCitations = citations.filter(c => isCompetitor(c.url));
 
-      if (bannedCitations.length === 0) continue;
-
-      console.log(`📝 Processing "${article.headline}" - ${bannedCitations.length} banned citations`);
-
-      for (const bannedCitation of bannedCitations) {
-        processedCount++;
-
-        try {
-          // Extract context around the citation (find paragraph in content)
-          const content = article.detailed_content || '';
-          const anchorText = bannedCitation.text || '';
-          let citationContext = '';
-
-          if (anchorText && content.includes(anchorText)) {
-            const index = content.indexOf(anchorText);
-            const start = Math.max(0, index - 200);
-            const end = Math.min(content.length, index + anchorText.length + 200);
-            citationContext = content.substring(start, end);
-          }
-
-          // Call discover-better-links function
-          const { data: suggestions, error: suggestError } = await supabase.functions.invoke(
-            'discover-better-links',
-            {
-              body: {
-                originalUrl: bannedCitation.url,
-                articleHeadline: article.headline,
-                articleContent: content.substring(0, 2000), // First 2000 chars
-                articleLanguage: article.language,
-                citationContext,
-                mustBeApproved: true, // Only approved domains
-              }
-            }
-          );
-
-          if (suggestError || !suggestions?.alternativeUrls?.length) {
-            // No replacement found
-            failedCount++;
-            results.push({
-              articleId: article.id,
-              articleTitle: article.headline,
-              originalUrl: bannedCitation.url,
-              replacementUrl: null,
-              confidence: 0,
-              action: 'failed',
-            });
-
-            // Create dead link replacement entry for manual review
-            await supabase
-              .from('dead_link_replacements')
-              .insert({
-                original_url: bannedCitation.url,
-                original_source: bannedCitation.source,
-                replacement_url: '',
-                replacement_source: '',
-                replacement_reason: 'Banned competitor domain - no suitable replacement found',
-                confidence_score: 0,
-                status: 'suggested',
-                suggested_by: 'auto_sanitization',
-              });
-
-            continue;
-          }
-
-          // Calculate confidence (simplified scoring)
-          const bestSuggestion = suggestions.alternativeUrls[0];
-          const confidence = suggestions.quality_score || 7.5;
-
-          if (confidence >= 8.0) {
-            // Auto-apply high-confidence replacements
-            const updatedCitations = citations.map(c =>
-              c.url === bannedCitation.url
-                ? { ...c, url: bestSuggestion, source: new URL(bestSuggestion).hostname }
-                : c
-            );
-
-            const { error: updateError } = await supabase
-              .from('blog_articles')
-              .update({ 
-                external_citations: updatedCitations,
-                date_modified: new Date().toISOString(),
-              })
-              .eq('id', article.id);
-
-            if (updateError) throw updateError;
-
-            // Record the update
-            await supabase.from('content_updates').insert({
-              article_id: article.id,
-              update_type: 'citation_replacement',
-              update_notes: `Auto-replaced banned domain ${bannedCitation.url} with ${bestSuggestion}`,
-              updated_fields: ['external_citations'],
-            });
-
-            autoAppliedCount++;
-            results.push({
-              articleId: article.id,
-              articleTitle: article.headline,
-              originalUrl: bannedCitation.url,
-              replacementUrl: bestSuggestion,
-              confidence,
-              action: 'auto_applied',
-            });
-
-            console.log(`✅ Auto-applied: ${bannedCitation.url} → ${bestSuggestion}`);
-          } else {
-            // Add to manual review queue
-            await supabase
-              .from('dead_link_replacements')
-              .insert({
-                original_url: bannedCitation.url,
-                original_source: bannedCitation.source,
-                replacement_url: bestSuggestion,
-                replacement_source: new URL(bestSuggestion).hostname,
-                replacement_reason: 'Banned competitor domain - requires manual approval',
-                confidence_score: confidence,
-                status: 'suggested',
-                suggested_by: 'auto_sanitization',
-              });
-
-            manualReviewCount++;
-            results.push({
-              articleId: article.id,
-              articleTitle: article.headline,
-              originalUrl: bannedCitation.url,
-              replacementUrl: bestSuggestion,
-              confidence,
-              action: 'manual_review',
-            });
-
-            console.log(`📋 Manual review: ${bannedCitation.url} → ${bestSuggestion} (${confidence.toFixed(1)})`);
-          }
-
-        } catch (error) {
-          console.error(`Error processing citation ${bannedCitation.url}:`, error);
-          failedCount++;
-          results.push({
-            articleId: article.id,
-            articleTitle: article.headline,
-            originalUrl: bannedCitation.url,
-            replacementUrl: null,
-            confidence: 0,
-            action: 'failed',
-          });
-        }
+      for (const citation of bannedCitations) {
+        allCitations.push({
+          articleId: article.id,
+          articleHeadline: article.headline,
+          articleContent: article.detailed_content?.substring(0, 2000) || '',
+          articleLanguage: article.language,
+          url: citation.url,
+          source: citation.source || new URL(citation.url).hostname,
+        });
       }
     }
 
-    const summary = {
-      success: true,
-      processed: processedCount,
-      autoApplied: autoAppliedCount,
-      manualReview: manualReviewCount,
-      failed: failedCount,
-      articlesAffected: new Set(results.map(r => r.articleId)).size,
-      results,
-      timestamp: new Date().toISOString(),
-    };
+    console.log(`📊 Found ${allCitations.length} total banned citations to process`);
 
-    console.log('✅ Batch replacement complete:', summary);
+    if (allCitations.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          jobId: null,
+          message: 'No banned citations found',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create parent job
+    const { data: job, error: jobError } = await supabase
+      .from('citation_replacement_jobs')
+      .insert({
+        status: 'running',
+        progress_total: allCitations.length,
+        progress_current: 0,
+        started_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (jobError) throw jobError;
+
+    console.log(`📦 Created job ${job.id}`);
+
+    // Split into chunks of 25
+    const CHUNK_SIZE = 25;
+    const chunks: any[] = [];
+    
+    for (let i = 0; i < allCitations.length; i += CHUNK_SIZE) {
+      const chunkCitations = allCitations.slice(i, i + CHUNK_SIZE);
+      chunks.push({
+        parent_job_id: job.id,
+        chunk_number: Math.floor(i / CHUNK_SIZE) + 1,
+        chunk_size: chunkCitations.length,
+        citations: chunkCitations,
+        progress_total: chunkCitations.length,
+        status: 'pending',
+      });
+    }
+
+    // Insert all chunks
+    const { error: chunksError } = await supabase
+      .from('citation_replacement_chunks')
+      .insert(chunks);
+
+    if (chunksError) throw chunksError;
+
+    // Update job with total chunks
+    await supabase
+      .from('citation_replacement_jobs')
+      .update({ 
+        total_chunks: chunks.length,
+        chunk_size: CHUNK_SIZE,
+      })
+      .eq('id', job.id);
+
+    console.log(`✅ Created ${chunks.length} chunks`);
+
+    // Trigger first chunk processing (it will chain to the rest)
+    supabase.functions.invoke('process-citation-chunk', {
+      body: { parentJobId: job.id }
+    }).catch(err => console.error('Failed to trigger first chunk:', err));
 
     return new Response(
-      JSON.stringify(summary),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      JSON.stringify({
+        success: true,
+        jobId: job.id,
+        totalCitations: allCitations.length,
+        totalChunks: chunks.length,
+        message: `Started processing ${allCitations.length} citations in ${chunks.length} chunks`,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {

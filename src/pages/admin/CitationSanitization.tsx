@@ -18,6 +18,8 @@ const CitationSanitization = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [isReplacing, setIsReplacing] = useState(false);
   const [scanResults, setScanResults] = useState<any>(null);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [jobProgress, setJobProgress] = useState<any>(null);
 
   // Fetch citation compliance alerts
   const { data: alerts, isLoading: alertsLoading } = useQuery({
@@ -58,6 +60,36 @@ const CitationSanitization = () => {
     },
   });
 
+  // Poll for job progress
+  const { data: liveJobProgress } = useQuery({
+    queryKey: ["citation-replacement-progress", currentJobId],
+    queryFn: async () => {
+      if (!currentJobId) return null;
+      const { data, error } = await supabase.functions.invoke("check-citation-replacement-status", {
+        body: { jobId: currentJobId },
+      });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentJobId && isReplacing,
+    refetchInterval: 2000, // Poll every 2 seconds
+  });
+
+  // Update progress state when polling data changes
+  if (liveJobProgress && currentJobId) {
+    setJobProgress(liveJobProgress);
+    
+    // Check if job is complete
+    if (liveJobProgress.status === 'completed') {
+      setIsReplacing(false);
+      setCurrentJobId(null);
+      queryClient.invalidateQueries({ queryKey: ["citation-sanitization-alerts"] });
+      toast.success("Replacement complete!", {
+        description: `Auto-applied: ${liveJobProgress.auto_applied_count}, Manual review: ${liveJobProgress.manual_review_count}, Failed: ${liveJobProgress.failed_count}`,
+      });
+    }
+  }
+
   // Batch replace banned citations
   const replaceMutation = useMutation({
     mutationFn: async () => {
@@ -72,16 +104,20 @@ const CitationSanitization = () => {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["citation-sanitization-alerts"] });
-      toast.success("Replacement complete!", {
-        description: `Auto-applied: ${data.autoApplied}, Manual review: ${data.manualReview}`,
-      });
+      if (data.jobId) {
+        setCurrentJobId(data.jobId);
+        toast.success("Processing started!", {
+          description: `Processing ${data.totalCitations} citations in ${data.totalChunks} chunks`,
+        });
+      } else {
+        toast.info(data.message || "No citations to process");
+        setIsReplacing(false);
+      }
     },
     onError: (error: Error) => {
-      toast.error("Replacement failed", { description: error.message });
-    },
-    onSettled: () => {
+      toast.error("Failed to start replacement", { description: error.message });
       setIsReplacing(false);
+      setCurrentJobId(null);
     },
   });
 
@@ -314,11 +350,35 @@ const CitationSanitization = () => {
               </Button>
             </div>
 
-            {isReplacing && (
-              <div className="space-y-2">
-                <Progress value={33} className="h-2" />
+            {isReplacing && jobProgress && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Processing {jobProgress.progress?.current || 0} of {jobProgress.progress?.total || 0} citations
+                    </span>
+                    <span className="font-medium">{jobProgress.progress?.percentage || 0}%</span>
+                  </div>
+                  <Progress value={jobProgress.progress?.percentage || 0} className="h-2" />
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="text-center p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                    <div className="font-bold text-green-600">{jobProgress.auto_applied_count || 0}</div>
+                    <div className="text-muted-foreground">Auto-Applied</div>
+                  </div>
+                  <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded">
+                    <div className="font-bold text-yellow-600">{jobProgress.manual_review_count || 0}</div>
+                    <div className="text-muted-foreground">Manual Review</div>
+                  </div>
+                  <div className="text-center p-2 bg-red-50 dark:bg-red-950/20 rounded">
+                    <div className="font-bold text-red-600">{jobProgress.failed_count || 0}</div>
+                    <div className="text-muted-foreground">Failed</div>
+                  </div>
+                </div>
+
                 <p className="text-xs text-muted-foreground text-center">
-                  Processing citations... This may take several minutes.
+                  Processing in background... This may take 10-20 minutes for all citations.
                 </p>
               </div>
             )}
