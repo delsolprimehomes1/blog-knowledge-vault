@@ -74,7 +74,7 @@ serve(async (req) => {
     if (violations.length > 0) {
       const alertsToCreate = violations.map(v => ({
         alert_type: 'competitor',
-        severity: 'high',
+        severity: 'critical',
         citation_url: v.citation_url,
         article_id: v.article_id,
         article_title: v.article_title,
