@@ -191,32 +191,77 @@ const CitationSanitization = () => {
 
         {/* Scan Results Summary */}
         {scanResults && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              <div className="space-y-2">
-                <div className="font-semibold">Scan Results:</div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>Total Articles: {scanResults.totalArticles}</div>
-                  <div>Citations Scanned: {scanResults.totalCitationsScanned}</div>
-                  <div>Violations Found: {scanResults.bannedCitationsFound}</div>
-                  <div>Unique Domains: {Object.keys(scanResults.violationsByDomain || {}).length}</div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Scan Results - Domain Breakdown
+              </CardTitle>
+              <CardDescription>
+                Found {scanResults.bannedCitationsFound} violations across {Object.keys(scanResults.violationsByDomain || {}).length} competitor domains
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <div className="text-sm text-muted-foreground">Total Articles</div>
+                  <div className="text-2xl font-bold">{scanResults.totalArticles}</div>
                 </div>
-                {scanResults.topOffenders?.length > 0 && (
-                  <div className="mt-2">
-                    <div className="font-medium text-xs mb-1">Top Offending Domains:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {scanResults.topOffenders.map((offender: any) => (
-                        <Badge key={offender.domain} variant="destructive" className="text-xs">
-                          {offender.domain} ({offender.count})
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <div className="text-sm text-muted-foreground">Citations Scanned</div>
+                  <div className="text-2xl font-bold">{scanResults.totalCitationsScanned}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Violations Found</div>
+                  <div className="text-2xl font-bold text-destructive">{scanResults.bannedCitationsFound}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Unique Domains</div>
+                  <div className="text-2xl font-bold">{Object.keys(scanResults.violationsByDomain || {}).length}</div>
+                </div>
               </div>
-            </AlertDescription>
-          </Alert>
+
+              {/* Domain Breakdown Table */}
+              {scanResults.topOffenders?.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-3">Citations to Replace per Domain</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">#</TableHead>
+                          <TableHead>Domain</TableHead>
+                          <TableHead className="text-right">Citation Count</TableHead>
+                          <TableHead className="text-right">% of Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {scanResults.topOffenders.map((offender: any, idx: number) => (
+                          <TableRow key={offender.domain}>
+                            <TableCell className="font-medium text-muted-foreground">
+                              {idx + 1}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              <Badge variant="destructive" className="font-normal">
+                                {offender.domain}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-bold">
+                              {offender.count}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {Math.round((offender.count / scanResults.bannedCitationsFound) * 100)}%
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Action Buttons */}
