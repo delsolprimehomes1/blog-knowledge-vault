@@ -87,15 +87,31 @@ serve(async (req) => {
     console.log(`📊 Looking for pending chunks...`);
     console.log(`Processing chunk for job ${parentJobId}`);
 
-    // Get next pending chunk
+    // Get next pending chunk OR a stuck processing chunk
     const { data: chunk, error: chunkError } = await supabaseClient
       .from('citation_replacement_chunks')
       .select('*')
       .eq('parent_job_id', parentJobId)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'processing'])
       .order('chunk_number', { ascending: true })
       .limit(1)
       .maybeSingle();
+
+    // If we got a processing chunk, check if it's truly stuck
+    if (chunk && chunk.status === 'processing') {
+      const updatedAt = new Date(chunk.updated_at).getTime();
+      const now = Date.now();
+      const minutesSinceUpdate = (now - updatedAt) / 1000 / 60;
+      
+      if (minutesSinceUpdate < 3) {
+        console.log(`Chunk ${chunk.chunk_number} is actively processing, skipping`);
+        return new Response(JSON.stringify({ status: 'chunk_active' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      console.log(`♻️ Resuming stuck chunk ${chunk.chunk_number} (idle for ${minutesSinceUpdate.toFixed(1)} min)`);
+    }
 
     if (chunkError) throw chunkError;
 
@@ -119,10 +135,17 @@ serve(async (req) => {
       })
       .eq('id', chunk.id);
 
-    // Process citations in this chunk
+    // Process citations in this chunk (resume from where we left off)
     const citations = chunk.citations as any[];
-    const results = { autoApplied: 0, manualReview: 0, failed: 0 };
-    let currentProgress = 0;
+    const startFrom = chunk.progress_current || 0;
+    const results = { 
+      autoApplied: chunk.auto_applied_count || 0, 
+      manualReview: chunk.manual_review_count || 0, 
+      failed: chunk.failed_count || 0 
+    };
+    let currentProgress = startFrom;
+    
+    console.log(`Resuming chunk from citation ${startFrom}/${citations.length}`);
 
     // Heartbeat interval
     const HEARTBEAT_INTERVAL = 30000;
@@ -139,7 +162,8 @@ serve(async (req) => {
       }
     };
 
-    for (const citation of citations) {
+    for (let i = startFrom; i < citations.length; i++) {
+      const citation = citations[i];
       await updateHeartbeat();
 
       try {
@@ -292,12 +316,10 @@ serve(async (req) => {
     // Update parent job progress
     await updateParentJobProgress(supabaseClient, parentJobId);
 
-    // Chain to next chunk (fire and forget)
-    supabaseClient.functions.invoke('process-citation-chunk', {
-      body: { parentJobId }
-    }).catch(err => console.error('Failed to trigger next chunk:', err));
+    // Don't chain - let the polling system handle it
+    console.log(`✅ Chunk completed. Polling system will trigger next chunk.`);
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       status: 'chunk_completed', 
       chunkNumber: chunk.chunk_number,
       results 

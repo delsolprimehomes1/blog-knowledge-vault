@@ -153,3 +153,6 @@ timeout = 300
 
 [functions.restart-citation-chunk]
 verify_jwt = false
+
+[functions.poll-pending-chunks]
+verify_jwt = false
