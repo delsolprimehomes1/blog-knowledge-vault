@@ -3,10 +3,23 @@ import { lazy, Suspense, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link2, CheckCircle2, AlertTriangle, Image } from "lucide-react";
+import { Link2, CheckCircle2, AlertTriangle, Image, Trash2, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useQuery } from "@tanstack/react-query";
 
 // Lazy load the heavy ContentFreshnessPanel component
 const ContentFreshnessPanel = lazy(() => 
@@ -16,10 +29,29 @@ const ContentFreshnessPanel = lazy(() =>
 );
 
 const ContentUpdates = () => {
+  const queryClient = useQueryClient();
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<any>(null);
   const [isDiagramBackfilling, setIsDiagramBackfilling] = useState(false);
   const [diagramBackfillResult, setDiagramBackfillResult] = useState<any>(null);
+  const [isDeletingDiagrams, setIsDeletingDiagrams] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{
+    success: number;
+    errors: number;
+    total: number;
+  } | null>(null);
+
+  // Query to count articles with diagrams
+  const { data: articlesWithDiagrams = 0 } = useQuery({
+    queryKey: ['articles-with-diagrams'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('blog_articles')
+        .select('*', { count: 'exact', head: true })
+        .or('diagram_url.not.is.null,diagram_alt.not.is.null,diagram_caption.not.is.null,diagram_description.not.is.null');
+      return count || 0;
+    }
+  });
 
   const handleBackfillInternalLinks = async () => {
     try {
@@ -111,38 +143,70 @@ const ContentUpdates = () => {
   };
 
   const handleBackfillDiagrams = async () => {
+    setIsDiagramBackfilling(true);
+    setDiagramBackfillResult(null);
+    
     try {
-      setIsDiagramBackfilling(true);
-      setDiagramBackfillResult(null);
+      toast.info("Starting diagram generation...");
       
-      toast.info("🎨 Starting diagram backfill...", {
-        description: "This may take 30+ minutes for 200+ articles"
-      });
-
       const { data, error } = await supabase.functions.invoke('backfill-diagrams', {
         body: {}
       });
 
       if (error) throw error;
 
-      setDiagramBackfillResult(data);
-      
-      if (data.success) {
-        toast.success(`✅ Diagram backfill complete!`, {
-          description: `${data.success_count}/${data.total_articles} diagrams generated successfully`
-        });
-      } else {
-        toast.error("❌ Backfill failed", {
-          description: data.error
-        });
-      }
-    } catch (error) {
-      console.error('Diagram backfill error:', error);
-      toast.error("❌ Failed to backfill diagrams", {
-        description: error instanceof Error ? error.message : 'Unknown error'
+      setDiagramBackfillResult({
+        success: data.success_count || 0,
+        errors: data.error_count || 0,
+        total: data.total_processed || 0
       });
+
+      if (data.error_count > 0) {
+        toast.warning(`Diagram generation completed with ${data.error_count} errors`);
+      } else {
+        toast.success(`Successfully generated diagrams for ${data.success_count} articles`);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['blog-articles'] });
+    } catch (error) {
+      console.error('Error backfilling diagrams:', error);
+      toast.error("Failed to generate diagrams");
     } finally {
       setIsDiagramBackfilling(false);
+    }
+  };
+
+  const handleBulkDeleteDiagrams = async () => {
+    setIsDeletingDiagrams(true);
+    setDeleteResult(null);
+    
+    try {
+      toast.info("Deleting all diagrams...");
+      
+      const { data, error } = await supabase.functions.invoke('bulk-delete-diagrams', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      setDeleteResult({
+        success: data.success_count || 0,
+        errors: data.error_count || 0,
+        total: data.total_processed || 0
+      });
+
+      if (data.error_count > 0) {
+        toast.warning(`Deletion completed with ${data.error_count} errors`);
+      } else {
+        toast.success(`Successfully deleted diagrams from ${data.success_count} articles`);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['blog-articles'] });
+    } catch (error) {
+      console.error('Error deleting diagrams:', error);
+      toast.error("Failed to delete diagrams");
+    } finally {
+      setIsDeletingDiagrams(false);
     }
   };
 
@@ -320,6 +384,87 @@ const ContentUpdates = () => {
                 </>
               )}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Bulk Delete AI Diagrams */}
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Bulk Delete AI Diagrams
+            </CardTitle>
+            <CardDescription>
+              Remove all AI-generated diagrams from articles. This will clear diagram URLs, alt text, captions, and descriptions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Warning</AlertTitle>
+              <AlertDescription>
+                This action cannot be undone. All diagram data will be permanently removed from affected articles.
+              </AlertDescription>
+            </Alert>
+
+            {articlesWithDiagrams > 0 && (
+              <div className="rounded-lg border bg-muted/50 p-4">
+                <p className="text-sm text-muted-foreground">
+                  <strong>{articlesWithDiagrams}</strong> articles currently have diagram data
+                </p>
+              </div>
+            )}
+
+            {deleteResult && (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertTitle>Deletion Complete</AlertTitle>
+                <AlertDescription>
+                  Successfully deleted diagrams from <strong>{deleteResult.success}</strong> articles
+                  {deleteResult.errors > 0 && ` (${deleteResult.errors} errors)`}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={isDeletingDiagrams || articlesWithDiagrams === 0}
+                  className="w-full"
+                >
+                  {isDeletingDiagrams ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting Diagrams...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete All Diagrams ({articlesWithDiagrams})
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete diagram data from <strong>{articlesWithDiagrams}</strong> articles.
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleBulkDeleteDiagrams}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete All Diagrams
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
 

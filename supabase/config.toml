@@ -156,3 +156,6 @@ verify_jwt = false
 
 [functions.poll-pending-chunks]
 verify_jwt = false
+
+[functions.bulk-delete-diagrams]
+verify_jwt = false
