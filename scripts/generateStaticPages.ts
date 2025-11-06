@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
-import { writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import type { Database } from '../src/integrations/supabase/types';
 
@@ -241,7 +241,46 @@ function sanitizeForHTML(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
-function generateStaticHTML(article: ArticleData): string {
+interface AssetPaths {
+  css: string[];
+  js: string[];
+}
+
+/**
+ * Extract CSS and JS bundle paths from the built index.html
+ */
+function extractAssetPaths(distDir: string): AssetPaths {
+  const indexPath = join(distDir, 'index.html');
+  
+  if (!existsSync(indexPath)) {
+    console.warn('⚠️  dist/index.html not found, using fallback paths');
+    return { css: [], js: ['/src/main.tsx'] };
+  }
+
+  const indexHtml = readFileSync(indexPath, 'utf-8');
+  const css: string[] = [];
+  const js: string[] = [];
+
+  // Extract CSS links: <link rel="stylesheet" href="/assets/index-*.css">
+  const cssRegex = /<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["'][^>]*>/gi;
+  let cssMatch;
+  while ((cssMatch = cssRegex.exec(indexHtml)) !== null) {
+    css.push(cssMatch[1]);
+  }
+
+  // Extract JS modules: <script type="module" crossorigin src="/assets/index-*.js">
+  const jsRegex = /<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["'][^>]*>/gi;
+  let jsMatch;
+  while ((jsMatch = jsRegex.exec(indexHtml)) !== null) {
+    js.push(jsMatch[1]);
+  }
+
+  console.log(`📦 Extracted ${css.length} CSS files and ${js.length} JS files from build manifest`);
+  
+  return { css, js };
+}
+
+function generateStaticHTML(article: ArticleData, assetPaths: AssetPaths): string {
   const organizationSchema = generateOrganizationSchema();
   const authorSchema = generateAuthorSchema(article.author);
   const articleSchema = generateArticleSchema(article);
@@ -269,10 +308,29 @@ function generateStaticHTML(article: ArticleData): string {
 <html lang="${article.language}">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#d4a574" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="description" content="${sanitizeForHTML(article.meta_description)}">
   <meta name="author" content="${article.author?.name || 'Del Sol Prime Homes'}">
   <title>${sanitizeForHTML(article.meta_title)} | Del Sol Prime Homes</title>
+  
+  <!-- Font Optimization: Preload and font-display swap -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Cormorant+Garamond:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" as="style">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Cormorant+Garamond:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Cormorant+Garamond:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap">
+  </noscript>
+  
+  <!-- Preconnect and DNS Prefetch for external domains -->
+  <link rel="preconnect" href="https://kazggnufaoicopvmwhdl.supabase.co" crossorigin>
+  <link rel="dns-prefetch" href="https://kazggnufaoicopvmwhdl.supabase.co">
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com">
   
   <link rel="canonical" href="${canonicalUrl}" />
 ${hreflangLinks}
@@ -290,12 +348,10 @@ ${hreflangLinks}
   <meta name="twitter:description" content="${sanitizeForHTML(article.meta_description)}" />
   <meta name="twitter:image" content="${article.featured_image_url}" />
   
+${assetPaths.css.map(href => `  <link rel="stylesheet" crossorigin href="${href}">`).join('\n')}
+  
   <!-- JSON-LD Schemas -->
 ${schemas.map(schema => `  <script type="application/ld+json">${JSON.stringify(schema, null, 2)}</script>`).join('\n')}
-  
-  <!-- Preconnect to improve performance -->
-  <link rel="preconnect" href="https://kazggnufaoicopvmwhdl.supabase.co">
-  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
 </head>
 <body>
   <div id="root">
@@ -338,7 +394,7 @@ ${schemas.map(schema => `  <script type="application/ld+json">${JSON.stringify(s
   </div>
   
   <!-- React will hydrate this content -->
-  <script type="module" src="/src/main.tsx"></script>
+${assetPaths.js.map(src => `  <script type="module" crossorigin src="${src}"></script>`).join('\n')}
 </body>
 </html>`;
 }
@@ -347,6 +403,9 @@ export async function generateStaticPages(distDir: string) {
   console.log('🚀 Starting static page generation...');
   
   try {
+    // Extract asset paths from the built index.html
+    const assetPaths = extractAssetPaths(distDir);
+    
     // Fetch all published articles with author and reviewer
     const { data: articles, error } = await supabase
       .from('blog_articles')
@@ -374,7 +433,7 @@ export async function generateStaticPages(distDir: string) {
 
     for (const article of articles) {
       try {
-        const html = generateStaticHTML(article as any);
+        const html = generateStaticHTML(article as any, assetPaths);
         const filePath = join(distDir, 'blog', article.slug, 'index.html');
         
         // Create directory if it doesn't exist
