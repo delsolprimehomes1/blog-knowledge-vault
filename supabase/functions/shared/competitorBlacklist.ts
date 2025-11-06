@@ -60,6 +60,12 @@ export const COMPETITOR_DOMAINS = [
   'mpvillareal.com',
   'luxuryrealestate.com',
   'bcpartners.es',
+  'thegoldenpartners.com',
+  'spainlifeexclusive.com',
+  'oasismarbella.com',
+  'movetomalagaspain.com',
+  'globalpropertyguide.com',
+  'lexidy.com',
   
   // Other Regional Competitors
   'savills.es',
