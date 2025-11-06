@@ -271,18 +271,27 @@ serve(async (req) => {
             } else {
               results.autoApplied++;
               
-              // Update paragraph tracking for the new citation URL
+              // Update paragraph tracking for the new citation URL (if exists)
               if (article) {
                 const paragraphIndex = extractParagraphIndex(article.detailed_content, bestMatch.suggestedUrl);
                 if (paragraphIndex !== null) {
-                  await supabaseClient
-                    .from('citation_usage_tracking')
-                    .update({ 
-                      context_paragraph_index: paragraphIndex,
-                      updated_at: new Date().toISOString()
-                    })
-                    .eq('article_id', citation.articleId)
-                    .eq('citation_url', bestMatch.suggestedUrl);
+                  try {
+                    // Use upsert to avoid conflicts
+                    const { error: trackingError } = await supabaseClient
+                      .from('citation_usage_tracking')
+                      .update({ 
+                        context_paragraph_index: paragraphIndex,
+                        updated_at: new Date().toISOString()
+                      })
+                      .eq('article_id', citation.articleId)
+                      .eq('citation_url', bestMatch.suggestedUrl);
+                    
+                    if (trackingError) {
+                      console.warn(`⚠️ Could not update paragraph tracking:`, trackingError);
+                    }
+                  } catch (err) {
+                    console.warn(`⚠️ Error updating paragraph tracking:`, err);
+                  }
                 }
               }
             }

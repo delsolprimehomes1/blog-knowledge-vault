@@ -87,14 +87,37 @@ serve(async (req) => {
         const { data: allArticles, error: articleError } = await supabase
           .from('blog_articles')
           .select('id, external_citations')
+          .eq('status', 'published')
           .not('external_citations', 'is', null);
         
         if (articleError) throw articleError;
         
-        // Filter articles that contain this URL in their citations
+        // Normalize URLs for better matching (remove trailing slashes, fragments)
+        const normalizeUrl = (url: string) => {
+          try {
+            const urlObj = new URL(url);
+            urlObj.hash = ''; // Remove fragment
+            let normalized = urlObj.toString();
+            // Remove trailing slash
+            if (normalized.endsWith('/')) {
+              normalized = normalized.slice(0, -1);
+            }
+            return normalized;
+          } catch {
+            return url;
+          }
+        };
+        
+        const normalizedOriginalUrl = normalizeUrl(replacement.original_url);
+        
+        // Filter articles that contain this URL in their citations (with normalization)
         const matchingArticles = (allArticles || []).filter(article => {
           const citations = article.external_citations as any[];
-          return citations && citations.some((c: any) => c.url === replacement.original_url);
+          return citations && citations.some((c: any) => {
+            const citationUrl = c.url || '';
+            return citationUrl === replacement.original_url || 
+                   normalizeUrl(citationUrl) === normalizedOriginalUrl;
+          });
         });
         
         articleIds = matchingArticles.map(a => a.id);
@@ -191,15 +214,21 @@ serve(async (req) => {
             update_notes: `Replaced citation: ${replacement.original_url} → ${replacement.replacement_url}`
           });
 
-          // Update citation usage tracking
-          await supabase
-            .from('citation_usage_tracking')
-            .update({ 
-              citation_url: replacement.replacement_url,
-              updated_at: new Date().toISOString()
-            })
-            .eq('article_id', article.id)
-            .eq('citation_url', replacement.original_url);
+          // Update citation usage tracking using database function (atomic delete+insert)
+          // This prevents duplicate key constraint errors
+          try {
+            await supabase.rpc('replace_citation_tracking', {
+              p_article_id: article.id,
+              p_old_url: replacement.original_url,
+              p_new_url: replacement.replacement_url,
+              p_new_source: replacement.replacement_source || 'Unknown',
+              p_anchor_text: 'Citation' // Default anchor text
+            });
+            console.log(`✅ Updated citation tracking for article ${article.id}`);
+          } catch (trackingError) {
+            console.error(`⚠️ Failed to update citation tracking:`, trackingError);
+            // Don't fail the whole replacement if tracking fails
+          }
 
           affectedArticles.push({
             articleId: article.id,
