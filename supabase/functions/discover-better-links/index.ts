@@ -180,7 +180,17 @@ Return ONLY a valid JSON array (no markdown, no explanations):
     });
 
     if (filteredSuggestions.length === 0) {
-      throw new Error('All suggested sources were competitors. Please try different search terms.');
+      return new Response(
+        JSON.stringify({ 
+          suggestions: [],
+          message: 'All suggested sources were competitors - no valid alternatives found',
+          isCompetitorBlocked: true 
+        }), 
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
     }
 
     console.log(`✅ ${filteredSuggestions.length}/${suggestions.length} suggestions passed competitor filter`);

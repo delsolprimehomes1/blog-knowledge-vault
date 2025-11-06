@@ -567,6 +567,7 @@ export type Database = {
       citation_replacement_chunks: {
         Row: {
           auto_applied_count: number | null
+          blocked_competitor_count: number | null
           chunk_number: number
           chunk_size: number
           citations: Json
@@ -585,6 +586,7 @@ export type Database = {
         }
         Insert: {
           auto_applied_count?: number | null
+          blocked_competitor_count?: number | null
           chunk_number: number
           chunk_size: number
           citations: Json
@@ -603,6 +605,7 @@ export type Database = {
         }
         Update: {
           auto_applied_count?: number | null
+          blocked_competitor_count?: number | null
           chunk_number?: number
           chunk_size?: number
           citations?: Json
@@ -633,6 +636,7 @@ export type Database = {
         Row: {
           articles_processed: number | null
           auto_applied_count: number | null
+          blocked_competitor_count: number | null
           chunk_size: number | null
           completed_at: string | null
           completed_chunks: number | null
@@ -654,6 +658,7 @@ export type Database = {
         Insert: {
           articles_processed?: number | null
           auto_applied_count?: number | null
+          blocked_competitor_count?: number | null
           chunk_size?: number | null
           completed_at?: string | null
           completed_chunks?: number | null
@@ -675,6 +680,7 @@ export type Database = {
         Update: {
           articles_processed?: number | null
           auto_applied_count?: number | null
+          blocked_competitor_count?: number | null
           chunk_size?: number | null
           completed_at?: string | null
           completed_chunks?: number | null

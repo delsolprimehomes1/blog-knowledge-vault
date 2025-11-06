@@ -141,7 +141,8 @@ serve(async (req) => {
     const results = { 
       autoApplied: chunk.auto_applied_count || 0, 
       manualReview: chunk.manual_review_count || 0, 
-      failed: chunk.failed_count || 0 
+      failed: chunk.failed_count || 0,
+      blocked_competitor: chunk.blocked_competitor_count || 0
     };
     let currentProgress = startFrom;
     
@@ -178,6 +179,7 @@ serve(async (req) => {
               auto_applied_count: results.autoApplied,
               manual_review_count: results.manualReview,
               failed_count: results.failed,
+              blocked_competitor_count: results.blocked_competitor,
               updated_at: new Date().toISOString()
             })
             .eq('id', chunk.id);
@@ -211,8 +213,18 @@ serve(async (req) => {
         );
 
         if (discoveryError || !discoveryResult?.suggestions?.length) {
-          console.log('No alternatives found');
-          results.failed++;
+          // Check if this is a competitor domain with no valid alternatives
+          const errorMsg = discoveryError?.message || discoveryResult?.message || '';
+          const isCompetitorBlocked = errorMsg.toLowerCase().includes('competitor') || 
+                                     errorMsg.toLowerCase().includes('blacklist');
+          
+          if (isCompetitorBlocked) {
+            console.log('Blocked competitor citation - no valid alternatives');
+            results.blocked_competitor++;
+          } else {
+            console.log('No alternatives found');
+            results.failed++;
+          }
           continue;
         }
 
@@ -316,6 +328,7 @@ serve(async (req) => {
         auto_applied_count: results.autoApplied,
         manual_review_count: results.manualReview,
         failed_count: results.failed,
+        blocked_competitor_count: results.blocked_competitor,
         updated_at: new Date().toISOString()
       })
       .eq('id', chunk.id);
@@ -359,6 +372,7 @@ async function updateParentJobProgress(supabaseClient: any, parentJobId: string)
   const totalAutoApplied = chunks.reduce((sum: number, c: any) => sum + (c.auto_applied_count || 0), 0);
   const totalManualReview = chunks.reduce((sum: number, c: any) => sum + (c.manual_review_count || 0), 0);
   const totalFailed = chunks.reduce((sum: number, c: any) => sum + (c.failed_count || 0), 0);
+  const totalBlockedCompetitor = chunks.reduce((sum: number, c: any) => sum + (c.blocked_competitor_count || 0), 0);
   const totalProgress = chunks.reduce((sum: number, c: any) => sum + (c.progress_current || 0), 0);
 
   await supabaseClient
@@ -369,6 +383,7 @@ async function updateParentJobProgress(supabaseClient: any, parentJobId: string)
       auto_applied_count: totalAutoApplied,
       manual_review_count: totalManualReview,
       failed_count: totalFailed,
+      blocked_competitor_count: totalBlockedCompetitor,
       progress_current: totalProgress,
       updated_at: new Date().toISOString()
     })
