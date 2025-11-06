@@ -114,6 +114,11 @@ export const COMPETITOR_DOMAINS = [
   'higueron-valley.com',
   'portfolio-deluxe.com',
   'purelivingproperties.com',
+  'directimo.com',
+  'investropa.com',
+  'springrealestate.com',
+  'verdepropertygroup.com',
+  'sunpropertiesmarbella.com',
 ];
 
 /**
