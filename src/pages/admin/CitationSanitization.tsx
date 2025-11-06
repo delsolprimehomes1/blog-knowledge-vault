@@ -12,12 +12,25 @@ import { Shield, AlertTriangle, RefreshCw, Trash2, ExternalLink, CheckCircle2, X
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { CitationHygieneReport } from "@/components/admin/CitationHygieneReport";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const CitationSanitization = () => {
   const queryClient = useQueryClient();
   const [isScanning, setIsScanning] = useState(false);
   const [isReplacing, setIsReplacing] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [showRemovalDialog, setShowRemovalDialog] = useState(false);
   const [scanResults, setScanResults] = useState<any>(null);
+  const [removalResults, setRemovalResults] = useState<any>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [jobProgress, setJobProgress] = useState<any>(null);
 
@@ -91,6 +104,29 @@ const CitationSanitization = () => {
       }
     }
   }, [liveJobProgress, currentJobId, queryClient]);
+
+  // Remove banned citations
+  const removeMutation = useMutation({
+    mutationFn: async () => {
+      setIsRemoving(true);
+      const { data, error } = await supabase.functions.invoke("remove-banned-citations");
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setRemovalResults(data.stats);
+      queryClient.invalidateQueries({ queryKey: ["citation-sanitization-alerts"] });
+      toast.success("Removal complete!", {
+        description: `Removed ${data.stats.citationsRemoved} citations from ${data.stats.articlesModified} articles`,
+      });
+    },
+    onError: (error: Error) => {
+      toast.error("Removal failed", { description: error.message });
+    },
+    onSettled: () => {
+      setIsRemoving(false);
+    },
+  });
 
   // Batch replace banned citations
   const replaceMutation = useMutation({
@@ -323,17 +359,16 @@ const CitationSanitization = () => {
           <CardHeader>
             <CardTitle>Batch Actions</CardTitle>
             <CardDescription>
-              Scan for violations and automatically replace banned citations
+              <strong>Scan:</strong> Detect competitor citations • <strong>Remove:</strong> Delete immediately without replacement • <strong>Auto-Replace:</strong> Find and apply approved alternatives
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-3">
+            <div className="grid gap-3 md:grid-cols-3">
               <Button
                 onClick={() => scanMutation.mutate()}
                 disabled={isScanning}
                 size="lg"
                 variant="outline"
-                className="flex-1"
               >
                 {isScanning ? (
                   <>
@@ -349,10 +384,59 @@ const CitationSanitization = () => {
               </Button>
 
               <Button
+                onClick={() => setShowRemovalDialog(true)}
+                disabled={isRemoving || bannedCount === 0}
+                size="lg"
+                variant="destructive"
+              >
+                {isRemoving ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove All ({bannedCount})
+                  </>
+                )}
+              </Button>
+
+              <AlertDialog open={showRemovalDialog} onOpenChange={setShowRemovalDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove All Competitor Citations?</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <p>
+                        This will <strong>immediately delete {bannedCount} competitor citations</strong> from your published articles without finding replacements.
+                      </p>
+                      <p className="text-destructive font-medium">
+                        ⚠️ This action cannot be undone. Citations will be permanently removed from articles.
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        Tip: Use "Auto-Replace All" instead if you want to find approved alternatives before removing.
+                      </p>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        removeMutation.mutate();
+                        setShowRemovalDialog(false);
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Yes, Remove All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <Button
                 onClick={() => replaceMutation.mutate()}
                 disabled={isReplacing || (bannedCount === 0 && !scanResults?.bannedCitationsFound)}
                 size="lg"
-                className="flex-1"
               >
                 {isReplacing ? (
                   <>
@@ -380,7 +464,7 @@ const CitationSanitization = () => {
                   <Progress value={jobProgress.progress?.percentage || 0} className="h-2" />
                 </div>
                 
-                <div className="grid grid-cols-3 gap-3 text-xs">
+                <div className="grid grid-cols-4 gap-3 text-xs">
                   <div className="text-center p-2 bg-green-50 dark:bg-green-950/20 rounded">
                     <div className="font-bold text-green-600">{jobProgress.auto_applied_count || 0}</div>
                     <div className="text-muted-foreground">Auto-Applied</div>
@@ -388,6 +472,10 @@ const CitationSanitization = () => {
                   <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded">
                     <div className="font-bold text-yellow-600">{jobProgress.manual_review_count || 0}</div>
                     <div className="text-muted-foreground">Manual Review</div>
+                  </div>
+                  <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                    <div className="font-bold text-blue-600">{jobProgress.blocked_competitor_count || 0}</div>
+                    <div className="text-muted-foreground">Blocked</div>
                   </div>
                   <div className="text-center p-2 bg-red-50 dark:bg-red-950/20 rounded">
                     <div className="font-bold text-red-600">{jobProgress.failed_count || 0}</div>
@@ -399,6 +487,16 @@ const CitationSanitization = () => {
                   Processing in background... This may take 10-20 minutes for all citations.
                 </p>
               </div>
+            )}
+
+            {removalResults && (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Removal Complete:</strong> Removed {removalResults.citationsRemoved} competitor citations 
+                  from {removalResults.articlesModified} articles across {Object.keys(removalResults.byDomain).length} domains.
+                </AlertDescription>
+              </Alert>
             )}
           </CardContent>
         </Card>
