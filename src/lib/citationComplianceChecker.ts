@@ -11,21 +11,120 @@ export interface CitationComplianceResult {
   category?: string;
 }
 
-// Competitor domains (real estate agencies, brokerages, property sellers)
+/**
+ * Complete Real Estate Competitor Blacklist
+ * Synced with backend competitorBlacklist.ts
+ * These domains directly compete with Del Sol Prime Homes
+ */
 const COMPETITOR_DOMAINS = [
-  'kyero.com', 'idealista.com', 'rightmove.co.uk', 'zoopla.co.uk',
-  'fotocasa.es', 'pisos.com', 'habitaclia.com', 'yaencontre.com',
-  'engel-voelkers.com', 'sothebysrealty.com', 'knightfrank.com',
-  'savills.com', 'christie.com', 'luxuryestate.com', 'jamesedition.com',
-  'propertyinder.ae', 'bayut.com', 'zillow.com', 'realtor.com',
-  'redfin.com', 'trulia.com', 'homes.com', 'century21.com',
-  'coldwellbanker.com', 'remax.com', 'keller-williams.com',
-  'compass.com', 'douglas-elliman.com', 'corcoran.com',
-  'propertypal.com', 'myhome.ie', 'daft.ie', 'doomu.com',
-  'thinkspain.com', 'spanishpropertyinsight.com', 'kyero.com',
-  'costadelsolproperties.com', 'solmar-properties.com',
-  'villas.com', 'luxury-retreats.com', 'homeaway.com', 'vrbo.com',
-  // Add more competitor domains as needed
+  // Major Spanish Property Portals
+  'idealista.com',
+  'fotocasa.es',
+  'pisos.com',
+  'habitaclia.com',
+  'yaencontre.com',
+  'tucasa.com',
+  'properati.es',
+  'enalquiler.com',
+  
+  // International Property Portal Networks
+  'kyero.com',
+  'propertyguides.com',
+  'spanishpropertychoice.com',
+  'aplaceinthesun.com',
+  'spanishpropertyinsight.com',
+  'spanishhomes.com',
+  'thinkspain.com',
+  'propertyshowrooms.com',
+  'property-spain.com',
+  'spanishvillas.com',
+  
+  // UK/International Portals
+  'rightmove.co.uk',
+  'zoopla.co.uk',
+  'onthemarket.com',
+  'primelocation.com',
+  
+  // Major International Real Estate Agencies
+  're-max.es',
+  're-max.com',
+  'remax.com',
+  'engel-voelkers.com',
+  'engelvoelkers.com',
+  'sothebysrealty.com',
+  'christiesrealestate.com',
+  'coldwellbanker.com',
+  'century21.es',
+  'century21.com',
+  'kw.com',
+  'kellerwilliams.com',
+  
+  // Regional Costa del Sol Competitors
+  'marbella-hills.com',
+  'terra-meridiana.com',
+  'gilmar.es',
+  'lucas-fox.com',
+  'clearhomes.es',
+  'viva-sothebys.com',
+  'drumelia.com',
+  'panorama.es',
+  'mpvillareal.com',
+  'luxuryrealestate.com',
+  'bcpartners.es',
+  
+  // Other Regional Competitors
+  'savills.es',
+  'savills.com',
+  'knightfrank.es',
+  'knightfrank.com',
+  'berkshirehathaway.es',
+  
+  // Additional Banned Competitor Domains (2025 Expansion)
+  'spaansedroomhuizen.com',
+  'realestate-space.com',
+  'spaineasy.com',
+  'investinspain.be',
+  'youroverseashome.com',
+  'amahomespain.com',
+  'mdrluxuryhomes.com',
+  'immoabroad.com',
+  'casaaandecostablanca.nl',
+  'wyndhamgrandcostadelsol.com',
+  'benoitproperties.com',
+  'cire-costadelsol.com',
+  'costasunsets.com',
+  'uwhuisinspanje.eu',
+  'vakantiewoningkopen.nl',
+  'mediterraneanhomes.eu',
+  'panoramamarbella.com',
+  'spanjespecials.com',
+  'realista.com',
+  'keyrealestates.com',
+  'pasku.co',
+  'privoimobiliare.com',
+  'nardia.es',
+  'nl.spotblue.com',
+  'avidaestate.com',
+  'mikenaumannimmobilien.com',
+  'vivi-realestate.com',
+  'pineapplehomesmalaga.com',
+  'inmoinvestments.com',
+  'tekce.com',
+  'homerunmarbella.com',
+  'c21gibraltar.com',
+  'marbella-estates.com',
+  'propertiesforsale.es',
+  'casalobo.es',
+  'hihomes.es',
+  'imoinvestcostadelsol.com',
+  'theagency-marbella.com',
+  'dolanproperty.es',
+  'fineandcountry.es',
+  'spanskafastigheter.se',
+  'realestatemijas.com',
+  'higueron-valley.com',
+  'portfolio-deluxe.com',
+  'purelivingproperties.com',
 ];
 
 /**
