@@ -159,3 +159,10 @@ verify_jwt = false
 
 [functions.bulk-delete-diagrams]
 verify_jwt = false
+
+[functions.remove-banned-citations]
+verify_jwt = false
+timeout = 300
+
+[functions.validate-inline-citations]
+verify_jwt = false

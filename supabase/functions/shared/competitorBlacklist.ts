@@ -119,6 +119,70 @@ export const COMPETITOR_DOMAINS = [
   'springrealestate.com',
   'verdepropertygroup.com',
   'sunpropertiesmarbella.com',
+  
+  // Tier 1 - High Priority Competitors (10+ articles)
+  'worldwideproperty.co',
+  'spainhomes.com',
+  
+  // Tier 2 - Medium Priority Competitors (5-9 articles)
+  'terrasurhomes.com',
+  'terretaspain.com',
+  'luxe-villa.com',
+  'thepropertyagent.es',
+  
+  // Tier 3 - Active Competitors (3-4 articles)
+  'realestate.hellosun.es',
+  'immomoment.es',
+  'delena-grande.com',
+  'estagencymarbella.com',
+  'imaginemarbella.com',
+  'plexoproperties.com',
+  'vossencasas.com',
+  'huizeninspanje.nl',
+  'guidetomalaga.com',
+  
+  // Tier 4 - Growing Threats (2 articles)
+  'azull.info',
+  'costagroupestates.com',
+  'dreampropertiesinternational.com',
+  'ecovidahomes.com',
+  'sunnycoast-homes.com',
+  'merlishomes.com',
+  'move2marbella.com',
+  'kopenaandecosta.nl',
+  'esteponainfo.substack.com',
+  
+  // Tier 5 - Emerging Competitors (1 article each)
+  'spanishvilla.com',
+  'costablancaproperty.com',
+  'andaluciahomes.com',
+  'marbelladirect.com',
+  'solproperties.com',
+  'costahomes.es',
+  'spainhouses.net',
+  'villaquest.co.uk',
+  'marbellaunique.com',
+  'luxuryvillas-spain.com',
+  'propertyinspain.com',
+  'spanish-property.org',
+  'spanishrealestate.com',
+  'costadelsolproperty.net',
+  'andalusiarealestate.com',
+  'malagaproperty.com',
+  'torreviejaproperty.com',
+  'alicantehouses.com',
+  'valenciaproperty.es',
+  'barcelonaproperties.com',
+  'catalunyahomes.com',
+  'gironarealestate.com',
+  'tarragonahouses.com',
+  'llerida-property.com',
+  'baleares-homes.com',
+  'ibizaproperties.com',
+  'mallorca-realestate.com',
+  'menorcahomes.com',
+  'canary-properties.com',
+  'tenerife-homes.com',
 ];
 
 /**
