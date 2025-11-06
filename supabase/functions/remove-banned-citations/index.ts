@@ -138,6 +138,52 @@ serve(async (req) => {
       }
     }
 
+    // Reconciliation step: Mark alerts as resolved if citations are already gone
+    console.log('Starting alert reconciliation...');
+    
+    const { data: unresolvedAlerts } = await supabase
+      .from('citation_compliance_alerts')
+      .select('id, article_id, citation_url')
+      .eq('alert_type', 'competitor')
+      .is('resolved_at', null);
+
+    let reconciledCount = 0;
+
+    for (const alert of unresolvedAlerts || []) {
+      // Check if this article still has this citation URL
+      const { data: article } = await supabase
+        .from('blog_articles')
+        .select('external_citations')
+        .eq('id', alert.article_id)
+        .single();
+      
+      if (article) {
+        const citations = Array.isArray(article.external_citations) 
+          ? article.external_citations 
+          : [];
+        
+        const urlStillExists = citations.some((cit: any) => 
+          cit.url === alert.citation_url
+        );
+        
+        if (!urlStillExists) {
+          // Citation already removed - mark alert as resolved
+          await supabase
+            .from('citation_compliance_alerts')
+            .update({
+              resolved_at: new Date().toISOString(),
+              resolution_notes: 'Reconciliation: Citation already removed in previous cleanup',
+            })
+            .eq('id', alert.id);
+          
+          reconciledCount++;
+        }
+      }
+    }
+
+    console.log(`Reconciled ${reconciledCount} orphaned alerts`);
+    removalStats.alertsResolved += reconciledCount;
+
     // Sort domains by frequency
     const topOffenders = Object.entries(removalStats.byDomain)
       .sort(([, a], [, b]) => b - a)
@@ -146,6 +192,8 @@ serve(async (req) => {
     console.log('Removal complete:', {
       articlesModified: removalStats.articlesModified,
       citationsRemoved: removalStats.citationsRemoved,
+      alertsResolved: removalStats.alertsResolved,
+      reconciledCount,
       topOffenders: topOffenders.map(([domain, count]) => `${domain}: ${count}`),
     });
 
@@ -154,6 +202,7 @@ serve(async (req) => {
         success: true,
         stats: {
           ...removalStats,
+          reconciledCount,
           topOffenders: topOffenders.map(([domain, count]) => ({ domain, count })),
         },
       }),
