@@ -80,7 +80,7 @@ function generateQAPageSchema() {
 
   return {
     "@context": "https://schema.org",
-    "@type": "QAPage",
+    "@type": "FAQPage",
     "mainEntity": allQuestions
   };
 }
@@ -178,7 +178,7 @@ const QA = () => {
         </section>
 
         {/* Q&A Content */}
-        <section className="py-16 px-4 md:px-8" itemScope itemType="https://schema.org/QAPage">
+        <section className="py-16 px-4 md:px-8" itemScope itemType="https://schema.org/FAQPage">
           <div className="max-w-4xl mx-auto space-y-8">
             {Object.entries(filteredCategories)
               .filter(([key]) => !activeCategory || key === activeCategory)
