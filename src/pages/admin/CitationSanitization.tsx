@@ -117,7 +117,7 @@ const CitationSanitization = () => {
       setRemovalResults(data.stats);
       queryClient.invalidateQueries({ queryKey: ["citation-sanitization-alerts"] });
       toast.success("Removal complete!", {
-        description: `Removed ${data.stats.citationsRemoved} citations from ${data.stats.articlesModified} articles`,
+        description: `Removed ${data.stats.citationsRemoved} citations from ${data.stats.articlesModified} articles${data.stats.alertsResolved > 0 ? ` • Resolved ${data.stats.alertsResolved} alerts` : ''}`,
       });
     },
     onError: (error: Error) => {

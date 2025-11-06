@@ -36,6 +36,7 @@ serve(async (req) => {
       articlesScanned: articles?.length || 0,
       articlesModified: 0,
       citationsRemoved: 0,
+      alertsResolved: 0,
       byDomain: {} as Record<string, number>,
       affectedArticles: [] as Array<{ slug: string; headline: string; removedCount: number }>,
     };
@@ -100,13 +101,30 @@ serve(async (req) => {
           continue;
         }
 
-        // Delete citation tracking records for banned URLs
+        // Delete citation tracking records for banned URLs and mark alerts as resolved
         for (const bannedUrl of bannedUrls) {
           await supabase
             .from('citation_usage_tracking')
             .delete()
             .eq('article_id', article.id)
             .eq('citation_url', bannedUrl);
+
+          // Mark corresponding compliance alert as resolved
+          const { data: resolvedAlert } = await supabase
+            .from('citation_compliance_alerts')
+            .update({
+              resolved_at: new Date().toISOString(),
+              resolution_notes: 'Automatically resolved by batch removal process',
+            })
+            .eq('article_id', article.id)
+            .eq('citation_url', bannedUrl)
+            .is('resolved_at', null)
+            .select('id')
+            .single();
+
+          if (resolvedAlert) {
+            removalStats.alertsResolved++;
+          }
         }
 
         removalStats.articlesModified++;
