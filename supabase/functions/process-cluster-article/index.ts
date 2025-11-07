@@ -119,7 +119,12 @@ serve(async (req) => {
       return await response.json();
     };
 
-    const article: any = { ...plan };
+    // Initialize article with ONLY valid fields from plan
+    const article: any = {
+      slug: plan.slug,
+      headline: plan.headline,
+      canonical_url: `https://www.delsolhomes.com/blog/${plan.slug}`
+    };
 
     // 1. CATEGORY SELECTION
     console.log(`  🏷️ Selecting category...`);
@@ -413,24 +418,69 @@ Return JSON array: [{"question": "...", "answer": "..."}]`;
       article.author_id = randomAuthor.id;
     }
 
-    // Set additional fields
-    article.status = 'published';
-    article.language = language;
-    article.date_published = new Date().toISOString();
-    article.date_modified = new Date().toISOString();
-    article.cluster_id = parentJobId;
-    article.cluster_theme = job.topic;
-    article.read_time = Math.ceil(article.detailed_content.split(' ').length / 200);
+    // Build article save object with ONLY valid database columns
+    const articleToSave = {
+      // Core identification
+      slug: article.slug,
+      headline: article.headline,
+      language: language,
+      category: article.category,
+      funnel_stage: plan.funnelStage,
+      
+      // SEO
+      meta_title: article.meta_title,
+      meta_description: article.meta_description,
+      canonical_url: article.canonical_url,
+      
+      // Content
+      speakable_answer: article.speakable_answer,
+      detailed_content: article.detailed_content,
+      
+      // Media
+      featured_image_url: article.featured_image_url || null,
+      featured_image_alt: article.featured_image_alt || null,
+      featured_image_caption: article.featured_image_caption || null,
+      
+      // Structured data
+      internal_links: article.internal_links || [],
+      external_citations: article.external_citations || [],
+      faq_entities: article.faq_entities || [],
+      
+      // Author & metadata
+      author_id: article.author_id,
+      status: 'draft', // Admin reviews before publishing
+      date_published: new Date().toISOString(),
+      date_modified: new Date().toISOString(),
+      read_time: Math.ceil((article.detailed_content || '').split(' ').length / 200),
+      
+      // Cluster info
+      cluster_id: parentJobId,
+      cluster_theme: job.topic
+    };
 
     // Save article to database
     console.log(`  💾 Saving article to database...`);
     const { data: savedArticle, error: saveError } = await supabase
       .from('blog_articles')
-      .insert([article])
+      .insert([articleToSave])
       .select()
       .single();
 
     if (saveError) {
+      // Log detailed error for debugging
+      console.error(`❌ Failed to save article:`, {
+        error: saveError.message,
+        code: saveError.code,
+        details: saveError.details,
+        hint: saveError.hint,
+        articleSlug: article.slug
+      });
+      
+      // If it's a schema error, provide actionable feedback
+      if (saveError.message.includes('column') || saveError.message.includes('does not exist')) {
+        throw new Error(`Database schema mismatch: ${saveError.message}. Check that articleToSave object only contains valid blog_articles columns.`);
+      }
+      
       throw new Error(`Failed to save article: ${saveError.message}`);
     }
 
