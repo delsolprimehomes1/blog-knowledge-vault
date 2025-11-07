@@ -73,7 +73,7 @@ const CitationSanitization = () => {
     },
   });
 
-  // Poll for job progress
+  // Poll for job progress with exponential backoff on errors
   const { data: liveJobProgress } = useQuery({
     queryKey: ["citation-replacement-progress", currentJobId],
     queryFn: async () => {
@@ -81,11 +81,17 @@ const CitationSanitization = () => {
       const { data, error } = await supabase.functions.invoke("check-citation-replacement-status", {
         body: { jobId: currentJobId },
       });
-      if (error) throw error;
+      if (error) {
+        // Log but don't throw - let retry logic handle it
+        console.error('Poll error:', error);
+        throw error;
+      }
       return data;
     },
     enabled: !!currentJobId && isReplacing,
-    refetchInterval: 2000, // Poll every 2 seconds
+    refetchInterval: 5000, // Poll every 5 seconds (reduced from 2s)
+    retry: 3, // Retry failed polls
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
   });
 
   // Update progress state when polling data changes

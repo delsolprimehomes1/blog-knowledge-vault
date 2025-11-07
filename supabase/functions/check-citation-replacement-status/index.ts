@@ -5,6 +5,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Retry helper with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Attempt ${i + 1} failed:`, error.message);
+      
+      if (i < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, i);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,16 +48,19 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: job, error } = await supabaseClient
-      .from('citation_replacement_jobs')
-      .select('*')
-      .eq('id', jobId)
-      .single();
+    // Use retry logic for database query
+    const job = await retryWithBackoff(async () => {
+      const { data, error } = await supabaseClient
+        .from('citation_replacement_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
 
-    if (error) throw error;
-    if (!job) {
-      throw new Error('Job not found');
-    }
+      if (error) throw error;
+      if (!data) throw new Error('Job not found');
+      
+      return data;
+    });
 
     return new Response(
       JSON.stringify({
@@ -59,9 +88,17 @@ Deno.serve(async (req) => {
     );
   } catch (error: any) {
     console.error('Error checking job status:', error);
+    
+    // Return more graceful error with retry info
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        error: error.message,
+        retryable: error.message.includes('connection') || error.message.includes('timeout')
+      }),
+      { 
+        status: error.message === 'Job not found' ? 404 : 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   }
 });
