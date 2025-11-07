@@ -56,6 +56,7 @@ serve(async (req) => {
       })
       .eq('id', chunk.id);
 
+    try {
     // Get parent job details
     const { data: job } = await supabase
       .from('cluster_generations')
@@ -130,6 +131,11 @@ Return ONLY the category name exactly as shown above, nothing else.`;
       c.name.toLowerCase() === selectedCategory.toLowerCase()
     );
     article.category = matchedCategory?.name || categories?.[0]?.name || 'General';
+    
+    // Update timestamp
+    await supabase.from('cluster_article_chunks')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', chunk.id);
 
     // 2. SEO META TAGS
     console.log(`  🔍 Generating SEO metadata...`);
@@ -147,6 +153,11 @@ Return JSON: {"title": "50-60 chars with main keyword", "description": "140-160 
     
     article.meta_title = seoMeta.title;
     article.meta_description = seoMeta.description;
+    
+    // Update timestamp
+    await supabase.from('cluster_article_chunks')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', chunk.id);
 
     // 3. SPEAKABLE ANSWER
     console.log(`  💬 Generating speakable answer...`);
@@ -158,6 +169,11 @@ Answer the core question directly and concisely.`;
 
     const speakableData = await callAI(speakablePrompt, 200);
     article.speakable_answer = speakableData.choices[0].message.content.trim();
+    
+    // Update timestamp
+    await supabase.from('cluster_article_chunks')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', chunk.id);
 
     // 4. DETAILED CONTENT (1500-2500 words)
     console.log(`  📝 Generating detailed content (1500-2500 words)...`);
@@ -179,6 +195,11 @@ Return ONLY the HTML content, no meta information.`;
 
     const contentData = await callAI(contentPrompt, 4000);
     article.detailed_content = contentData.choices[0].message.content.trim();
+    
+    // Update timestamp
+    await supabase.from('cluster_article_chunks')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', chunk.id);
 
     // 5. FAQ ENTITIES
     console.log(`  ❓ Generating FAQ entities...`);
@@ -192,16 +213,26 @@ Return JSON array: [{"question": "...", "answer": "..."}]`;
     const faqText = faqData.choices[0].message.content.trim();
     const faqMatch = faqText.match(/\[[\s\S]*\]/);
     article.faq_entities = faqMatch ? JSON.parse(faqMatch[0]) : [];
+    
+    // Update timestamp
+    await supabase.from('cluster_article_chunks')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', chunk.id);
 
     // 6. FEATURED IMAGE
     console.log(`  🖼️ Generating featured image...`);
+    
+    if (!FAL_KEY) {
+      throw new Error('FAL_KEY environment variable is not set');
+    }
+    
     const imagePrompt = `Professional real estate photography for Costa del Sol: ${plan.headline}. Luxury Mediterranean property, bright natural lighting, high-end marketing photo.`;
     
     const imageResponse = await fetch('https://fal.run/fal-ai/flux/schnell', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${FAL_KEY}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         prompt: imagePrompt,
@@ -304,6 +335,22 @@ Return JSON array: [{"question": "...", "answer": "..."}]`;
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
+
+    } catch (articleError) {
+      // Mark chunk as failed
+      console.error(`❌ [Job ${parentJobId}] Failed to process chunk ${chunk.id}:`, articleError);
+      
+      await supabase
+        .from('cluster_article_chunks')
+        .update({
+          status: 'failed',
+          error_message: articleError instanceof Error ? articleError.message : 'Unknown error',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', chunk.id);
+      
+      throw articleError;
+    }
 
   } catch (error) {
     console.error('Error in process-cluster-article:', error);
