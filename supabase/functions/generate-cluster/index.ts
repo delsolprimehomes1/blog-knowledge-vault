@@ -73,6 +73,12 @@ async function retryWithBackoff<T>(
   throw new Error(`Max retries exceeded for ${operationName}`);
 }
 
+// Sleep utility for rate limit prevention
+async function sleep(ms: number): Promise<void> {
+  console.log(`⏳ Rate limit prevention: waiting ${ms}ms...`);
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Sanitize JSON response to fix common issues
 function sanitizeJsonResponse(text: string): string {
   // Remove any BOM or zero-width characters
@@ -794,6 +800,9 @@ Return ONLY valid JSON:
     
     checkTimeout(); // Check after structure generation
 
+    // Add delay after structure generation to prevent rate limiting
+    await sleep(1500);
+
     // Check for already-completed articles (resume capability)
     const existingArticles = await getCompletedArticles(supabase, jobId);
     const startIndex = existingArticles.length;
@@ -827,6 +836,9 @@ Return ONLY valid JSON:
 
       // 3. CATEGORY (AI-based selection from exact database categories)
       const validCategoryNames = (categories || []).map(c => c.name);
+      
+      // Add delay before first AI call of this article to prevent rate limiting
+      await sleep(1500);
       
       const categoryPrompt = `Select the most appropriate category for this article from this EXACT list:
 ${validCategoryNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
@@ -917,6 +929,9 @@ Return ONLY the category name exactly as shown above. No explanation, no JSON, j
       
       article.category = finalCategory;
 
+      // Add delay to prevent rate limiting
+      await sleep(1500);
+
       // 4. SEO META TAGS
       const seoPrompt = `Create SEO meta tags for this article:
 
@@ -976,6 +991,9 @@ Return ONLY valid JSON:
       article.meta_description = seoMeta.description;
       article.canonical_url = null;
 
+      // Add delay to prevent rate limiting
+      await sleep(1500);
+
       // 5. SPEAKABLE ANSWER (40-60 words)
       const speakablePrompt = `Write a 40-60 word speakable answer for this article in ${language}:
 
@@ -1029,6 +1047,9 @@ Return ONLY the speakable text in ${language}, no JSON, no formatting, no quotes
       );
       
       article.speakable_answer = speakableData.choices[0].message.content.trim();
+
+      // Add delay to prevent rate limiting
+      await sleep(1500);
 
       // 6. DETAILED CONTENT (1500-2500 words)
       console.log(`[Job ${jobId}] Generating detailed content for article ${i + 1}: "${plan.headline}"`);
@@ -1201,6 +1222,9 @@ Return ONLY the HTML content, no JSON wrapper, no markdown code blocks.`;
       console.log(`[Job ${jobId}]   • Citation markers: ${citationCount}`);
       console.log(`[Job ${jobId}]   • H2 sections: ${h2Count}`);
 
+      // Add delay to prevent rate limiting
+      await sleep(1500);
+
       // 7. GENERATE FAQ ENTITIES (for ALL funnel stages) - WITH HEARTBEAT
       let faqEntities = null;
       const shouldGenerateFAQ = true; // Generate FAQs for TOFU, MOFU, and BOFU
@@ -1311,6 +1335,9 @@ Return ONLY valid JSON in this format:
 
       // Assign FAQ entities to article
       article.faq_entities = faqEntities || [];
+
+      // Add delay to prevent rate limiting
+      await sleep(1500);
 
       // 8. FEATURED IMAGE (using existing generate-image function with enhanced prompt)
       
@@ -1904,6 +1931,9 @@ Requirements:
 
 Return only the alt text, no quotes, no JSON.`;
 
+          // Add delay to prevent rate limiting
+          await sleep(1500);
+
           const altData: any = await retryApiCall(
             async () => {
               const response = await withTimeout(
@@ -1996,6 +2026,9 @@ Return only the alt text, no quotes, no JSON.`;
         article.diagram_url = null;
         article.diagram_description = null;
       }
+
+      // Add delay to prevent rate limiting
+      await sleep(1500);
 
       // 9. E-E-A-T ATTRIBUTION (AI-powered author matching)
       if (authors && authors.length > 0) {
