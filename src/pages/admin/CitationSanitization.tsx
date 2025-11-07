@@ -200,6 +200,29 @@ const CitationSanitization = () => {
     },
   });
 
+  // Clean up stale alerts
+  const [isCleaning, setIsCleaning] = useState(false);
+  const cleanupMutation = useMutation({
+    mutationFn: async () => {
+      setIsCleaning(true);
+      const { data, error } = await supabase.functions.invoke("cleanup-stale-citation-alerts");
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["citation-sanitization-alerts"] });
+      toast.success("Cleanup complete!", {
+        description: `Resolved ${data.resolved_count} stale alerts. ${data.remaining_alerts} current violations remain.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast.error("Cleanup failed", { description: error.message });
+    },
+    onSettled: () => {
+      setIsCleaning(false);
+    },
+  });
+
   const bannedCount = alerts?.length || 0;
   const affectedArticles = new Set(alerts?.map(a => a.article_id)).size;
 
@@ -365,11 +388,11 @@ const CitationSanitization = () => {
           <CardHeader>
             <CardTitle>Batch Actions</CardTitle>
             <CardDescription>
-              <strong>Scan:</strong> Detect competitor citations • <strong>Remove:</strong> Delete immediately without replacement • <strong>Auto-Replace:</strong> Find and apply approved alternatives
+              <strong>Scan:</strong> Detect competitor citations • <strong>Clean Stale Alerts:</strong> Resolve old alerts for replaced citations • <strong>Remove:</strong> Delete immediately without replacement • <strong>Auto-Replace:</strong> Find and apply approved alternatives
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-4">
               <Button
                 onClick={() => scanMutation.mutate()}
                 disabled={isScanning}
@@ -385,6 +408,25 @@ const CitationSanitization = () => {
                   <>
                     <Shield className="mr-2 h-4 w-4" />
                     Scan All Articles
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={() => cleanupMutation.mutate()}
+                disabled={isCleaning || bannedCount === 0}
+                size="lg"
+                variant="secondary"
+              >
+                {isCleaning ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Cleaning...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Clean Stale Alerts
                   </>
                 )}
               </Button>

@@ -166,3 +166,6 @@ timeout = 300
 
 [functions.validate-inline-citations]
 verify_jwt = false
+
+[functions.cleanup-stale-citation-alerts]
+verify_jwt = false
