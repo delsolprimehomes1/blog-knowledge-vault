@@ -41,11 +41,29 @@ serve(async (req) => {
 
     console.log(`Job ${jobId} status: ${job.status}`);
 
+    // Get chunk status if using new chunked system
+    const { data: chunks } = await supabase
+      .from('cluster_article_chunks')
+      .select('status')
+      .eq('parent_job_id', jobId);
+
+    let chunkStatus = null;
+    if (chunks && chunks.length > 0) {
+      chunkStatus = {
+        total: chunks.length,
+        completed: chunks.filter(c => c.status === 'completed').length,
+        processing: chunks.filter(c => c.status === 'processing').length,
+        pending: chunks.filter(c => c.status === 'pending').length,
+        failed: chunks.filter(c => c.status === 'failed').length
+      };
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         status: job.status,
         progress: job.progress,
+        chunks: chunkStatus,
         articles: job.status === 'completed' ? job.articles : null,
         error: job.error
       }),

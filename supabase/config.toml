@@ -1,5 +1,19 @@
 project_id = "kazggnufaoicopvmwhdl"
 
+[functions.generate-cluster]
+verify_jwt = false
+timeout = 300
+
+[functions.process-cluster-article]
+verify_jwt = false
+timeout = 300
+
+[functions.poll-pending-articles]
+verify_jwt = false
+
+[functions.check-cluster-status]
+verify_jwt = false
+
 [functions.clean-duplicate-citations]
 verify_jwt = false
 

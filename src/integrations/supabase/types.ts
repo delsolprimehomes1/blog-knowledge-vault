@@ -444,6 +444,60 @@ export type Database = {
         }
         Relationships: []
       }
+      citation_cleanup_audit_log: {
+        Row: {
+          action_taken: string | null
+          article_id: string | null
+          article_slug: string | null
+          citation_url: string | null
+          competitor_domain: string | null
+          created_at: string | null
+          field_name: string | null
+          id: string
+          match_type: string | null
+          scan_type: string
+        }
+        Insert: {
+          action_taken?: string | null
+          article_id?: string | null
+          article_slug?: string | null
+          citation_url?: string | null
+          competitor_domain?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string
+          match_type?: string | null
+          scan_type: string
+        }
+        Update: {
+          action_taken?: string | null
+          article_id?: string | null
+          article_slug?: string | null
+          citation_url?: string | null
+          competitor_domain?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string
+          match_type?: string | null
+          scan_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citation_cleanup_audit_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citation_cleanup_audit_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       citation_compliance_alerts: {
         Row: {
           alert_type: string
@@ -757,6 +811,56 @@ export type Database = {
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cluster_article_chunks: {
+        Row: {
+          article_data: Json | null
+          article_plan: Json
+          chunk_number: number
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          parent_job_id: string
+          started_at: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          article_data?: Json | null
+          article_plan: Json
+          chunk_number: number
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          parent_job_id: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          article_data?: Json | null
+          article_plan?: Json
+          chunk_number?: number
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          parent_job_id?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cluster_article_chunks_parent_job_id_fkey"
+            columns: ["parent_job_id"]
+            isOneToOne: false
+            referencedRelation: "cluster_generations"
             referencedColumns: ["id"]
           },
         ]
