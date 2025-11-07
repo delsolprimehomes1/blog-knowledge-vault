@@ -34,7 +34,16 @@ export const ExternalCitationsSection = ({
     onCitationsChange([...citations, { text: "", url: "", source: "", year: new Date().getFullYear() }]);
   };
 
-  const handleAddCitationFromFinder = (citation: { url: string; sourceName: string; anchorText: string }) => {
+  const handleAddCitationFromFinder = async (citation: { url: string; sourceName: string; anchorText: string }) => {
+    // Validate before adding
+    const result = await validateCitationCompliance(citation.url);
+    
+    // Block non-approved or competitor domains
+    if (result.severity === 'critical' || !result.isApproved) {
+      console.error('Blocked non-approved citation:', citation.url);
+      return;
+    }
+    
     const newCitation: ExternalCitation = {
       text: citation.anchorText,
       url: citation.url,
@@ -42,14 +51,30 @@ export const ExternalCitationsSection = ({
       year: new Date().getFullYear(),
     };
     onCitationsChange([...citations, newCitation]);
+    setValidationResults({ ...validationResults, [citation.url]: result });
   };
 
-  const updateCitation = (index: number, field: keyof ExternalCitation, value: string | number) => {
+  const updateCitation = async (index: number, field: keyof ExternalCitation, value: string | number) => {
     const updated = [...citations];
     updated[index] = { ...updated[index], [field]: value };
+    
+    // If URL field is being updated, validate immediately
+    if (field === 'url' && typeof value === 'string' && value.trim() !== '') {
+      const result = await validateCitationCompliance(value);
+      
+      // Block non-approved or competitor domains
+      if (result.severity === 'critical' || !result.isApproved) {
+        // Don't update the citation, show error
+        setValidationResults({ ...validationResults, [value]: result });
+        return;
+      }
+      
+      setValidationResults({ ...validationResults, [value]: result });
+    }
+    
     onCitationsChange(updated);
 
-    // If URL changed, clear validation for this citation
+    // If URL changed, clear old validation
     if (field === 'url' && validationResults[updated[index].url]) {
       const newResults = { ...validationResults };
       delete newResults[updated[index].url];
@@ -254,6 +279,16 @@ export const ExternalCitationsSection = ({
             Minimum 2 citations required
           </p>
         )}
+
+        <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-700 dark:text-blue-300 font-semibold flex items-center gap-1">
+            <CheckCircle2 className="h-4 w-4" />
+            Approved Domains Only
+          </p>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            Only citations from our 241 approved domains are allowed. Non-approved domains will be automatically blocked.
+          </p>
+        </div>
 
         {hasCompetitorCitations && (
           <div className="p-3 bg-destructive/10 border border-destructive rounded-lg">

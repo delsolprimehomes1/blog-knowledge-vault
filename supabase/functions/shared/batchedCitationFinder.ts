@@ -187,6 +187,9 @@ REMINDER: The domains listed above are the ONLY acceptable sources. Any URL from
     // Normalize batch domains for comparison
     const normalizedBatchDomains = batchDomains.map(d => d.toLowerCase().replace(/^www\./, ''));
     
+    // Import full approved domain list for additional safety check
+    const allApprovedDomains = getAllApprovedDomains();
+    
     // Filter: competitors, invalid URLs, and URLs NOT from approved batch domains
     const validCitations = citations
       .filter(c => {
@@ -207,12 +210,18 @@ REMINDER: The domains listed above are the ONLY acceptable sources. Any URL from
         }
         
         // Check if domain is in the approved batch
-        const isApproved = normalizedBatchDomains.some(approvedDomain => 
+        const isInBatch = normalizedBatchDomains.some(approvedDomain => 
           citationDomain === approvedDomain || citationDomain.endsWith(`.${approvedDomain}`)
         );
         
-        if (!isApproved) {
-          console.log(`   ⚠️ Rejected: Not from approved batch - ${c.url} (domain: ${citationDomain})`);
+        // Also check against full approved domain list as safety net
+        const isInFullList = allApprovedDomains.some(approvedDomain => {
+          const normalizedApproved = approvedDomain.toLowerCase().replace(/^www\./, '');
+          return citationDomain === normalizedApproved || citationDomain.endsWith(`.${normalizedApproved}`);
+        });
+        
+        if (!isInBatch && !isInFullList) {
+          console.log(`   ⚠️ Rejected: Not from approved domains - ${c.url} (domain: ${citationDomain})`);
           return false;
         }
         
