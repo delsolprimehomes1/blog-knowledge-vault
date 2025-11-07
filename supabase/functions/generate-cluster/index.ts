@@ -55,9 +55,9 @@ Target Audience: ${targetAudience}
 Primary Keyword: ${primaryKeyword}
 
 Distribute across funnel stages:
-- 2 TOFU articles (awareness, educational, "how to", "what is")
-- 2 MOFU articles (consideration, comparison, "best", "vs", location guides)
-- 2 BOFU articles (conversion, transactional, "buy", "sell", specific services)
+- 3 TOFU articles (awareness, educational, "how to", "what is", guides)
+- 2 MOFU articles (consideration, comparison, "best", "vs", location analysis)
+- 1 BOFU article (conversion, transactional, "buy now", specific services, strong CTA)
 
 Return JSON array:
 [

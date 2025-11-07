@@ -68,6 +68,15 @@ serve(async (req) => {
       throw new Error('Parent job not found');
     }
 
+    // Fetch master prompt from content_settings
+    const { data: masterPromptSetting } = await supabase
+      .from('content_settings')
+      .select('setting_value')
+      .eq('setting_key', 'master_content_prompt')
+      .single();
+
+    const masterPrompt = masterPromptSetting?.setting_value || '';
+
     // Get categories and authors
     const { data: categories } = await supabase
       .from('categories')
@@ -175,11 +184,25 @@ Answer the core question directly and concisely.`;
       .update({ updated_at: new Date().toISOString() })
       .eq('id', chunk.id);
 
-    // 4. DETAILED CONTENT (1500-2500 words)
-    console.log(`  📝 Generating detailed content (1500-2500 words)...`);
-    const contentPrompt = `Write comprehensive article content in ${language}:
+    // 4. DETAILED CONTENT (1500-2500 words) - Using Master Prompt
+    console.log(`  📝 Generating detailed content with master prompt (1500-2500 words)...`);
+    
+    // Replace variables in master prompt
+    let enrichedPrompt = masterPrompt;
+    if (masterPrompt) {
+      enrichedPrompt = masterPrompt
+        .replace(/\{\{headline\}\}/g, plan.headline)
+        .replace(/\{\{targetKeyword\}\}/g, plan.targetKeyword || plan.headline)
+        .replace(/\{\{funnelStage\}\}/g, plan.funnelStage)
+        .replace(/\{\{language\}\}/g, language)
+        .replace(/\{\{targetAudience\}\}/g, job.target_audience);
+      
+      console.log(`  ✅ Using master prompt (${enrichedPrompt.length} chars)`);
+    } else {
+      // Fallback if no master prompt
+      enrichedPrompt = `Write comprehensive article content in ${language}:
 Headline: "${plan.headline}"
-Funnel Stage: ${plan.funnel_stage}
+Funnel Stage: ${plan.funnelStage}
 Target: ${job.target_audience}
 
 Requirements:
@@ -192,8 +215,9 @@ Requirements:
 - Write for Costa del Sol real estate market
 
 Return ONLY the HTML content, no meta information.`;
+    }
 
-    const contentData = await callAI(contentPrompt, 4000);
+    const contentData = await callAI(enrichedPrompt, 4000);
     article.detailed_content = contentData.choices[0].message.content.trim();
     
     // Update timestamp
@@ -218,6 +242,125 @@ Return JSON array: [{"question": "...", "answer": "..."}]`;
     await supabase.from('cluster_article_chunks')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', chunk.id);
+
+    // 5.5 REAL CITATION FINDING - Replace [CITE:...] markers with real URLs
+    console.log(`  🔍 Finding real citations for article...`);
+    const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+    
+    if (PERPLEXITY_API_KEY) {
+      const citationMarkers = [...article.detailed_content.matchAll(/\[CITE:([^\]]+)\]/g)];
+      
+      if (citationMarkers.length > 0) {
+        console.log(`    Found ${citationMarkers.length} citation markers, searching approved domains...`);
+        
+        try {
+          // Import citation finder
+          const citationFinderModule = await import('./shared/batchedCitationFinder.ts');
+          const { findCitationsWithCascade } = citationFinderModule;
+          
+          // Find real citations using batched domain search
+          const citations = await findCitationsWithCascade(
+            plan.headline,
+            language,
+            article.detailed_content.substring(0, 2000), // Preview
+            PERPLEXITY_API_KEY,
+            Math.min(citationMarkers.length, 8), // Max 8 citations
+            plan.funnelStage,
+            job.topic
+          );
+          
+          if (citations && citations.length > 0) {
+            // Convert to article citation format
+            article.external_citations = citations.map((c: any) => ({
+              text: c.sourceName,
+              url: c.url,
+              source: c.sourceName,
+              authorityScore: c.authorityScore,
+              year: new Date().getFullYear(),
+              language: c.language || language
+            }));
+            
+            console.log(`    ✅ Found ${article.external_citations.length} approved citations (avg authority: ${Math.round(citations.reduce((sum: number, c: any) => sum + c.authorityScore, 0) / citations.length)})`);
+          } else {
+            console.log(`    ⚠️ No citations found, keeping markers`);
+            article.external_citations = [];
+          }
+        } catch (citationError) {
+          console.error(`    ❌ Citation finding failed:`, citationError);
+          article.external_citations = [];
+        }
+      } else {
+        console.log(`    No citation markers found in content`);
+        article.external_citations = [];
+      }
+    } else {
+      console.log(`    ⚠️ PERPLEXITY_API_KEY not set, skipping citation finding`);
+      article.external_citations = [];
+    }
+
+    // 5.6 REAL INTERNAL LINK FINDING - For article #2 and later
+    console.log(`  🔗 Finding internal links within cluster...`);
+    
+    if (chunk.chunk_number > 1) {
+      // Get sibling articles from same cluster
+      const { data: clusterSiblings } = await supabase
+        .from('cluster_article_chunks')
+        .select('article_data')
+        .eq('parent_job_id', parentJobId)
+        .eq('status', 'completed')
+        .neq('chunk_number', chunk.chunk_number);
+      
+      if (clusterSiblings && clusterSiblings.length > 0) {
+        const availableArticles = clusterSiblings
+          .map(c => c.article_data)
+          .filter(Boolean);
+        
+        console.log(`    Found ${availableArticles.length} sibling articles to link to`);
+        
+        try {
+          const linkResponse = await supabase.functions.invoke('find-internal-links', {
+            body: {
+              content: article.detailed_content,
+              headline: plan.headline,
+              currentArticleId: null,
+              language: language,
+              funnelStage: plan.funnelStage,
+              availableArticles: availableArticles.map((a: any) => ({
+                id: a.id,
+                slug: a.slug,
+                headline: a.headline,
+                speakable_answer: a.speakable_answer,
+                category: a.category,
+                funnel_stage: a.funnel_stage,
+                language: a.language
+              }))
+            }
+          });
+          
+          if (linkResponse.data?.links && linkResponse.data.links.length > 0) {
+            article.internal_links = linkResponse.data.links.map((link: any) => ({
+              text: link.text,
+              url: link.url,
+              title: link.title
+            }));
+            
+            console.log(`    ✅ Found ${article.internal_links.length} internal links`);
+          } else {
+            console.log(`    ⚠️ No internal links found`);
+            article.internal_links = [];
+          }
+        } catch (linkError) {
+          console.error(`    ❌ Internal link finding failed:`, linkError);
+          article.internal_links = [];
+        }
+      } else {
+        console.log(`    ⚠️ No sibling articles yet for internal linking`);
+        article.internal_links = [];
+      }
+    } else {
+      console.log(`    ⚠️ First article, skipping internal links (no siblings yet)`);
+      article.internal_links = [];
+    }
 
     // 6. FEATURED IMAGE
     console.log(`  🖼️ Generating featured image...`);
@@ -310,6 +453,17 @@ Return JSON array: [{"question": "...", "answer": "..."}]`;
         .order('chunk_number');
 
       const articles = completedChunks?.map(c => c.article_data) || [];
+
+      // Call backfill function to create funnel progression links
+      console.log(`🔗 [Job ${parentJobId}] Backfilling cluster links...`);
+      try {
+        await supabase.functions.invoke('backfill-cluster-links', {
+          body: { jobId: parentJobId }
+        });
+        console.log(`✅ [Job ${parentJobId}] Cluster links backfilled`);
+      } catch (linkError) {
+        console.error(`⚠️ [Job ${parentJobId}] Failed to backfill links:`, linkError);
+      }
 
       // Update parent job
       await supabase
