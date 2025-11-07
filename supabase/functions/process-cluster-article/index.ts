@@ -365,32 +365,46 @@ Return JSON array: [{"question": "...", "answer": "..."}]`;
     // 6. FEATURED IMAGE
     console.log(`  🖼️ Generating featured image...`);
     
-    if (!FAL_KEY) {
-      throw new Error('FAL_KEY environment variable is not set');
-    }
-    
-    const imagePrompt = `Professional real estate photography for Costa del Sol: ${plan.headline}. Luxury Mediterranean property, bright natural lighting, high-end marketing photo.`;
-    
-    const imageResponse = await fetch('https://fal.run/fal-ai/flux/schnell', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${FAL_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prompt: imagePrompt,
-        image_size: 'landscape_16_9',
-        num_inference_steps: 4,
-        num_images: 1,
-        enable_safety_checker: false
-      }),
-    });
+    if (!FAL_KEY || typeof FAL_KEY !== 'string') {
+      console.log('    ⚠️ FAL_KEY not configured, skipping image generation');
+      article.featured_image_url = null;
+      article.featured_image_alt = null;
+      article.featured_image_caption = null;
+    } else {
+      try {
+        // Clean and validate FAL_KEY (remove newlines, whitespace)
+        const cleanFalKey = FAL_KEY.trim().replace(/[\r\n]/g, '');
+        const imagePrompt = `Professional real estate photography for Costa del Sol: ${plan.headline}. Luxury Mediterranean property, bright natural lighting, high-end marketing photo.`;
+        
+        const imageResponse = await fetch('https://fal.run/fal-ai/flux/schnell', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Key ${cleanFalKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            prompt: imagePrompt,
+            image_size: 'landscape_16_9',
+            num_inference_steps: 4,
+            num_images: 1,
+            enable_safety_checker: false
+          }),
+        });
 
-    if (imageResponse.ok) {
-      const imageData = await imageResponse.json();
-      article.featured_image_url = imageData.images[0].url;
-      article.featured_image_alt = `${plan.headline} - Costa del Sol Real Estate`;
-      article.featured_image_caption = plan.headline;
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          article.featured_image_url = imageData.images[0].url;
+          article.featured_image_alt = `${plan.headline} - Costa del Sol Real Estate`;
+          article.featured_image_caption = plan.headline;
+          console.log('    ✅ Image generated successfully');
+        } else {
+          console.warn('    ⚠️ Image generation failed, continuing without image');
+          article.featured_image_url = null;
+        }
+      } catch (imageError) {
+        console.error('    ❌ Image generation error:', imageError);
+        article.featured_image_url = null; // Continue without image
+      }
     }
 
     // 7. AUTHOR ASSIGNMENT

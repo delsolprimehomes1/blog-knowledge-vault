@@ -42,7 +42,29 @@ serve(async (req) => {
       }
     }
 
-    // 2. Find active jobs with pending chunks
+    // 2. Find failed chunks and reset them to pending for automatic retry
+    const { data: failedChunks } = await supabase
+      .from('cluster_article_chunks')
+      .select('*')
+      .eq('status', 'failed');
+
+    if (failedChunks && failedChunks.length > 0) {
+      console.log(`🔄 Found ${failedChunks.length} failed chunks, resetting to pending for retry...`);
+      
+      for (const chunk of failedChunks) {
+        await supabase
+          .from('cluster_article_chunks')
+          .update({
+            status: 'pending',
+            started_at: null,
+            error_message: `Retry after failure: ${chunk.error_message}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', chunk.id);
+      }
+    }
+
+    // 3. Find active jobs with pending chunks
     const { data: activeJobs } = await supabase
       .from('cluster_generations')
       .select('id')
@@ -57,7 +79,7 @@ serve(async (req) => {
 
     console.log(`📋 Found ${activeJobs.length} active jobs`);
 
-    // 3. For each active job, find pending chunks
+    // 4. For each active job, find pending chunks
     for (const job of activeJobs) {
       const { data: pendingChunks } = await supabase
         .from('cluster_article_chunks')

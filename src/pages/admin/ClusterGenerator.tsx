@@ -329,6 +329,28 @@ const ClusterGenerator = () => {
     }
   };
 
+  // Retry failed chunks
+  const retryFailedChunks = async () => {
+    if (!jobId) return;
+    
+    const { error } = await supabase
+      .from('cluster_article_chunks')
+      .update({ 
+        status: 'pending', 
+        started_at: null,
+        error_message: 'Manually retried by admin'
+      })
+      .eq('parent_job_id', jobId)
+      .eq('status', 'failed');
+    
+    if (!error) {
+      await supabase.functions.invoke('poll-pending-articles');
+      toast.success('Retrying failed articles...');
+    } else {
+      toast.error('Failed to retry: ' + error.message);
+    }
+  };
+
   // Auto-resume polling if page refreshed during generation
   useEffect(() => {
     const savedJobId = localStorage.getItem('current_job_id');
@@ -366,6 +388,24 @@ const ClusterGenerator = () => {
       localStorage.removeItem('current_job_id');
     }
   }, [jobId]);
+
+  // Frontend polling - calls poll-pending-articles every 30 seconds during generation
+  useEffect(() => {
+    if (jobId && isGenerating) {
+      console.log('🔄 Starting frontend polling for pending chunks...');
+      
+      const pollInterval = setInterval(async () => {
+        console.log('🔄 Polling for pending chunks...');
+        try {
+          await supabase.functions.invoke('poll-pending-articles');
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, 30000); // Every 30 seconds
+      
+      return () => clearInterval(pollInterval);
+    }
+  }, [jobId, isGenerating]);
 
   // Cleanup polling on unmount
   useEffect(() => {
