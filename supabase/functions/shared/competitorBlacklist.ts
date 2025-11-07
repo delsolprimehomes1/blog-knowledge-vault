@@ -221,6 +221,14 @@ export const COMPETITOR_DOMAINS = [
   'frankpartners.es',
   'kinneysmith.com',
   'legalservicesinspain.com',
+  
+  // 2025 Second Sweep - Additional Real Estate Domains
+  'andaluciarealestate.com',
+  'tevienes.com',
+  'akunas.com',
+  
+  // CRITICAL: Self-citation blocking (never cite your own domain)
+  'delsolprimehomes.com',
 ];
 
 /**
