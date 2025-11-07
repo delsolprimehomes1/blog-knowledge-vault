@@ -189,6 +189,38 @@ export const COMPETITOR_DOMAINS = [
   'menorcahomes.com',
   'canary-properties.com',
   'tenerife-homes.com',
+  
+  // 2025 Comprehensive Sweep - Real Estate Agencies & Portals
+  'choicepropertycostadelsol.com',
+  'cilomarbella.com',
+  'eaagents.com',
+  'eleganthomesmarbella.be',
+  'housingmarbella.com',
+  'lucasfox.com',
+  'luxsolestates.com',
+  'marbellaforsale.com',
+  'properstar.nl',
+  'propertydevelopments.com',
+  'reloreal.com',
+  'spanishsolutions.net',
+  'sunsetestates.nl',
+  'targetpropertyspain.com',
+  'vamozmarbella.com',
+  'vastgoedinspanje.immo',
+  'alness.be',
+  'dreamproperty.pl',
+  'islandattituderealty.com',
+  'dom3.es',
+  'estatify.ai',
+  
+  // 2025 Comprehensive Sweep - Real Estate Legal/Services
+  'costaluzlawyers.com',
+  'costaluzlawyers.es',
+  'lpaspain.com',
+  'malagasolicitors.es',
+  'frankpartners.es',
+  'kinneysmith.com',
+  'legalservicesinspain.com',
 ];
 
 /**
