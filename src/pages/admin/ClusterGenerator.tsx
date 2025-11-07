@@ -1037,13 +1037,22 @@ const ClusterGenerator = () => {
                     )}
                   </p>
                 </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleAbortGeneration}
-                >
-                  Abort Generation
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={retryFailedChunks}
+                  >
+                    Retry Failed
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleAbortGeneration}
+                  >
+                    Abort Generation
+                  </Button>
+                </div>
               </div>
 
               {/* Step-by-Step Status */}
