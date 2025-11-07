@@ -42,6 +42,18 @@ export const ClusterReviewInterface = ({
 
   const currentArticle = articles[activeTab];
 
+  // Guard: If no articles or invalid activeTab, show loading state
+  if (!articles || articles.length === 0 || !currentArticle) {
+    return (
+      <div className="flex items-center justify-center p-12 bg-card rounded-lg border">
+        <div className="text-center space-y-2">
+          <p className="text-lg font-medium text-muted-foreground">Loading articles...</p>
+          <p className="text-sm text-muted-foreground">Please wait while the cluster generation completes.</p>
+        </div>
+      </div>
+    );
+  }
+
   // Ensure no background polling interferes with manual edits
   useEffect(() => {
     const savedJobId = localStorage.getItem('current_job_id');
