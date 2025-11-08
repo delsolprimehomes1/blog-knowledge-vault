@@ -130,8 +130,8 @@ export default function SystemCheck() {
       if (error) throw error;
       
       toast({
-        title: "Backfill Complete",
-        description: `Successfully updated ${data.updatedArticles || 0} articles in ${data.clustersProcessed || 0} clusters.`,
+        title: "✅ Re-sync Complete",
+        description: `Successfully updated ${data.articles_updated || 0} articles across ${data.clusters_processed || 0} clusters with featured images.`,
       });
     } catch (error) {
       console.error('Backfill error:', error);
@@ -203,7 +203,7 @@ export default function SystemCheck() {
               ) : (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  Backfill Cluster Articles
+                  Re-sync Cluster Articles
                 </>
               )}
             </Button>
