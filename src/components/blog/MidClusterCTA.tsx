@@ -36,6 +36,12 @@ export const MidClusterCTA = ({ relatedArticles, stage, currentArticleId }: MidC
       filtered = relatedArticles.filter(a => a.stage === "MOFU");
     }
     
+    // Fallback: If no ideal match, show ANY related article from cluster
+    if (filtered.length === 0) {
+      filtered = relatedArticles.filter(a => a.id !== currentArticleId);
+    }
+    
+    // Only return null if truly no related articles exist
     if (filtered.length === 0) {
       setCta(null);
       return;
@@ -44,7 +50,7 @@ export const MidClusterCTA = ({ relatedArticles, stage, currentArticleId }: MidC
     // Randomly select 1 article from filtered list
     const randomIndex = Math.floor(Math.random() * filtered.length);
     setCta(filtered[randomIndex]);
-  }, [relatedArticles, stage]);
+  }, [relatedArticles, stage, currentArticleId]);
 
   if (!cta) return null;
 
