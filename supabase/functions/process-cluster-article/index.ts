@@ -529,6 +529,17 @@ Return JSON array: [{"question": "...", "answer": "..."}]`;
         console.error(`⚠️ [Job ${parentJobId}] Failed to backfill links:`, linkError);
       }
 
+      // Call backfill function to populate related_cluster_articles for funnel CTAs
+      console.log(`🔗 [Job ${parentJobId}] Backfilling related cluster articles for funnel CTAs...`);
+      try {
+        await supabase.functions.invoke('backfill-cluster-related-articles', {
+          body: { jobId: parentJobId }
+        });
+        console.log(`✅ [Job ${parentJobId}] Related cluster articles backfilled - funnel CTAs ready`);
+      } catch (relatedError) {
+        console.error(`⚠️ [Job ${parentJobId}] Failed to backfill related articles:`, relatedError);
+      }
+
       // Update parent job
       await supabase
         .from('cluster_generations')
