@@ -39,17 +39,31 @@ serve(async (req) => {
       console.log(`Processing ${providedArticles.length} provided article(s)...`);
       articles = providedArticles;
     } else {
-      // Get articles without FAQs (original behavior)
-      const { data: fetchedArticles, error: fetchError } = await supabaseClient
+      // Get all published articles and filter for missing/empty FAQs
+      const { data: allArticles, error: fetchError } = await supabaseClient
         .from('blog_articles')
-        .select('id, slug, headline, detailed_content, meta_description, language, funnel_stage, status')
-        .eq('status', 'published')
-        .or('faq_entities.is.null,faq_entities.eq.[]');
+        .select('id, slug, headline, detailed_content, meta_description, language, funnel_stage, status, faq_entities')
+        .eq('status', 'published');
 
       if (fetchError) throw fetchError;
       
-      articles = fetchedArticles || [];
-      console.log(`Found ${articles.length} articles without FAQs`);
+      // Filter for articles that need FAQs (null, empty array, or empty question/answer strings)
+      const fetchedArticles = (allArticles || []).filter(article => {
+        // No FAQs at all
+        if (!article.faq_entities || article.faq_entities.length === 0) {
+          return true;
+        }
+        
+        // Has FAQs but they're empty
+        const hasEmptyFaqs = article.faq_entities.some((faq: any) => 
+          !faq.question?.trim() || !faq.answer?.trim()
+        );
+        
+        return hasEmptyFaqs;
+      });
+      
+      articles = fetchedArticles;
+      console.log(`Found ${articles.length} articles without valid FAQs`);
     }
 
     const results = {
@@ -158,8 +172,8 @@ Return ONLY valid JSON in this format:
         }
 
         for (const faq of faqEntities) {
-          if (!faq.question || !faq.answer) {
-            throw new Error('FAQ missing question or answer');
+          if (!faq.question?.trim() || !faq.answer?.trim()) {
+            throw new Error('FAQ has empty question or answer');
           }
           const wordCount = faq.answer.split(/\s+/).length;
           if (wordCount < 30 || wordCount > 100) {

@@ -25,19 +25,34 @@ export default function FAQBackfill() {
   const { data: articlesNeedingFAQs, isLoading } = useQuery({
     queryKey: ["articles-without-faqs", regenerateExisting],
     queryFn: async () => {
-      let query = supabase
+      // Fetch all published articles with faq_entities
+      const { data: allData, error } = await supabase
         .from("blog_articles")
         .select("id, headline, status, faq_entities")
         .eq("status", "published");
-      
-      // Only filter for missing FAQs if not regenerating existing
+
+      if (error) throw error;
+
+      let filteredData = allData || [];
+
+      // Filter for articles needing FAQs (if not regenerating all)
       if (!regenerateExisting) {
-        query = query.or("faq_entities.is.null,faq_entities.eq.[]");
+        filteredData = filteredData.filter(article => {
+          // No FAQs at all
+          if (!article.faq_entities || (Array.isArray(article.faq_entities) && article.faq_entities.length === 0)) {
+            return true;
+          }
+          
+          // Has FAQs but they're empty
+          const hasEmptyFaqs = Array.isArray(article.faq_entities) && article.faq_entities.some((faq: any) => 
+            !faq.question?.trim() || !faq.answer?.trim()
+          );
+          
+          return hasEmptyFaqs;
+        });
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      return filteredData;
     },
   });
 
