@@ -13,7 +13,8 @@ import { Progress } from "@/components/ui/progress";
 import { Search, Edit, Eye, Trash2, Plus, AlertCircle, Sparkles, Loader2, Network, CheckSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
-import { validateBulkPublish } from "@/lib/validatePublishReadiness";
+import { validateBulkPublish, PublishValidationReport } from "@/lib/validatePublishReadiness";
+import { autoFixBulkArticles, AutoFixReport } from "@/lib/autoFixPublishIssues";
 import { BulkPublishValidationModal } from "@/components/admin/BulkPublishValidationModal";
 
 const Articles = () => {
@@ -40,8 +41,11 @@ const Articles = () => {
   // Bulk publish state
   const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
   const [showValidationModal, setShowValidationModal] = useState(false);
-  const [validationResults, setValidationResults] = useState<Map<string, any>>(new Map());
+  const [validationResults, setValidationResults] = useState<Map<string, PublishValidationReport>>(new Map());
   const [isBulkPublishing, setIsBulkPublishing] = useState(false);
+  const [isAutoFixing, setIsAutoFixing] = useState(false);
+  const [autoFixProgress, setAutoFixProgress] = useState(0);
+  const [autoFixResults, setAutoFixResults] = useState<AutoFixReport[]>([]);
   
   const itemsPerPage = 20;
 
@@ -85,6 +89,13 @@ const Articles = () => {
       return data as Author[];
     },
   });
+
+  // Get default reviewer (first expert with credentials)
+  const defaultReviewer = authors?.find(a => 
+    a.is_expert_verified && 
+    a.credentials && 
+    a.credentials.length > 0
+  ) || authors?.[0];
 
   if (error) {
     return (
@@ -351,6 +362,65 @@ const Articles = () => {
     });
     
     window.location.reload();
+  };
+
+  const handleAutoFixAndPublish = async () => {
+    if (!defaultReviewer) {
+      toast({
+        title: "No reviewer available",
+        description: "Cannot auto-fix without a default reviewer",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAutoFixing(true);
+    setAutoFixProgress(0);
+
+    try {
+      const articlesToFix = filteredArticles.filter(a => {
+        const report = validationResults.get(a.id);
+        return report && !report.isReady && !report.canPublishWithWarnings;
+      });
+
+      const results = await autoFixBulkArticles(
+        articlesToFix,
+        validationResults,
+        defaultReviewer.id,
+        (current, total) => {
+          setAutoFixProgress((current / total) * 100);
+        }
+      );
+
+      setAutoFixResults(results);
+
+      // Re-validate after fixes
+      const updatedArticles = filteredArticles.filter(a => selectedArticles.has(a.id));
+      const authorsMap = new Map(authors?.map(a => [a.id, a]) || []);
+      const reviewersMap = new Map(authors?.map(a => [a.id, a]) || []);
+      const revalidated = await validateBulkPublish(updatedArticles, authorsMap, reviewersMap);
+      setValidationResults(revalidated);
+
+      // Show summary
+      const successCount = results.filter(r => r.fixesApplied.length > 0 && !r.stillBlocked).length;
+      const failedCount = results.filter(r => r.stillBlocked).length;
+
+      toast({
+        title: "Auto-fix complete",
+        description: `✅ ${successCount} fixed, ⚠️ ${failedCount} still need attention`,
+      });
+
+    } catch (error) {
+      console.error('Auto-fix error:', error);
+      toast({
+        title: "Auto-fix failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAutoFixing(false);
+      setAutoFixProgress(0);
+    }
   };
 
   return (
@@ -776,7 +846,11 @@ const Articles = () => {
         articles={filteredArticles.filter(a => selectedArticles.has(a.id))}
         validationResults={validationResults}
         onConfirmPublish={handleConfirmBulkPublish}
+        onAutoFix={handleAutoFixAndPublish}
         isPublishing={isBulkPublishing}
+        isAutoFixing={isAutoFixing}
+        autoFixProgress={autoFixProgress}
+        autoFixResults={autoFixResults}
       />
     </AdminLayout>
   );
