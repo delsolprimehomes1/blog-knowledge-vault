@@ -692,7 +692,31 @@ const ClusterGenerator = () => {
       return;
     }
     
-    // STEP 2: Validate links before publishing
+    // STEP 2: AGGRESSIVE CITATION QUALITY VALIDATION
+    const { validateClusterCitationQuality } = await import('@/lib/citationQualityValidator');
+    const citationReports = validateClusterCitationQuality(generatedArticles);
+    const failedCitations: string[] = [];
+    
+    citationReports.forEach((report, slug) => {
+      if (!report.isValid) {
+        const article = generatedArticles.find(a => a.slug === slug);
+        failedCitations.push(
+          `"${article?.headline}": ${report.errors.join(', ')}`
+        );
+      }
+    });
+    
+    if (failedCitations.length > 0) {
+      toast.error(
+        `Cannot publish: ${failedCitations.length} article${failedCitations.length !== 1 ? 's have' : ' has'} low-quality citations.\n\n` +
+        `${failedCitations.slice(0, 3).join('\n')}` +
+        (failedCitations.length > 3 ? `\n...and ${failedCitations.length - 3} more` : ''),
+        { duration: 15000 }
+      );
+      return;
+    }
+    
+    // STEP 3: Validate links before publishing
     const results = validateAllArticles(generatedArticles);
     const allValid = Array.from(results.values()).every(r => r.isValid);
 
@@ -712,7 +736,7 @@ const ClusterGenerator = () => {
         return;
       }
       
-      // Step 4: Validate author IDs
+      // Step 4: Validate and auto-assign author IDs
       const articlesWithInvalidAuthors = generatedArticles.filter(a => !a.author_id);
       if (articlesWithInvalidAuthors.length > 0) {
         console.warn(`Found ${articlesWithInvalidAuthors.length} articles with missing author_id`);
@@ -733,6 +757,42 @@ const ClusterGenerator = () => {
         articlesWithInvalidAuthors.forEach(article => {
           article.author_id = defaultAuthor.id;
         });
+      }
+      
+      // Step 5: Auto-assign reviewers for E-E-A-T (different from author)
+      const articlesWithoutReviewer = generatedArticles.filter(a => !a.reviewer_id);
+      if (articlesWithoutReviewer.length > 0) {
+        console.log(`Auto-assigning reviewer to ${articlesWithoutReviewer.length} articles...`);
+        
+        // Fetch a reviewer that's different from the primary author
+        const primaryAuthorId = generatedArticles[0]?.author_id;
+        const { data: reviewer } = await supabase
+          .from('authors')
+          .select('id, name')
+          .neq('id', primaryAuthorId || '')
+          .limit(1)
+          .single();
+        
+        if (reviewer) {
+          articlesWithoutReviewer.forEach(article => {
+            article.reviewer_id = reviewer.id;
+          });
+          toast.success(`✅ Auto-assigned ${reviewer.name} as reviewer for E-E-A-T compliance`);
+        } else {
+          toast.warning('⚠️ No secondary author available for reviewer role. Articles will publish without reviewer.');
+        }
+      }
+      
+      // Step 6: Check FAQ entities (warning only, doesn't block)
+      const articlesWithoutFAQ = generatedArticles.filter(
+        a => !a.faq_entities || a.faq_entities.length === 0
+      );
+      if (articlesWithoutFAQ.length > 0) {
+        toast.warning(
+          `⚠️ ${articlesWithoutFAQ.length} article${articlesWithoutFAQ.length !== 1 ? 's don\'t' : ' doesn\'t'} have FAQ schema. ` +
+          `Consider adding FAQs for better voice search optimization.`,
+          { duration: 8000 }
+        );
       }
       
       // Step 3: Prepare articles for insert

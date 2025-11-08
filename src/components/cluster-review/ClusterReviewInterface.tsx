@@ -655,6 +655,7 @@ export const ClusterReviewInterface = ({
           validationResults={validationResults}
           onAutoFix={handleAutoFixLinks}
           isFixing={isFixingLinks}
+          articles={articles}
         />
       )}
 

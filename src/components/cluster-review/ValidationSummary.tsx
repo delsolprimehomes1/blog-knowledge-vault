@@ -1,16 +1,19 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertTriangle, XCircle, Loader2, Zap } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, AlertTriangle, XCircle, Loader2, Zap, Shield, MessageSquareQuote } from "lucide-react";
 import { LinkValidationResult } from "@/lib/linkValidation";
+import { BlogArticle } from "@/types/blog";
 
 interface ValidationSummaryProps {
   validationResults: Map<string, LinkValidationResult>;
   onAutoFix: () => Promise<void>;
   isFixing: boolean;
+  articles?: Partial<BlogArticle>[];
 }
 
-export const ValidationSummary = ({ validationResults, onAutoFix, isFixing }: ValidationSummaryProps) => {
+export const ValidationSummary = ({ validationResults, onAutoFix, isFixing, articles = [] }: ValidationSummaryProps) => {
   const results = Array.from(validationResults.values());
   const validArticles = results.filter(r => r.isValid).length;
   const invalidArticles = results.filter(r => !r.isValid).length;
@@ -18,17 +21,46 @@ export const ValidationSummary = ({ validationResults, onAutoFix, isFixing }: Va
   const articlesWithMissingLinks = results.filter(r => r.missingInternalLinks).length;
   const articlesWithMissingCitations = results.filter(r => r.missingExternalCitations).length;
   
+  // Citation quality stats
+  const articlesWithHighAuthority = articles.filter(a => {
+    const citations = a.external_citations || [];
+    const highAuthority = citations.filter(c => (c.authorityScore || 0) >= 70).length;
+    return highAuthority === citations.length && citations.length > 0;
+  }).length;
+  
+  const articlesWithReviewer = articles.filter(a => a.reviewer_id).length;
+  const articlesWithFAQ = articles.filter(a => a.faq_entities && a.faq_entities.length > 0).length;
+  
   const isClusterValid = results.every(r => r.isValid);
 
   if (isClusterValid) {
     return (
-      <Alert className="bg-green-50 border-green-200">
-        <CheckCircle2 className="h-4 w-4 text-green-600" />
-        <AlertTitle className="text-green-900">All Articles Validated ✓</AlertTitle>
-        <AlertDescription className="text-green-700">
-          All {results.length} articles have sufficient internal links and external citations. Ready to publish!
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-3">
+        <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertTitle className="text-green-900 dark:text-green-100">All Articles Validated ✓</AlertTitle>
+          <AlertDescription className="text-green-700 dark:text-green-200">
+            All {results.length} articles have sufficient internal links and external citations. Ready to publish!
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={articlesWithHighAuthority === articles.length ? "default" : "secondary"} className="gap-1">
+            <Shield className="h-3 w-3" />
+            {articlesWithHighAuthority}/{articles.length} High-Authority Citations
+          </Badge>
+          
+          <Badge variant={articlesWithReviewer === articles.length ? "default" : "outline"} className="gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            {articlesWithReviewer}/{articles.length} Have Reviewer
+          </Badge>
+          
+          <Badge variant={articlesWithFAQ === articles.length ? "default" : "outline"} className="gap-1">
+            <MessageSquareQuote className="h-3 w-3" />
+            {articlesWithFAQ}/{articles.length} Have FAQ Schema
+          </Badge>
+        </div>
+      </div>
     );
   }
 
