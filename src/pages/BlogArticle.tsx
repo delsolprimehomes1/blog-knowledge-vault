@@ -26,11 +26,30 @@ import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 import { Navbar } from "@/components/Navbar";
 
 const BlogArticle = () => {
+  console.log('🚀 BlogArticle component mounted');
+  
+  const [renderError, setRenderError] = React.useState<Error | null>(null);
+  
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
   const { slug } = useParams<{ slug: string }>();
+  
+  console.log('📌 Slug from URL params:', slug);
+  
+  // Guaranteed fallback if no slug
+  if (!slug) {
+    console.error('❌ No slug provided in URL params');
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-3xl font-bold mb-4">No Article Slug</h1>
+          <p className="text-muted-foreground">Invalid article URL - no slug parameter found.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Track article view with GA4 when article data loads
   const trackArticleViewEffect = (article: any) => {
@@ -51,23 +70,54 @@ const BlogArticle = () => {
   const { data: article, isLoading, isFetching, error } = useQuery({
     queryKey: ["article", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("blog_articles")
-        .select("*")
-        .eq("slug", slug)
-        .eq("status", "published")
-        .maybeSingle();
+      console.log('🔍 Fetching article with slug:', slug);
+      try {
+        const { data, error } = await supabase
+          .from("blog_articles")
+          .select("*")
+          .eq("slug", slug)
+          .eq("status", "published")
+          .maybeSingle();
 
-      if (error) throw error;
-      if (!data) throw new Error("Article not found");
+        console.log('📦 Query result:', { 
+          hasData: !!data, 
+          error: error?.message,
+          dataId: data?.id 
+        });
 
-      return data as unknown as BlogArticleType;
+        if (error) {
+          console.error('❌ Supabase query error:', error);
+          throw error;
+        }
+        if (!data) {
+          console.warn('⚠️ No article found for slug:', slug);
+          throw new Error("Article not found");
+        }
+
+        console.log('✅ Article fetched successfully:', data.id);
+        return data as unknown as BlogArticleType;
+      } catch (err) {
+        console.error('💥 Exception in queryFn:', err);
+        throw err;
+      }
     },
     enabled: !!slug,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    placeholderData: (previousData) => previousData, // Show cached data instantly while revalidating
-    refetchOnMount: 'always', // Revalidate in background
+    retry: 1, // Only retry once for faster debugging
+    staleTime: 5 * 60 * 1000,
   });
+  
+  // Debug logging for query state
+  React.useEffect(() => {
+    console.log('📊 Query State Update:', {
+      slug,
+      isLoading,
+      isFetching,
+      hasArticle: !!article,
+      articleId: article?.id,
+      errorMessage: error instanceof Error ? error.message : error,
+      queryEnabled: !!slug
+    });
+  }, [slug, isLoading, isFetching, article, error]);
 
   // Remove static content once React data is ready
   useEffect(() => {
@@ -161,9 +211,34 @@ const BlogArticle = () => {
   useEffect(() => {
     trackArticleViewEffect(article);
   }, [article]);
+  
+  // Show render error if caught
+  if (renderError) {
+    console.error('💣 Render error caught:', renderError);
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto text-center space-y-4">
+          <AlertCircle className="h-16 w-16 mx-auto text-destructive" />
+          <h1 className="text-3xl font-bold mb-4">Component Error</h1>
+          <p className="text-muted-foreground">{renderError.message}</p>
+          <pre className="text-left bg-muted p-4 rounded text-xs overflow-auto">
+            {renderError.stack}
+          </pre>
+        </div>
+      </div>
+    );
+  }
 
   // Always show loading skeleton when no article data yet
+  console.log('🔄 Checking loading state:', { 
+    hasArticle: !!article, 
+    isLoading, 
+    isFetching 
+  });
+  
   if (!article && (isLoading || isFetching)) {
+    console.log('⏳ Rendering loading skeleton');
+
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
@@ -178,6 +253,7 @@ const BlogArticle = () => {
   }
 
   if (error) {
+    console.error('❌ Rendering error state:', error);
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto text-center space-y-4">
@@ -201,6 +277,7 @@ const BlogArticle = () => {
 
   // Show "Article Not Found" only after fetch completes with no data
   if (!article) {
+    console.warn('⚠️ Rendering "Article Not Found"');
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto text-center">
@@ -211,6 +288,8 @@ const BlogArticle = () => {
     );
   }
 
+  console.log('✅ Rendering full article:', article.id);
+  
   const schemas = generateAllSchemas(article, author || null, reviewer || null);
 
   const baseUrl = window.location.origin;
