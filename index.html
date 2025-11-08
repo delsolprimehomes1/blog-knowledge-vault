@@ -34,6 +34,88 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@delsolprimehomes" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    
+    <!-- Critical CSS for instant rendering (eliminates FOUC) -->
+    <style>
+      * { 
+        margin: 0; 
+        padding: 0; 
+        box-sizing: border-box; 
+      }
+      
+      :root {
+        --background: 0 0% 100%;
+        --foreground: 240 10% 3.9%;
+        --muted: 240 4.8% 95.9%;
+        --muted-foreground: 240 3.8% 46.1%;
+        --primary: 27 47% 66%;
+        --primary-foreground: 240 5.9% 10%;
+      }
+      
+      .dark {
+        --background: 240 10% 3.9%;
+        --foreground: 0 0% 98%;
+        --muted: 240 3.7% 15.9%;
+        --muted-foreground: 240 5% 64.9%;
+      }
+      
+      body { 
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      
+      /* Static content styling for pre-rendered articles */
+      .static-content {
+        max-width: 56rem;
+        margin: 0 auto;
+        padding: 1.5rem;
+        opacity: 1;
+        transition: opacity 300ms ease-out;
+      }
+      
+      .static-content.opacity-0 { 
+        opacity: 0; 
+      }
+      
+      .static-content h1 {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 2.5rem;
+        line-height: 1.2;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: hsl(var(--foreground));
+      }
+      
+      .static-content img {
+        width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+        display: block;
+      }
+      
+      .static-content p {
+        margin-bottom: 1rem;
+        color: hsl(var(--foreground));
+      }
+      
+      /* Prevent layout shift during load */
+      #root {
+        min-height: 100vh;
+      }
+      
+      /* Loading state skeleton */
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      
+      .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+    </style>
   </head>
 
   <body>

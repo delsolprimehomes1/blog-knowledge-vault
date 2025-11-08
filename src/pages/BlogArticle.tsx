@@ -70,6 +70,9 @@ const BlogArticle = () => {
       return data as unknown as BlogArticleType;
     },
     enabled: !!slug,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    placeholderData: (previousData) => previousData, // Show cached data instantly while revalidating
+    refetchOnMount: 'always', // Revalidate in background
   });
 
   // Parallelize all related data fetching for 70% faster load times
@@ -154,7 +157,8 @@ const BlogArticle = () => {
     trackArticleViewEffect(article);
   }, [article]);
 
-  if (isLoading) {
+  // Only show loading skeleton if no static HTML exists
+  if (isLoading && !isStaticPrerendered) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">

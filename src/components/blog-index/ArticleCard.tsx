@@ -5,6 +5,8 @@ import { OptimizedImage } from "@/components/OptimizedImage";
 import { prefetchArticle, prefetchImage } from "@/lib/prefetch";
 import { transformImage, getResponsiveSrcSet, getResponsiveSizes } from "@/lib/imageTransform";
 import { ArrowRight } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ArticleCardProps {
   article: {
@@ -37,13 +39,31 @@ const LANGUAGE_FLAGS: Record<string, string> = {
 };
 
 export const ArticleCard = ({ article, author, priority = false }: ArticleCardProps) => {
+  const queryClient = useQueryClient();
   const fallbackImage = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
   // EMERGENCY FIX: Use direct URL without transformation
   const imageUrl = article.featured_image_url || fallbackImage;
 
   const handleMouseEnter = () => {
-    // Prefetch article and featured image on hover
+    // Prefetch article route for navigation
     prefetchArticle(article.slug);
+    
+    // Prefetch article data from Supabase for instant load
+    queryClient.prefetchQuery({
+      queryKey: ["article", article.slug],
+      queryFn: async () => {
+        const { data } = await supabase
+          .from("blog_articles")
+          .select("*")
+          .eq("slug", article.slug)
+          .eq("status", "published")
+          .maybeSingle();
+        return data;
+      },
+      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    });
+    
+    // Prefetch featured image
     if (article.featured_image_url) {
       prefetchImage(article.featured_image_url);
     }
