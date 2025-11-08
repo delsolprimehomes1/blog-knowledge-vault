@@ -13,6 +13,7 @@ interface RelatedClusterArticle {
   slug: string;
   headline: string;
   stage: "TOFU" | "MOFU" | "BOFU";
+  featured_image_url?: string;
 }
 
 interface ArticleContentProps {
