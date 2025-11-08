@@ -40,6 +40,7 @@ export const ClusterReviewInterface = ({
   const [isFixingLinks, setIsFixingLinks] = useState(false);
   const [slugValidation, setSlugValidation] = useState<Map<string, boolean>>(new Map());
   const [slugChecking, setSlugChecking] = useState<Map<string, boolean>>(new Map());
+  const [isFindingCitations, setIsFindingCitations] = useState(false);
 
   const currentArticle = articles[activeTab];
 
@@ -103,6 +104,11 @@ export const ClusterReviewInterface = ({
     const markerCount = (article.detailed_content?.match(/\[CITATION_NEEDED\]/g) || []).length;
     return count + markerCount;
   }, 0);
+
+  // Count articles with 0 external citations
+  const articlesWithoutCitations = articles.filter(article => 
+    !article.external_citations || article.external_citations.length === 0
+  ).length;
 
   // Count duplicate slugs
   const duplicateSlugsCount = Array.from(slugValidation.values()).filter(isAvailable => !isAvailable).length;
@@ -485,6 +491,92 @@ export const ClusterReviewInterface = ({
     }
   };
 
+  const handleFindAllCitations = async () => {
+    setIsFindingCitations(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      toast.info('Finding HIGH-AUTHORITY citations for all articles without citations...');
+
+      for (let i = 0; i < articles.length; i++) {
+        const article = articles[i];
+        
+        // Skip articles that already have citations
+        if (article.external_citations && article.external_citations.length > 0) {
+          continue;
+        }
+
+        try {
+          console.log(`Finding citations for article ${i + 1}: ${article.headline}`);
+          
+          const { data, error } = await supabase.functions.invoke('find-external-links', {
+            body: {
+              content: article.detailed_content,
+              headline: article.headline,
+              language: article.language || language,
+              funnelStage: article.funnel_stage || 'MOFU',
+              requireGovernmentSource: true,
+              speakableContext: article.speakable_answer,
+              minAuthorityScore: 70,
+              focusArea: 'Costa del Sol real estate'
+            }
+          });
+
+          if (error) {
+            console.error(`Failed to find citations for article ${i}:`, error);
+            failCount++;
+            continue;
+          }
+
+          if (data?.citations && data.citations.length > 0) {
+            // Filter for high authority citations
+            const highAuthorityCitations = data.citations.filter((cit: any) => 
+              cit.authorityScore >= 70 && cit.verified !== false
+            );
+            
+            highAuthorityCitations.sort((a: any, b: any) => b.authorityScore - a.authorityScore);
+            
+            const targetCount = article.funnel_stage === 'BOFU' ? 6 : 5;
+            const topCitations = highAuthorityCitations.slice(0, targetCount);
+            
+            if (topCitations.length > 0) {
+              updateArticle(i, { external_citations: topCitations });
+              
+              const avgScore = Math.round(topCitations.reduce((sum: number, c: any) => sum + c.authorityScore, 0) / topCitations.length);
+              console.log(`✅ Added ${topCitations.length} citations (avg: ${avgScore}/100) to "${article.headline}"`);
+              successCount++;
+            } else {
+              console.log(`⚠️ No high-authority citations found for "${article.headline}"`);
+              failCount++;
+            }
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          console.error(`Error finding citations for article ${i}:`, error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`✅ Added citations to ${successCount} article${successCount !== 1 ? 's' : ''}!`, {
+          duration: 5000
+        });
+      }
+      if (failCount > 0) {
+        toast.warning(`⚠️ Could not find sufficient citations for ${failCount} article${failCount !== 1 ? 's' : ''}`, {
+          duration: 5000
+        });
+      }
+    } catch (error) {
+      console.error('Error finding citations:', error);
+      toast.error('Failed to find citations');
+    } finally {
+      setIsFindingCitations(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-card rounded-lg border p-6">
@@ -635,9 +727,12 @@ export const ClusterReviewInterface = ({
         onExportCluster={onExport}
         onFixAllCitations={citationsNeeded > 0 ? handleFixAllCitations : undefined}
         onAutoFixSlugs={duplicateSlugsCount > 0 ? handleAutoFixDuplicateSlugs : undefined}
+        onFindCitations={articlesWithoutCitations > 0 ? handleFindAllCitations : undefined}
         articleCount={articles.length}
         citationsNeeded={citationsNeeded}
         duplicateSlugsCount={duplicateSlugsCount}
+        articlesWithoutCitations={articlesWithoutCitations}
+        isFindingCitations={isFindingCitations}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, Save, Download, Loader2, ExternalLink } from "lucide-react";
+import { Upload, Save, Download, Loader2, ExternalLink, Search } from "lucide-react";
 import { useState } from "react";
 
 interface BulkActionsProps {
@@ -9,9 +9,12 @@ interface BulkActionsProps {
   onExportCluster: () => void;
   onFixAllCitations?: () => Promise<void>;
   onAutoFixSlugs?: () => Promise<void>;
+  onFindCitations?: () => Promise<void>;
   articleCount: number;
   citationsNeeded: number;
   duplicateSlugsCount?: number;
+  articlesWithoutCitations?: number;
+  isFindingCitations?: boolean;
 }
 
 export const BulkActions = ({
@@ -20,9 +23,12 @@ export const BulkActions = ({
   onExportCluster,
   onFixAllCitations,
   onAutoFixSlugs,
+  onFindCitations,
   articleCount,
   citationsNeeded,
   duplicateSlugsCount = 0,
+  articlesWithoutCitations = 0,
+  isFindingCitations = false,
 }: BulkActionsProps) => {
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -71,10 +77,25 @@ export const BulkActions = ({
                 Fix {citationsNeeded} Citation{citationsNeeded !== 1 ? 's' : ''}
               </Button>
             )}
+            {articlesWithoutCitations > 0 && onFindCitations && (
+              <Button
+                variant="default"
+                onClick={() => handleAction("findCitations", onFindCitations)}
+                disabled={loading !== null || isFindingCitations}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {loading === "findCitations" || isFindingCitations ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4 mr-2" />
+                )}
+                Find Citations for {articlesWithoutCitations} Article{articlesWithoutCitations !== 1 ? 's' : ''}
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={onExportCluster}
-              disabled={loading !== null}
+              disabled={loading !== null || isFindingCitations}
             >
               <Download className="h-4 w-4 mr-2" />
               Export Cluster
@@ -82,7 +103,7 @@ export const BulkActions = ({
             <Button
               variant="outline"
               onClick={() => handleAction("draft", onSaveAllAsDrafts)}
-              disabled={loading !== null}
+              disabled={loading !== null || isFindingCitations}
             >
               {loading === "draft" ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -93,7 +114,7 @@ export const BulkActions = ({
             </Button>
             <Button
               onClick={() => handleAction("publish", onPublishAll)}
-              disabled={loading !== null}
+              disabled={loading !== null || isFindingCitations}
             >
               {loading === "publish" ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
