@@ -48,7 +48,7 @@ const BlogArticle = () => {
   const staticContent = document.querySelector('.static-content');
   const isStaticPrerendered = staticContent?.getAttribute('data-article-id');
 
-  const { data: article, isLoading, error } = useQuery({
+  const { data: article, isLoading, isFetching, error } = useQuery({
     queryKey: ["article", slug],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -61,12 +61,6 @@ const BlogArticle = () => {
       if (error) throw error;
       if (!data) throw new Error("Article not found");
 
-      // Remove static content once React takes over
-      if (staticContent && data.id === isStaticPrerendered) {
-        staticContent.classList.add('opacity-0');
-        setTimeout(() => staticContent.remove(), 300);
-      }
-
       return data as unknown as BlogArticleType;
     },
     enabled: !!slug,
@@ -74,6 +68,17 @@ const BlogArticle = () => {
     placeholderData: (previousData) => previousData, // Show cached data instantly while revalidating
     refetchOnMount: 'always', // Revalidate in background
   });
+
+  // Remove static content once React data is ready
+  useEffect(() => {
+    if (article && staticContent && article.id === isStaticPrerendered) {
+      // Small delay to ensure React content has painted
+      setTimeout(() => {
+        staticContent.classList.add('opacity-0');
+        setTimeout(() => staticContent.remove(), 300);
+      }, 100);
+    }
+  }, [article, staticContent, isStaticPrerendered]);
 
   // Parallelize all related data fetching for 70% faster load times
   const { data: relatedData } = useQuery({
@@ -157,8 +162,8 @@ const BlogArticle = () => {
     trackArticleViewEffect(article);
   }, [article]);
 
-  // Only show loading skeleton if no static HTML exists
-  if (isLoading && !isStaticPrerendered) {
+  // Only show loading skeleton if actively fetching AND no static HTML exists AND no cached data
+  if ((isFetching && !isStaticPrerendered && !article) || (isLoading && !isStaticPrerendered)) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
@@ -194,7 +199,14 @@ const BlogArticle = () => {
     );
   }
 
+  // Don't show "Article Not Found" if static content exists or query is still fetching
   if (!article) {
+    // Keep static HTML visible or show nothing while fetching
+    if (isStaticPrerendered || isFetching) {
+      return null; // Static HTML continues displaying
+    }
+    
+    // Only show "Article Not Found" after fetch completes with no data
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto text-center">
