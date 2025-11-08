@@ -14,11 +14,23 @@ interface TrustSignalsProps {
 export const TrustSignals = ({ reviewerName, dateModified, citations }: TrustSignalsProps) => {
   const [isOpen, setIsOpen] = useState(true);
 
+  // Filter out citations with invalid URLs
+  const validCitations = citations.filter(c => {
+    if (!c.url || typeof c.url !== 'string' || c.url.trim() === '') return false;
+    try {
+      new URL(c.url);
+      return true;
+    } catch {
+      console.warn('Invalid citation URL:', c.url);
+      return false;
+    }
+  });
+
   // Calculate official source percentage
-  const officialSources = citations.filter(
+  const officialSources = validCitations.filter(
     (c) => c.sourceType === 'government' || c.sourceType === 'legal' || c.url.includes('.gov') || c.url.includes('.gob.')
   ).length;
-  const officialPercentage = citations.length > 0 ? Math.round((officialSources / citations.length) * 100) : 0;
+  const officialPercentage = validCitations.length > 0 ? Math.round((officialSources / validCitations.length) * 100) : 0;
 
   return (
     <div id="citations" className="my-12 p-6 border rounded-lg bg-accent/50 space-y-4">
@@ -50,7 +62,7 @@ export const TrustSignals = ({ reviewerName, dateModified, citations }: TrustSig
           <div>
             <p className="text-sm font-medium">Inline Citations</p>
             <p className="text-xs text-muted-foreground">
-              {citations.length} contextual links
+              {validCitations.length} contextual links
             </p>
           </div>
         </div>
@@ -68,17 +80,17 @@ export const TrustSignals = ({ reviewerName, dateModified, citations }: TrustSig
         )}
       </div>
 
-      {citations.length > 0 && (
+      {validCitations.length > 0 && (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="w-full">
               <ChevronDown className={`h-4 w-4 mr-2 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-              📚 Sources Referenced ({citations.length})
+              📚 Sources Referenced ({validCitations.length})
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4">
             <div className="space-y-2">
-              {citations.map((citation, index) => {
+              {validCitations.map((citation, index) => {
                 const isOfficial = citation.sourceType === 'government' || citation.sourceType === 'legal' || 
                                    citation.url.includes('.gov') || citation.url.includes('.gob.');
                 const domain = new URL(citation.url).hostname;
