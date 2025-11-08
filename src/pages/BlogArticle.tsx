@@ -162,8 +162,8 @@ const BlogArticle = () => {
     trackArticleViewEffect(article);
   }, [article]);
 
-  // Only show loading skeleton if actively fetching AND no static HTML exists AND no cached data
-  if ((isFetching && !isStaticPrerendered && !article) || (isLoading && !isStaticPrerendered)) {
+  // Always show loading skeleton when no article data yet
+  if (!article && (isLoading || isFetching)) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
@@ -199,14 +199,8 @@ const BlogArticle = () => {
     );
   }
 
-  // Don't show "Article Not Found" if static content exists or query is still fetching
+  // Show "Article Not Found" only after fetch completes with no data
   if (!article) {
-    // Keep static HTML visible or show nothing while fetching
-    if (isStaticPrerendered || isFetching) {
-      return null; // Static HTML continues displaying
-    }
-    
-    // Only show "Article Not Found" after fetch completes with no data
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto text-center">
