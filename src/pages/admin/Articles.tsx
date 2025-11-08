@@ -1,17 +1,20 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { BlogArticle, ArticleStatus, FunnelStage, Language } from "@/types/blog";
+import { BlogArticle, ArticleStatus, FunnelStage, Language, Author } from "@/types/blog";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Search, Edit, Eye, Trash2, Plus, AlertCircle, Sparkles, Loader2, Network } from "lucide-react";
+import { Search, Edit, Eye, Trash2, Plus, AlertCircle, Sparkles, Loader2, Network, CheckSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
+import { validateBulkPublish } from "@/lib/validatePublishReadiness";
+import { BulkPublishValidationModal } from "@/components/admin/BulkPublishValidationModal";
 
 const Articles = () => {
   const navigate = useNavigate();
@@ -33,6 +36,13 @@ const Articles = () => {
     error_count: number;
     total_new_citations: number;
   } | null>(null);
+  
+  // Bulk publish state
+  const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationResults, setValidationResults] = useState<Map<string, any>>(new Map());
+  const [isBulkPublishing, setIsBulkPublishing] = useState(false);
+  
   const itemsPerPage = 20;
 
   const { data: articles, isLoading, error } = useQuery({
@@ -60,6 +70,19 @@ const Articles = () => {
       
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: authors } = useQuery({
+    queryKey: ["authors"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("authors")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      return data as Author[];
     },
   });
 
@@ -243,6 +266,93 @@ const Articles = () => {
     }
   };
 
+  // Bulk publish handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const draftArticles = filteredArticles
+        .filter(a => a.status === 'draft')
+        .map(a => a.id);
+      setSelectedArticles(new Set(draftArticles));
+    } else {
+      setSelectedArticles(new Set());
+    }
+  };
+
+  const handleSelectArticle = (articleId: string, checked: boolean) => {
+    const newSelection = new Set(selectedArticles);
+    if (checked) {
+      newSelection.add(articleId);
+    } else {
+      newSelection.delete(articleId);
+    }
+    setSelectedArticles(newSelection);
+  };
+
+  const handleValidateBulkPublish = async () => {
+    const articlesToPublish = filteredArticles.filter(a => selectedArticles.has(a.id));
+    
+    if (articlesToPublish.length === 0) {
+      toast({
+        title: "No Articles Selected",
+        description: "Please select draft articles to publish",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Build authors and reviewers maps
+    const authorsMap = new Map(authors?.map(a => [a.id, a]) || []);
+    const reviewersMap = new Map(authors?.map(a => [a.id, a]) || []); // Same pool for reviewers
+    
+    const results = validateBulkPublish(articlesToPublish, authorsMap, reviewersMap);
+    setValidationResults(results);
+    setShowValidationModal(true);
+  };
+
+  const handleConfirmBulkPublish = async () => {
+    const articlesToPublish = filteredArticles.filter(a => selectedArticles.has(a.id));
+    const publishableArticles = articlesToPublish.filter(a => {
+      const result = validationResults.get(a.id);
+      return result?.isReady || result?.canPublishWithWarnings;
+    });
+
+    setIsBulkPublishing(true);
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < publishableArticles.length; i++) {
+      const article = publishableArticles[i];
+      try {
+        const { error } = await supabase
+          .from('blog_articles')
+          .update({
+            status: 'published',
+            date_published: new Date().toISOString(),
+            date_modified: new Date().toISOString(),
+          })
+          .eq('id', article.id);
+
+        if (error) throw error;
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to publish article ${article.id}:`, error);
+        failCount++;
+      }
+    }
+
+    setIsBulkPublishing(false);
+    setShowValidationModal(false);
+    setSelectedArticles(new Set());
+    
+    toast({
+      title: "Bulk Publish Complete",
+      description: `✅ ${successCount} published, ❌ ${failCount} failed`,
+    });
+    
+    window.location.reload();
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -255,6 +365,17 @@ const Articles = () => {
             </p>
           </div>
           <div className="flex gap-2">
+            {selectedArticles.size > 0 && (
+              <Button
+                onClick={handleValidateBulkPublish}
+                variant="outline"
+                size="lg"
+                disabled={isBulkPublishing}
+              >
+                <CheckSquare className="mr-2 h-5 w-5" />
+                Publish Selected ({selectedArticles.size})
+              </Button>
+            )}
             <Button onClick={() => navigate('/admin/articles/new')} size="lg">
               <Plus className="mr-2 h-5 w-5" />
               Create Article
@@ -523,6 +644,15 @@ const Articles = () => {
               <table className="w-full">
                 <thead className="border-b bg-muted/50">
                   <tr>
+                    <th className="px-4 py-3 text-left w-12">
+                      <Checkbox
+                        checked={
+                          filteredArticles.filter(a => a.status === 'draft').length > 0 &&
+                          filteredArticles.filter(a => a.status === 'draft').every(a => selectedArticles.has(a.id))
+                        }
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </th>
                     <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
                     <th className="px-4 py-3 text-left text-sm font-medium">Headline</th>
                     <th className="px-4 py-3 text-left text-sm font-medium">Category</th>
@@ -535,19 +665,27 @@ const Articles = () => {
                 <tbody className="divide-y">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                      <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                         Loading articles...
                       </td>
                     </tr>
                   ) : paginatedArticles.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                      <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                         No articles found
                       </td>
                     </tr>
                   ) : (
                     paginatedArticles.map((article) => (
                       <tr key={article.id} className="hover:bg-muted/50">
+                        <td className="px-4 py-3">
+                          {article.status === 'draft' && (
+                            <Checkbox
+                              checked={selectedArticles.has(article.id)}
+                              onCheckedChange={(checked) => handleSelectArticle(article.id, checked as boolean)}
+                            />
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <Badge className={`capitalize ${getStatusColor(article.status)}`}>
                             {article.status}
@@ -630,6 +768,16 @@ const Articles = () => {
           </div>
         )}
       </div>
+
+      {/* Bulk Publish Validation Modal */}
+      <BulkPublishValidationModal
+        open={showValidationModal}
+        onOpenChange={setShowValidationModal}
+        articles={filteredArticles.filter(a => selectedArticles.has(a.id))}
+        validationResults={validationResults}
+        onConfirmPublish={handleConfirmBulkPublish}
+        isPublishing={isBulkPublishing}
+      />
     </AdminLayout>
   );
 };
