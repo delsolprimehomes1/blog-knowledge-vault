@@ -45,6 +45,7 @@ interface ArticleReviewCardProps {
   onRemoveInternalLink: (index: number) => void;
   isRegenerating?: boolean;
   slugValidation?: Map<string, boolean>;
+  slugChecking?: Map<string, boolean>;
 }
 
 export const ArticleReviewCard = ({
@@ -58,9 +59,11 @@ export const ArticleReviewCard = ({
   onRemoveInternalLink,
   isRegenerating = false,
   slugValidation,
+  slugChecking,
 }: ArticleReviewCardProps) => {
   const [expandedContent, setExpandedContent] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [isRefreshingSlug, setIsRefreshingSlug] = useState(false);
   const contentWords = countWords(article?.detailed_content?.replace(/<[^>]*>/g, ' ').trim() || "");
   const targetKeyword = article?.meta_title?.split(' ')[0] || '';
 
@@ -165,69 +168,97 @@ export const ArticleReviewCard = ({
             <div className="space-y-2">
               <Label>Slug</Label>
               <div className="flex gap-2">
-                <Input 
-                  value={article.slug || ''}
-                  onChange={(e) => onEdit({ slug: e.target.value })}
-                  className={`flex-1 ${article.slug && !slugValidation?.get(article.slug) ? 'border-destructive' : ''}`}
-                />
+                <div className="relative flex-1">
+                  <Input 
+                    value={article.slug || ''}
+                    onChange={(e) => onEdit({ slug: e.target.value })}
+                    className={`${article.slug && !slugValidation?.get(article.slug) ? 'border-destructive' : article.slug && slugValidation?.get(article.slug) ? 'border-green-500' : ''}`}
+                  />
+                  {slugChecking?.get(article.slug || '') && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {article.slug && slugValidation?.get(article.slug) && !slugChecking?.get(article.slug) && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Check className="h-4 w-4 text-green-500" />
+                    </div>
+                  )}
+                </div>
                 <Button 
                   onClick={async () => {
+                    setIsRefreshingSlug(true);
+                    try {
                     const baseSlug = (article.headline || '')
                       .normalize('NFD')
                       .replace(/[\u0300-\u036f]/g, '')
                       .toLowerCase()
                       .replace(/[^a-z0-9]+/g, '-')
                       .replace(/^-|-$/g, '');
-                    
-                    // Check if base slug is available
-                    const { data: baseCheck } = await supabase
-                      .from('blog_articles')
-                      .select('id')
-                      .eq('slug', baseSlug)
-                      .maybeSingle();
-                    
-                    if (!baseCheck) {
-                      // Base slug is available
-                      onEdit({ slug: baseSlug });
-                      return;
-                    }
-                    
-                    // Base slug exists, find next available counter
-                    let counter = 1;
-                    let finalSlug = `${baseSlug}-${counter}`;
-                    
-                    while (counter <= 100) {
-                      const { data: counterCheck } = await supabase
+                      
+                      // Check if base slug is available
+                      const { data: baseCheck } = await supabase
                         .from('blog_articles')
                         .select('id')
-                        .eq('slug', finalSlug)
+                        .eq('slug', baseSlug)
                         .maybeSingle();
                       
-                      if (!counterCheck) {
-                        // This slug is available
-                        onEdit({ slug: finalSlug });
+                      if (!baseCheck) {
+                        // Base slug is available
+                        onEdit({ slug: baseSlug });
                         return;
                       }
                       
-                      counter++;
-                      finalSlug = `${baseSlug}-${counter}`;
+                      // Base slug exists, find next available counter
+                      let counter = 1;
+                      let finalSlug = `${baseSlug}-${counter}`;
+                      
+                      while (counter <= 100) {
+                        const { data: counterCheck } = await supabase
+                          .from('blog_articles')
+                          .select('id')
+                          .eq('slug', finalSlug)
+                          .maybeSingle();
+                        
+                        if (!counterCheck) {
+                          // This slug is available
+                          onEdit({ slug: finalSlug });
+                          return;
+                        }
+                        
+                        counter++;
+                        finalSlug = `${baseSlug}-${counter}`;
+                      }
+                      
+                      // Fallback: use timestamp suffix if loop exhausted
+                      const timestamp = Date.now();
+                      onEdit({ slug: `${baseSlug}-${timestamp}` });
+                    } finally {
+                      setIsRefreshingSlug(false);
                     }
-                    
-                    // Fallback: use timestamp suffix if loop exhausted
-                    const timestamp = Date.now();
-                    onEdit({ slug: `${baseSlug}-${timestamp}` });
                   }}
                   size="icon"
                   variant="outline"
                   title="Regenerate unique slug from headline"
+                  disabled={isRefreshingSlug}
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className={`h-4 w-4 ${isRefreshingSlug ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
                 https://delsolprimehomes.com/blog/{article.slug || 'your-slug'}
               </p>
-              {article.slug && !slugValidation?.get(article.slug) && (
+              {slugChecking?.get(article.slug || '') && (
+                <p className="text-xs text-muted-foreground">
+                  🔄 Checking slug availability...
+                </p>
+              )}
+              {article.slug && !slugChecking?.get(article.slug) && slugValidation?.get(article.slug) && (
+                <p className="text-xs text-green-600">
+                  ✅ Slug is unique and available
+                </p>
+              )}
+              {article.slug && !slugChecking?.get(article.slug) && !slugValidation?.get(article.slug) && (
                 <p className="text-xs text-destructive">
                   ⚠️ This slug already exists. Please change it to make it unique.
                 </p>

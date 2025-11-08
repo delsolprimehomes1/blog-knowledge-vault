@@ -39,6 +39,7 @@ export const ClusterReviewInterface = ({
   const [validationResults, setValidationResults] = useState<Map<string, LinkValidationResult>>(new Map());
   const [isFixingLinks, setIsFixingLinks] = useState(false);
   const [slugValidation, setSlugValidation] = useState<Map<string, boolean>>(new Map());
+  const [slugChecking, setSlugChecking] = useState<Map<string, boolean>>(new Map());
 
   const currentArticle = articles[activeTab];
 
@@ -52,26 +53,34 @@ export const ClusterReviewInterface = ({
   }, []);
 
   // Real-time slug checker with toast warnings
-  const checkSlugAvailability = async (slug: string) => {
+  const checkSlugAvailability = async (slug: string, silent = false) => {
     if (!slug) return true;
     
-    const { data } = await supabase
-      .from('blog_articles')
-      .select('slug, headline')
-      .eq('slug', slug)
-      .maybeSingle();
+    setSlugChecking(prev => new Map(prev).set(slug, true));
     
-    const isAvailable = !data;
-    setSlugValidation(prev => new Map(prev).set(slug, isAvailable));
-    
-    if (!isAvailable && data) {
-      toast.warning(
-        `⚠️ Slug "${slug}" already exists for article "${data.headline}". Please modify it or use Auto-Fix Slugs.`,
-        { duration: 6000 }
-      );
+    try {
+      const { data } = await supabase
+        .from('blog_articles')
+        .select('slug, headline')
+        .eq('slug', slug)
+        .maybeSingle();
+      
+      const isAvailable = !data;
+      setSlugValidation(prev => new Map(prev).set(slug, isAvailable));
+      
+      if (!isAvailable && data && !silent) {
+        toast.warning(
+          `⚠️ Slug "${slug}" already exists for article "${data.headline}". Please modify it or use Auto-Fix Slugs.`,
+          { duration: 6000 }
+        );
+      } else if (isAvailable && !silent) {
+        toast.success(`✅ Slug "${slug}" is unique and available!`, { duration: 3000 });
+      }
+      
+      return isAvailable;
+    } finally {
+      setSlugChecking(prev => new Map(prev).set(slug, false));
     }
-    
-    return isAvailable;
   };
 
   // Validate links whenever articles change
@@ -80,18 +89,14 @@ export const ClusterReviewInterface = ({
     setValidationResults(results);
   }, [articles]);
 
-  // Debounced slug validation
+  // Initial slug validation on mount (silent)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      articles.forEach((article) => {
-        if (article.slug) {
-          checkSlugAvailability(article.slug);
-        }
-      });
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [articles]);
+    articles.forEach((article) => {
+      if (article.slug) {
+        checkSlugAvailability(article.slug, true);
+      }
+    });
+  }, []); // Only run once on mount
 
   // Count articles needing citations
   const citationsNeeded = articles.reduce((count, article) => {
@@ -185,6 +190,18 @@ export const ClusterReviewInterface = ({
   }
 
   const updateArticle = (index: number, updates: Partial<BlogArticle>) => {
+    const oldSlug = articles[index]?.slug;
+    const newSlug = updates.slug;
+    
+    // Clear old slug validation if slug changed
+    if (newSlug && oldSlug && oldSlug !== newSlug) {
+      setSlugValidation(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(oldSlug);
+        return newMap;
+      });
+    }
+    
     const newArticles = [...articles];
     newArticles[index] = { ...newArticles[index], ...updates };
     onArticlesChange(newArticles);
@@ -192,9 +209,9 @@ export const ClusterReviewInterface = ({
     // Revalidate after update
     setTimeout(() => validateCategories(), 100);
     
-    // Check slug if it was updated
-    if (updates.slug) {
-      checkSlugAvailability(updates.slug);
+    // Check slug if it was updated (only if it actually changed)
+    if (newSlug && oldSlug !== newSlug) {
+      checkSlugAvailability(newSlug);
     }
   };
 
@@ -287,6 +304,10 @@ export const ClusterReviewInterface = ({
     try {
       toast.info('Checking and fixing duplicate slugs...');
       
+      // Clear all validation states
+      setSlugValidation(new Map());
+      setSlugChecking(new Map());
+      
       const timestamp = Date.now().toString().slice(-6);
       let fixedCount = 0;
       
@@ -314,6 +335,16 @@ export const ClusterReviewInterface = ({
       
       if (fixedCount > 0) {
         onArticlesChange(fixedArticles);
+        
+        // Re-validate all slugs silently after fixing
+        setTimeout(() => {
+          fixedArticles.forEach((article) => {
+            if (article.slug) {
+              checkSlugAvailability(article.slug, true);
+            }
+          });
+        }, 500);
+        
         toast.success(`✅ Auto-fixed ${fixedCount} duplicate slug${fixedCount !== 1 ? 's' : ''}!`);
       } else {
         toast.success('✅ No duplicate slugs found!');
@@ -570,6 +601,7 @@ export const ClusterReviewInterface = ({
         }}
         isRegenerating={isRegenerating}
         slugValidation={slugValidation}
+        slugChecking={slugChecking}
       />
 
       {/* Bulk Actions */}
