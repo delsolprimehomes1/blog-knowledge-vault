@@ -137,7 +137,10 @@ serve(async (req) => {
       headline, 
       language = 'en', 
       requireGovernmentSource = false,
-      funnelStage = 'MOFU' // New parameter with default
+      funnelStage = 'MOFU',
+      speakableContext, // NEW: JSON-LD speakable answer for better relevance
+      minAuthorityScore = 0, // NEW: Minimum authority score filter (0-100)
+      focusArea // Regional focus
     } = await req.json();
     
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
@@ -196,7 +199,8 @@ serve(async (req) => {
       content,
       funnelStage as 'TOFU' | 'MOFU' | 'BOFU',
       PERPLEXITY_API_KEY,
-      'Costa del Sol real estate'
+      focusArea || 'Costa del Sol real estate',
+      speakableContext // Pass speakable context for better relevance
     );
 
     if (result.status === 'failed' || result.citations.length === 0) {
@@ -283,77 +287,94 @@ Return only the JSON array, nothing else.`;
   - Rejected: ${rejectedCount}
 `);
 
-    // ✅ AUTHORITY SCORING - Prioritize high-quality sources
+    // ✅ ENHANCED AUTHORITY SCORING (0-100 scale) - Prioritize high-quality sources
     const citationsWithScores = validCitations.map((citation: any) => {
-      let authorityScore = 5; // baseline
+      let authorityScore = 30; // Higher baseline for verified sources
       
-      // Government/official sources (highest authority)
-      if (isGovernmentDomain(citation.url)) authorityScore += 5;
+      // Government/official sources (highest authority) +40 points
+      if (isGovernmentDomain(citation.url)) authorityScore += 40;
       
       // Domain authority indicators
-      if (citation.url.includes('.edu')) authorityScore += 4;
-      if (citation.url.includes('.org')) authorityScore += 3;
+      if (citation.url.includes('.edu')) authorityScore += 25;
+      if (citation.url.includes('.org')) authorityScore += 15;
       
-      // Official government and legal sources only (no competitors)
-      const authoritative = ['boe.es', 'registradores', 'notariado', 'europa.eu', 'gov.uk', 'juntadeandalucia.es'];
-      if (authoritative.some(domain => citation.url.toLowerCase().includes(domain))) authorityScore += 4;
+      // Top-tier official sources +20 points
+      const topTier = ['boe.es', 'registradores', 'notariado', 'europa.eu', 'gov.uk', 'juntadeandalucia.es', 'ine.es', 'bde.es'];
+      if (topTier.some(domain => citation.url.toLowerCase().includes(domain))) authorityScore += 20;
       
       // Source name credibility
       const sourceLower = citation.sourceName.toLowerCase();
-      if (sourceLower.includes('official')) authorityScore += 2;
-      if (sourceLower.includes('government') || sourceLower.includes('ministry')) authorityScore += 3;
-      if (sourceLower.includes('university') || sourceLower.includes('research')) authorityScore += 2;
+      if (sourceLower.includes('official')) authorityScore += 10;
+      if (sourceLower.includes('government') || sourceLower.includes('ministry')) authorityScore += 15;
+      if (sourceLower.includes('university') || sourceLower.includes('research')) authorityScore += 10;
       
       return {
         ...citation,
-        authorityScore: Math.min(authorityScore, 10)
+        authorityScore: Math.min(authorityScore, 100), // Cap at 100
+        authorityTier: authorityScore >= 70 ? 'High' : authorityScore >= 50 ? 'Medium' : 'Low'
       };
     });
 
-    // Sort by authority score (highest first)
-    citationsWithScores.sort((a: any, b: any) => b.authorityScore - a.authorityScore);
-    
-    console.log(`Authority scores: ${citationsWithScores.map((c: any) => `${c.sourceName}: ${c.authorityScore}`).join(', ')}`);
+    // ✅ AGGRESSIVE FILTERING: Apply minimum authority score if specified
+    let filteredCitations = citationsWithScores;
+    if (minAuthorityScore > 0) {
+      filteredCitations = citationsWithScores.filter(c => c.authorityScore >= minAuthorityScore);
+      console.log(`🎯 Filtered to ${filteredCitations.length}/${citationsWithScores.length} citations with score >= ${minAuthorityScore}`);
+    }
 
-    // If we have some verified citations, use them
-    // If not, fallback to using unverified citations from approved domains
-    if (citationsWithScores.length < 2) {
-      console.warn(`⚠️ Only found ${citationsWithScores.length} verified citations (target: 2+)`);
+    // ✅ PRIORITIZE GOVERNMENT SOURCES if required
+    if (requireGovernmentSource) {
+      const govCitations = filteredCitations.filter(c => isGovernmentDomain(c.url));
+      const nonGovCitations = filteredCitations.filter(c => !isGovernmentDomain(c.url));
+      
+      // Put government sources first
+      filteredCitations = [...govCitations, ...nonGovCitations];
+      console.log(`📊 Government sources: ${govCitations.length}, Others: ${nonGovCitations.length}`);
+    }
+
+    // Sort by authority score (highest first)
+    filteredCitations.sort((a: any, b: any) => b.authorityScore - a.authorityScore);
+    
+    console.log(`Authority scores: ${filteredCitations.slice(0, 5).map((c: any) => `${c.sourceName}: ${c.authorityScore}/100 (${c.authorityTier})`).join(', ')}`);
+
+    // If we have some high-quality citations, use them
+    // Fallback logic only if minimum authority allows it
+    if (filteredCitations.length < 2 && minAuthorityScore === 0) {
+      console.warn(`⚠️ Only found ${filteredCitations.length} citations (target: 2+)`);
       
       // Get unverified citations from approved domains as fallback
       const unverifiedCitations = domainFilteredCitations
-        .filter(c => !citationsWithScores.some(v => v.url === c.url))
+        .filter(c => !filteredCitations.some(v => v.url === c.url))
         .map((citation: any) => ({
           ...citation,
           verified: false,
-          authorityScore: 3 // Lower score for unverified
+          authorityScore: 25, // Lower baseline for unverified
+          authorityTier: 'Low'
         }));
       
-      if (citationsWithScores.length === 0 && unverifiedCitations.length >= 2) {
-        // Use unverified citations as fallback (they're still from approved domains)
-        console.log(`📝 Using ${Math.min(5, unverifiedCitations.length)} unverified citations from approved domains as fallback`);
-        citationsWithScores.push(...unverifiedCitations.slice(0, 5));
-      } else if (citationsWithScores.length === 1 && unverifiedCitations.length > 0) {
-        // Mix verified + unverified to reach minimum
+      if (filteredCitations.length === 0 && unverifiedCitations.length >= 2) {
+        console.log(`📝 Using ${Math.min(5, unverifiedCitations.length)} unverified citations as fallback`);
+        filteredCitations.push(...unverifiedCitations.slice(0, 5));
+      } else if (filteredCitations.length === 1 && unverifiedCitations.length > 0) {
         const additionalCitations = unverifiedCitations.slice(0, 4);
-        citationsWithScores.push(...additionalCitations);
-        console.log(`📝 Mixed ${1} verified + ${additionalCitations.length} unverified citations (total: ${citationsWithScores.length})`);
-      } else if (citationsWithScores.length === 1 && unverifiedCitations.length === 0) {
-        // Only 1 citation available total - still return it
-        console.log(`📝 Only 1 citation available, but proceeding`);
+        filteredCitations.push(...additionalCitations);
+        console.log(`📝 Mixed ${1} verified + ${additionalCitations.length} unverified citations`);
       }
     }
 
-    // Only throw error if we have absolutely no citations at all
-    if (citationsWithScores.length === 0) {
-      console.error('❌ Could not find any citations from approved domains');
-      throw new Error('Could not find any citations from approved domains');
+    // Only throw error if we have absolutely no citations (or none meeting min score)
+    if (filteredCitations.length === 0) {
+      const reason = minAuthorityScore > 0 
+        ? `No citations found with authority score >= ${minAuthorityScore}`
+        : 'Could not find any citations from approved domains';
+      console.error(`❌ ${reason}`);
+      throw new Error(reason);
     }
 
-    console.log(`✅ Returning ${citationsWithScores.length} citations (verified: ${citationsWithScores.filter((c: any) => c.verified !== false).length}, unverified: ${citationsWithScores.filter((c: any) => c.verified === false).length})`);
+    console.log(`✅ Returning ${filteredCitations.length} citations (verified: ${filteredCitations.filter((c: any) => c.verified !== false).length}, avg score: ${Math.round(filteredCitations.reduce((sum, c) => sum + c.authorityScore, 0) / filteredCitations.length)}/100)`);
 
-    // Check if government source is present (warn instead of blocking)
-    const hasGovSource = citationsWithScores.some((c: any) => isGovernmentDomain(c.url));
+    // Check if government source is present
+    const hasGovSource = filteredCitations.some((c: any) => isGovernmentDomain(c.url));
     
     if (requireGovernmentSource && !hasGovSource) {
       console.warn('⚠️ No government source found (requirement enabled but not blocking results)');
@@ -363,11 +384,13 @@ Return only the JSON array, nothing else.`;
 
     return new Response(
       JSON.stringify({ 
-        citations: citationsWithScores,
+        citations: filteredCitations,
         totalFound: citations.length,
-        totalVerified: citationsWithScores.length,
+        totalVerified: filteredCitations.length,
         hasGovernmentSource: hasGovSource,
-        averageAuthorityScore: citationsWithScores.reduce((acc: number, c: any) => acc + c.authorityScore, 0) / citationsWithScores.length,
+        averageAuthorityScore: Math.round(filteredCitations.reduce((acc: number, c: any) => acc + c.authorityScore, 0) / filteredCitations.length),
+        minAuthorityScore: minAuthorityScore,
+        highTierCount: filteredCitations.filter(c => c.authorityScore >= 70).length,
         // New batch system metadata
         category: result.category,
         batchSize: result.batchSize,

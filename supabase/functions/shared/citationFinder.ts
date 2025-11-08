@@ -276,7 +276,8 @@ export async function findBetterCitationsWithBatch(
   articleContent: string,
   funnelStage: 'TOFU' | 'MOFU' | 'BOFU',
   perplexityApiKey: string,
-  focusArea?: string
+  focusArea?: string,
+  speakableContext?: string // NEW: JSON-LD speakable answer for better relevance
 ): Promise<{
   citations: BetterCitation[];
   category: string;
@@ -293,7 +294,9 @@ export async function findBetterCitationsWithBatch(
   console.log(`🎯 Selected ${selection.category} context (${selection.domains.length} preferred domains)`);
   console.log(`📝 Reasoning: ${selection.reasoning}`);
   
-  // Determine target citation count based on funnel stage
+  // ✅ AGGRESSIVE: Request MORE citations than needed for filtering (10 for BOFU, 8 for MOFU)
+  const requestCount = funnelStage === 'BOFU' ? 10 : 
+                       funnelStage === 'MOFU' ? 8 : 5;
   const targetCitations = funnelStage === 'BOFU' ? 6 : 
                           funnelStage === 'MOFU' ? 5 : 3;
   
@@ -301,8 +304,13 @@ export async function findBetterCitationsWithBatch(
   const focusContext = focusArea 
     ? `\n\n**PRIORITY FOCUS:** ${focusArea}\nFind sources specifically related to this aspect first.`
     : '';
+  
+  // ✅ NEW: Include speakable context for JSON-LD optimization
+  const speakableSection = speakableContext 
+    ? `\n\n**PRIMARY FOCUS (JSON-LD Speakable):**\n${speakableContext}\n\n⚠️ CRITICAL: Prioritize finding citations that directly support claims in this key section above. This is the most important part of the article for SEO.`
+    : '';
 
-  const prompt = `You are an expert research assistant finding authoritative external sources for a ${config.name} language article.
+  const prompt = `You are an expert research assistant finding HIGH-AUTHORITY external sources for a ${config.name} language article.
 
 **CRITICAL REQUIREMENTS:**
 - You MUST ONLY provide URLs that you ACTUALLY FOUND through web search
@@ -311,23 +319,26 @@ export async function findBetterCitationsWithBatch(
 - Every URL must be a REAL, ACCESSIBLE page that exists on the internet
 - If you cannot find enough real sources, return fewer citations rather than making up URLs
 - Focus on ${selection.category} sources
+- PRIORITIZE: Government (.gov, .gob, .edu), Legal (registradores, notariado), Official Statistics (ine.es, bde.es)
 
 **Article Topic:** "${articleTopic}"
 **Funnel Stage:** ${funnelStage} (${funnelStage === 'TOFU' ? 'awareness' : funnelStage === 'MOFU' ? 'consideration' : 'decision'})
 **Language Required:** ${config.name}
-**Target:** ${targetCitations} high-authority citations
+**Target:** ${requestCount} HIGH-AUTHORITY citations (we'll filter to top ${targetCitations})
 ${focusContext}
+${speakableSection}
 
 **Article Preview:**
 ${articleContent.substring(0, 1500)}
 
 **Quality Requirements:**
-✅ MUST be authoritative (.gov, .edu, major news, legal services, professional associations)
+✅ MUST be HIGH authority (.gov, .edu, major news, legal, professional associations)
 ✅ MUST be in ${config.name} language
 ✅ MUST be highly relevant to Costa del Sol real estate
 ✅ MUST be accessible (HTTPS, not behind paywalls)
 ✅ MUST support specific claims in the article
 ✅ Prefer recent sources (within last 3 years)
+✅ Government and official sources are HIGHEST priority
 
 ❌ NEVER cite: Property listing portals (Idealista, Kyero, Fotocasa, Pisos.com, etc.)
 ❌ NEVER cite: Real estate agencies (RE/MAX, Engel & Völkers, Century21, etc.)

@@ -407,32 +407,57 @@ export const ClusterReviewInterface = ({
         // Fix external citations if needed
         if (validation.missingExternalCitations) {
           try {
-            toast.info(`Finding citations for "${article.headline}"...`);
+            toast.info(`Finding HIGH-AUTHORITY citations for "${article.headline}"...`);
             
             const { data, error } = await supabase.functions.invoke('find-external-links', {
               body: {
                 content: article.detailed_content,
                 headline: article.headline,
                 language: article.language || language,
-                requireGovernmentSource: false
+                funnelStage: article.funnel_stage || 'MOFU',
+                requireGovernmentSource: true, // ✅ AGGRESSIVE: Prioritize government sources
+                speakableContext: article.speakable_answer, // ✅ Use JSON-LD speakable for relevance
+                minAuthorityScore: 70, // ✅ Only accept HIGH-tier citations (70+/100)
+                focusArea: 'Costa del Sol real estate'
               }
             });
 
             if (error) {
               console.error(`Failed to find external links for article ${i}:`, error);
               toast.warning(`Could not auto-fix citations for "${article.headline}" - ${error.message || 'try manually clicking "Find Sources"'}`);
-              // Continue to next article instead of stopping
               continue;
             } else if (data?.citations && data.citations.length > 0) {
+              // ✅ AGGRESSIVE FILTERING: Only keep HIGH authority citations (70+)
+              const highAuthorityCitations = data.citations.filter((cit: any) => 
+                cit.authorityScore >= 70 && // High tier only
+                cit.verified !== false // Must be accessible
+              );
+              
+              // Sort by authority score (highest first)
+              highAuthorityCitations.sort((a: any, b: any) => b.authorityScore - a.authorityScore);
+              
+              // Take top citations based on funnel stage
+              const targetCount = article.funnel_stage === 'BOFU' ? 6 : 5;
+              const topCitations = highAuthorityCitations.slice(0, targetCount);
+              
+              if (topCitations.length === 0) {
+                toast.warning(`No high-authority citations found for "${article.headline}" (needed score 70+)`);
+                continue;
+              }
+              
               const existingCitations = article.external_citations || [];
-              const newCitations = data.citations.filter((newCit: any) => 
+              const newCitations = topCitations.filter((newCit: any) => 
                 !existingCitations.some((existing: any) => existing.url === newCit.url)
               );
               const mergedCitations = [...existingCitations, ...newCitations];
               
               updateArticle(i, { external_citations: mergedCitations });
-              console.log(`✅ Added ${newCitations.length} new external citations to article ${i + 1}`);
-              toast.success(`Added ${newCitations.length} citations to "${article.headline}"`);
+              
+              const avgScore = Math.round(topCitations.reduce((sum: number, c: any) => sum + c.authorityScore, 0) / topCitations.length);
+              console.log(`✅ Added ${newCitations.length} HIGH-AUTHORITY citations (avg score: ${avgScore}/100) to article ${i + 1}`);
+              toast.success(`Added ${newCitations.length} HIGH-AUTHORITY citations to "${article.headline}" (avg: ${avgScore}/100)`, {
+                duration: 4000
+              });
               fixedArticlesCount++;
             } else {
               toast.warning(`No citations found for "${article.headline}"`);
@@ -440,7 +465,6 @@ export const ClusterReviewInterface = ({
           } catch (error) {
             console.error(`Error fixing external citations for article ${i}:`, error);
             toast.warning(`Could not auto-fix citations for "${article.headline}" - unexpected error`);
-            // Continue to next article
             continue;
           }
         }
