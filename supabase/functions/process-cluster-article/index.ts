@@ -268,10 +268,9 @@ Return JSON array: [{"question": "...", "answer": "..."}]`;
             plan.headline,
             language,
             article.detailed_content.substring(0, 2000), // Preview
-            PERPLEXITY_API_KEY,
-            Math.min(citationMarkers.length, 8), // Max 8 citations
-            plan.funnelStage,
-            job.topic
+            Math.min(citationMarkers.length, 8), // targetCount: Max 8 citations
+            PERPLEXITY_API_KEY, // perplexityApiKey: Authentication
+            job.topic // focusArea: Regional/topic focus for domain selection
           );
           
           if (citations && citations.length > 0) {
