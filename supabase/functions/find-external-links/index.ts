@@ -144,11 +144,11 @@ serve(async (req) => {
     } = await req.json();
     
     // Dynamic authority score threshold based on funnel stage
-    // TOFU: 40+ (accepts basic tourism sources, regional news, travel blogs)
-    // MOFU: 50+ (accepts established regional news like SUR, Euro Weekly News)
-    // BOFU: 60+ (requires high authority sources for conversion content)
-    const defaultMinScores = { TOFU: 40, MOFU: 50, BOFU: 60 };
-    const effectiveMinScore = minAuthorityScore ?? defaultMinScores[funnelStage as keyof typeof defaultMinScores] ?? 40;
+    // TOFU: 35+ (accepts regional news, tourism sources, travel blogs)
+    // MOFU: 45+ (accepts established regional news like SUR, Euro Weekly News)
+    // BOFU: 55+ (requires high authority sources for conversion content)
+    const defaultMinScores = { TOFU: 35, MOFU: 45, BOFU: 55 };
+    const effectiveMinScore = minAuthorityScore ?? defaultMinScores[funnelStage as keyof typeof defaultMinScores] ?? 35;
     
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
@@ -297,6 +297,7 @@ Return only the JSON array, nothing else.`;
     // ✅ ENHANCED AUTHORITY SCORING (0-100 scale) - Prioritize high-quality sources
     const citationsWithScores = validCitations.map((citation: any) => {
       let authorityScore = 30; // Higher baseline for verified sources
+      const urlLower = citation.url.toLowerCase();
       
       // Government/official sources (highest authority) +40 points
       if (isGovernmentDomain(citation.url)) authorityScore += 40;
@@ -307,7 +308,24 @@ Return only the JSON array, nothing else.`;
       
       // Top-tier official sources +20 points
       const topTier = ['boe.es', 'registradores', 'notariado', 'europa.eu', 'gov.uk', 'juntadeandalucia.es', 'ine.es', 'bde.es'];
-      if (topTier.some(domain => citation.url.toLowerCase().includes(domain))) authorityScore += 20;
+      if (topTier.some(domain => urlLower.includes(domain))) authorityScore += 20;
+      
+      // Regional news sources (Costa del Sol focus) +15 points
+      const regionalNews = [
+        'euroweeklynews.com', 'surinenglish.com', 'theolivepress.es',
+        'costadelsol.news', 'andalucia.com', 'malagahoy.es',
+        'diariosur.es', 'laopiniondemalaga.es', 'malagaes.com'
+      ];
+      if (regionalNews.some(domain => urlLower.includes(domain))) {
+        authorityScore += 15;
+        console.log(`✨ Regional news boost: ${citation.sourceName} (+15)`);
+      }
+      
+      // Tourism authorities +10 points
+      if (urlLower.includes('turismo') || urlLower.includes('tourism') || urlLower.includes('tourist')) {
+        authorityScore += 10;
+        console.log(`🏖️ Tourism authority boost: ${citation.sourceName} (+10)`);
+      }
       
       // Source name credibility
       const sourceLower = citation.sourceName.toLowerCase();
@@ -323,10 +341,17 @@ Return only the JSON array, nothing else.`;
     });
 
     // ✅ AGGRESSIVE FILTERING: Apply minimum authority score (now dynamic by funnel stage)
+    console.log(`\n📊 Authority Score Breakdown (${funnelStage} threshold: ${effectiveMinScore}):`);
+    citationsWithScores.forEach((c: any) => {
+      const passSymbol = c.authorityScore >= effectiveMinScore ? '✅' : '❌';
+      const reason = c.authorityScore < effectiveMinScore ? ` (Below ${funnelStage} threshold)` : ' (Passes threshold)';
+      console.log(`  ${passSymbol} ${c.sourceName}: ${c.authorityScore}/100 (${c.authorityTier})${reason}`);
+    });
+    
     let filteredCitations = citationsWithScores;
     if (effectiveMinScore > 0) {
       filteredCitations = citationsWithScores.filter(c => c.authorityScore >= effectiveMinScore);
-      console.log(`🎯 Filtered to ${filteredCitations.length}/${citationsWithScores.length} citations with score >= ${effectiveMinScore} (${funnelStage} threshold)`);
+      console.log(`\n🎯 Filtered to ${filteredCitations.length}/${citationsWithScores.length} citations with score >= ${effectiveMinScore} (${funnelStage} threshold)`);
     }
 
     // ✅ PRIORITIZE GOVERNMENT SOURCES if required
