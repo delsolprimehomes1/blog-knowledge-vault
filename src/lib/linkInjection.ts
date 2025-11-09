@@ -290,7 +290,7 @@ export const injectInlineCitations = (
       const alreadyHasCitation = 
         paragraphContent.includes(`According to ${citation.source}`) ||
         paragraphContent.includes(`${citation.source} (${citationYear})`) ||
-        /According to [^<]+<a[^>]*class="inline-citation"/.test(paragraphContent);
+        /According to [^<]*<a[^>]*class="inline-citation"/.test(paragraphContent);
       
       if (alreadyHasCitation) {
         console.log(`  ⏭️ Skipping paragraph ${idx + 1} - already has citation`);

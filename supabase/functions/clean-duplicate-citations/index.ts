@@ -47,15 +47,24 @@ serve(async (req) => {
       try {
         let content = article.detailed_content;
         let issuesFound = [];
+        let totalCitationsRemoved = 0;
         
         // Check for code fence artifacts
         const hasCodeFences = /^['`]{3,}html\s*/i.test(content) || /['`]{3,}\s*$/i.test(content);
+        
+        // Check for embedded HTML citations
+        const htmlCitationPattern = /According to <a[^>]+>([^<]+)<\/a> \(\d{4}\),\s*/gi;
+        const hasHtmlCitations = htmlCitationPattern.test(content);
+        
+        // Check for plain text citations
+        const plainCitationPattern = /According to ([^(]+)\(\d{4}\),\s*/g;
+        const hasPlainCitations = plainCitationPattern.test(content);
         
         // Check for duplicate "According to" patterns
         const duplicatePattern = /(According to [^(]+\([0-9]{4}\),\s*){2,}/g;
         const hasDuplicates = duplicatePattern.test(content);
 
-        if (!hasCodeFences && !hasDuplicates) {
+        if (!hasCodeFences && !hasHtmlCitations && !hasPlainCitations && !hasDuplicates) {
           console.log(`⏭️  Skipping ${article.slug} - no issues found`);
           skippedCount++;
           results.push({
@@ -79,19 +88,31 @@ serve(async (req) => {
           console.log(`  ✓ Removed code fences from ${article.slug}`);
         }
 
-        // 2. Remove duplicate "According to" phrases, keeping only the first occurrence
+        // 2. Remove embedded HTML citations
+        const htmlCitationsCount = (cleanedContent.match(htmlCitationPattern) || []).length;
+        if (hasHtmlCitations) {
+          cleanedContent = cleanedContent.replace(htmlCitationPattern, '');
+          issuesFound.push(`${htmlCitationsCount}_html_citations`);
+          totalCitationsRemoved += htmlCitationsCount;
+          console.log(`  ✓ Removed ${htmlCitationsCount} HTML citations from ${article.slug}`);
+        }
+
+        // 3. Remove plain text citations
+        const plainCitationsCount = (cleanedContent.match(plainCitationPattern) || []).length;
+        if (hasPlainCitations) {
+          cleanedContent = cleanedContent.replace(plainCitationPattern, '');
+          issuesFound.push(`${plainCitationsCount}_plain_citations`);
+          totalCitationsRemoved += plainCitationsCount;
+          console.log(`  ✓ Removed ${plainCitationsCount} plain text citations from ${article.slug}`);
+        }
+
+        // 4. Remove any remaining duplicate patterns
         const duplicatesRemoved = (cleanedContent.match(duplicatePattern) || []).length;
         if (hasDuplicates) {
-          cleanedContent = cleanedContent.replace(
-            duplicatePattern,
-            (match: string) => {
-              // Extract just the first occurrence
-              const firstOccurrence = match.match(/According to [^(]+\([0-9]{4}\),\s*/)?.[0];
-              return firstOccurrence || match;
-            }
-          );
+          cleanedContent = cleanedContent.replace(duplicatePattern, '');
           issuesFound.push(`${duplicatesRemoved}_duplicates`);
-          console.log(`  ✓ Removed ${duplicatesRemoved} duplicate citations from ${article.slug}`);
+          totalCitationsRemoved += duplicatesRemoved;
+          console.log(`  ✓ Removed ${duplicatesRemoved} duplicate citation patterns from ${article.slug}`);
         }
 
         if (!dryRun) {
@@ -117,7 +138,7 @@ serve(async (req) => {
         }
 
         processedCount++;
-        fixedDuplicatesCount += duplicatesRemoved;
+        fixedDuplicatesCount += totalCitationsRemoved;
         
         console.log(`✓ ${dryRun ? '[DRY RUN] ' : ''}Cleaned ${article.slug}: ${issuesFound.join(', ')} fixed`);
         
@@ -126,8 +147,10 @@ serve(async (req) => {
           headline: article.headline,
           status: 'success',
           issuesFixed: issuesFound,
-          duplicatesRemoved,
-          hadCodeFences: hasCodeFences
+          totalCitationsRemoved,
+          hadCodeFences: hasCodeFences,
+          hadHtmlCitations: hasHtmlCitations,
+          hadPlainCitations: hasPlainCitations
         });
 
       } catch (articleError) {
