@@ -440,6 +440,11 @@ const ArticleEditor = () => {
       // Pre-render inline citations into content for crawlability (Phase 2)
       const contentWithCitations = injectInlineCitations(detailedContent, externalCitations);
 
+      // Auto-set reviewer to author when publishing if not set
+      const effectiveReviewerId = publishStatus === 'published' && !reviewerId 
+        ? authorId
+        : reviewerId;
+
       const articleData = {
         headline,
         slug,
@@ -460,7 +465,7 @@ const ArticleEditor = () => {
         diagram_caption: diagramCaption || null,
         diagram_description: diagramDescription || null,
         author_id: authorId || null,
-        reviewer_id: reviewerId || null,
+        reviewer_id: effectiveReviewerId || null,
         internal_links: internalLinks as any,
         external_citations: externalCitations as any,
         related_article_ids: relatedArticleIds,
