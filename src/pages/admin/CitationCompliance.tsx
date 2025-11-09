@@ -39,6 +39,8 @@ const CitationCompliance = () => {
   const [backfillResult, setBackfillResult] = useState<any>(null);
   const [isPrerendering, setIsPrerendering] = useState(false);
   const [prerenderResult, setPrerenderResult] = useState<any>(null);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<any>(null);
 
   // Fetch citation statistics
   const { data: stats, isLoading, refetch } = useQuery({
@@ -160,6 +162,45 @@ const CitationCompliance = () => {
     prerenderMutation.mutate(dryRun);
   };
 
+  // Clean duplicate citations mutation
+  const cleanupMutation = useMutation({
+    mutationFn: async (dryRun: boolean) => {
+      setIsCleaning(true);
+      const { data, error } = await supabase.functions.invoke("clean-duplicate-citations", {
+        body: { dryRun },
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setCleanupResult(data);
+      if (!data.dryRun) {
+        toast.success(`✅ Cleaned ${data.totalDuplicatesRemoved} duplicate citations from ${data.processedArticles} articles`);
+        refetch();
+      } else {
+        toast.info(`Preview: Would clean ${data.totalDuplicatesRemoved} duplicates from ${data.processedArticles} articles`);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(`Failed: ${error.message}`);
+      console.error(error);
+    },
+    onSettled: () => {
+      setIsCleaning(false);
+    },
+  });
+
+  const handleCleanup = (dryRun: boolean) => {
+    if (!dryRun) {
+      const confirmed = confirm(
+        "This will remove duplicate 'According to' citations from all published articles. Original content will be backed up to article_revisions. Continue?"
+      );
+      if (!confirmed) return;
+    }
+    cleanupMutation.mutate(dryRun);
+  };
+
   const compliancePercentage = stats
     ? Math.round((stats.citationsWithYear / stats.totalCitations) * 100)
     : 0;
@@ -246,6 +287,10 @@ const CitationCompliance = () => {
               <TrendingUp className="h-4 w-4 mr-2" />
               Enhance Citations
             </TabsTrigger>
+            <TabsTrigger value="cleanup">
+              <XCircle className="h-4 w-4 mr-2" />
+              Clean Duplicates
+            </TabsTrigger>
             <TabsTrigger value="prerender">
               <Download className="h-4 w-4 mr-2" />
               Pre-render Citations
@@ -266,6 +311,107 @@ const CitationCompliance = () => {
 
           <TabsContent value="enhance" className="space-y-4">
             <CitationEnhancementPanel />
+          </TabsContent>
+
+          <TabsContent value="cleanup" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Clean Duplicate Citations</CardTitle>
+                <CardDescription>
+                  Remove duplicate "According to Source (Year), According to Source (Year)," patterns from articles
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-semibold">🔍 Duplicate Citation Detection</p>
+                      <p>This tool scans all published articles for duplicate inline citations that make content look less credible.</p>
+                      <p className="mt-2">Example issue:</p>
+                      <code className="block bg-muted p-2 rounded text-sm mt-1">
+                        "According to The Olive Press (2025), According to The Olive Press (2025), ..."
+                      </code>
+                      <p className="mt-2">The tool will:</p>
+                      <ol className="list-decimal list-inside space-y-1 mt-2">
+                        <li>Scan all published articles for duplicate citations</li>
+                        <li>Keep only the first occurrence of each citation</li>
+                        <li>Backup original content to article_revisions (can rollback)</li>
+                        <li>Update date_modified timestamp</li>
+                      </ol>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleCleanup(true)}
+                    disabled={isCleaning}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Preview Changes (Dry Run)
+                  </Button>
+                  <Button
+                    onClick={() => handleCleanup(false)}
+                    disabled={isCleaning}
+                    variant="destructive"
+                  >
+                    {isCleaning ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Clean All Duplicates
+                  </Button>
+                </div>
+
+                {cleanupResult && (
+                  <Alert className="mt-4">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="font-semibold mb-2">
+                        {cleanupResult.dryRun ? '📋 Dry Run Results' : '✅ Cleanup Complete'}
+                      </div>
+                      <div className="text-sm space-y-1">
+                        <p>• Total articles scanned: {cleanupResult.totalArticles}</p>
+                        <p>• Articles with duplicates: {cleanupResult.processedArticles}</p>
+                        <p>• Articles skipped (clean): {cleanupResult.skippedArticles}</p>
+                        <p className="font-semibold text-green-600">• Total duplicates removed: {cleanupResult.totalDuplicatesRemoved}</p>
+                        {cleanupResult.errors > 0 && (
+                          <p className="text-red-600">• Errors: {cleanupResult.errors}</p>
+                        )}
+                      </div>
+                      {cleanupResult.results && cleanupResult.results.length > 0 && (
+                        <div className="mt-3 text-xs max-h-48 overflow-y-auto">
+                          <p className="font-semibold mb-1">Affected articles:</p>
+                          <ul className="space-y-1">
+                            {cleanupResult.results
+                              .filter((r: any) => r.status === 'success')
+                              .map((result: any, i: number) => (
+                                <li key={i} className="flex items-center gap-2">
+                                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                  <span>{result.slug}: {result.duplicatesRemoved} duplicate(s) removed</span>
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      )}
+                      {!cleanupResult.dryRun && cleanupResult.processedArticles > 0 && (
+                        <div className="mt-3 p-2 bg-blue-50 rounded text-sm">
+                          <p className="font-semibold text-blue-900">🚀 Next Steps:</p>
+                          <ol className="list-decimal list-inside space-y-1 text-blue-800 mt-1">
+                            <li>Trigger production rebuild to update static pages</li>
+                            <li>Verify citations in a few sample articles</li>
+                            <li>Check that content looks more credible</li>
+                          </ol>
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="prerender" className="space-y-4">

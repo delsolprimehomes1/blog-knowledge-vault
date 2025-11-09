@@ -286,6 +286,17 @@ export const injectInlineCitations = (
       // Skip paragraphs that already have a citation or are too short
       if (usedCitations.has(paragraph[0]) || textOnly.length < 50) return;
       
+      // Check if this paragraph already has an inline citation (prevent duplicates)
+      const alreadyHasCitation = 
+        paragraphContent.includes(`According to ${citation.source}`) ||
+        paragraphContent.includes(`${citation.source} (${citationYear})`) ||
+        /According to [^<]+<a[^>]*class="inline-citation"/.test(paragraphContent);
+      
+      if (alreadyHasCitation) {
+        console.log(`  ⏭️ Skipping paragraph ${idx + 1} - already has citation`);
+        return;
+      }
+      
       // Calculate relevance score
       let score = 0;
       citationKeywords.forEach(kw => {
