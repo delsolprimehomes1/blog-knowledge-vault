@@ -139,9 +139,16 @@ serve(async (req) => {
       requireGovernmentSource = false,
       funnelStage = 'MOFU',
       speakableContext, // NEW: JSON-LD speakable answer for better relevance
-      minAuthorityScore = 0, // NEW: Minimum authority score filter (0-100)
+      minAuthorityScore, // Will be set dynamically based on funnel stage if not provided
       focusArea // Regional focus
     } = await req.json();
+    
+    // Dynamic authority score threshold based on funnel stage
+    // TOFU: 50+ (accepts medium-tier tourism sources like spain.info, andalucia.com)
+    // MOFU: 60+ (higher standards for consideration stage)
+    // BOFU: 70+ (requires high authority for conversion content)
+    const defaultMinScores = { TOFU: 50, MOFU: 60, BOFU: 70 };
+    const effectiveMinScore = minAuthorityScore ?? defaultMinScores[funnelStage as keyof typeof defaultMinScores] ?? 50;
     
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
@@ -315,11 +322,11 @@ Return only the JSON array, nothing else.`;
       };
     });
 
-    // ✅ AGGRESSIVE FILTERING: Apply minimum authority score if specified
+    // ✅ AGGRESSIVE FILTERING: Apply minimum authority score (now dynamic by funnel stage)
     let filteredCitations = citationsWithScores;
-    if (minAuthorityScore > 0) {
-      filteredCitations = citationsWithScores.filter(c => c.authorityScore >= minAuthorityScore);
-      console.log(`🎯 Filtered to ${filteredCitations.length}/${citationsWithScores.length} citations with score >= ${minAuthorityScore}`);
+    if (effectiveMinScore > 0) {
+      filteredCitations = citationsWithScores.filter(c => c.authorityScore >= effectiveMinScore);
+      console.log(`🎯 Filtered to ${filteredCitations.length}/${citationsWithScores.length} citations with score >= ${effectiveMinScore} (${funnelStage} threshold)`);
     }
 
     // ✅ PRIORITIZE GOVERNMENT SOURCES if required
@@ -339,7 +346,7 @@ Return only the JSON array, nothing else.`;
 
     // If we have some high-quality citations, use them
     // Fallback logic only if minimum authority allows it
-    if (filteredCitations.length < 2 && minAuthorityScore === 0) {
+    if (filteredCitations.length < 2 && effectiveMinScore === 0) {
       console.warn(`⚠️ Only found ${filteredCitations.length} citations (target: 2+)`);
       
       // Get unverified citations from approved domains as fallback
@@ -364,8 +371,8 @@ Return only the JSON array, nothing else.`;
 
     // Only throw error if we have absolutely no citations (or none meeting min score)
     if (filteredCitations.length === 0) {
-      const reason = minAuthorityScore > 0 
-        ? `No citations found with authority score >= ${minAuthorityScore}`
+      const reason = effectiveMinScore > 0 
+        ? `No citations found with authority score >= ${effectiveMinScore} (${funnelStage} threshold)`
         : 'Could not find any citations from approved domains';
       console.error(`❌ ${reason}`);
       throw new Error(reason);
@@ -389,7 +396,7 @@ Return only the JSON array, nothing else.`;
         totalVerified: filteredCitations.length,
         hasGovernmentSource: hasGovSource,
         averageAuthorityScore: Math.round(filteredCitations.reduce((acc: number, c: any) => acc + c.authorityScore, 0) / filteredCitations.length),
-        minAuthorityScore: minAuthorityScore,
+        minAuthorityScore: effectiveMinScore,
         highTierCount: filteredCitations.filter(c => c.authorityScore >= 70).length,
         // New batch system metadata
         category: result.category,

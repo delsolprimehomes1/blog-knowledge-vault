@@ -92,10 +92,10 @@ async function selectPriorityDomains(language: string, focusArea?: string): Prom
   // 3. Add legal sources (critical for property content)
   priorities.push(...APPROVED_DOMAINS.legal_professional.slice(0, 3));
   
-  // 4. Fill remaining slots with finance/economy sources
+  // 4. Fill remaining slots with banking/finance sources
   const remaining = 20 - priorities.length;
   if (remaining > 0) {
-    priorities.push(...APPROVED_DOMAINS.finance.slice(0, remaining));
+    priorities.push(...APPROVED_DOMAINS.banking.slice(0, remaining));
   }
   
   // Remove duplicates and enforce 20-domain limit
