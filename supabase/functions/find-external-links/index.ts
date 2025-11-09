@@ -144,11 +144,11 @@ serve(async (req) => {
     } = await req.json();
     
     // Dynamic authority score threshold based on funnel stage
-    // TOFU: 50+ (accepts medium-tier tourism sources like spain.info, andalucia.com)
-    // MOFU: 60+ (higher standards for consideration stage)
-    // BOFU: 70+ (requires high authority for conversion content)
-    const defaultMinScores = { TOFU: 50, MOFU: 60, BOFU: 70 };
-    const effectiveMinScore = minAuthorityScore ?? defaultMinScores[funnelStage as keyof typeof defaultMinScores] ?? 50;
+    // TOFU: 40+ (accepts basic tourism sources, regional news, travel blogs)
+    // MOFU: 50+ (accepts established regional news like SUR, Euro Weekly News)
+    // BOFU: 60+ (requires high authority sources for conversion content)
+    const defaultMinScores = { TOFU: 40, MOFU: 50, BOFU: 60 };
+    const effectiveMinScore = minAuthorityScore ?? defaultMinScores[funnelStage as keyof typeof defaultMinScores] ?? 40;
     
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
