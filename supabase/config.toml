@@ -187,3 +187,6 @@ verify_jwt = false
 
 [functions.cleanup-stale-citation-alerts]
 verify_jwt = false
+
+[functions.get-domain-count]
+verify_jwt = false

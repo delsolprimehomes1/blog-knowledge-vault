@@ -9,6 +9,8 @@ import { ExternalLinkFinder } from "@/components/ExternalLinkFinder";
 import { BetterCitationFinder } from "@/components/admin/BetterCitationFinder";
 import { validateCitationCompliance, type CitationComplianceResult } from "@/lib/citationComplianceChecker";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ExternalCitationsSectionProps {
   citations: ExternalCitation[];
@@ -29,6 +31,17 @@ export const ExternalCitationsSection = ({
 }: ExternalCitationsSectionProps) => {
   const [validationResults, setValidationResults] = useState<Record<string, CitationComplianceResult>>({});
   const [isValidating, setIsValidating] = useState<Record<number, boolean>>({});
+
+  // Fetch dynamic domain count
+  const { data: domainData } = useQuery({
+    queryKey: ['approved-domains-count'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('get-domain-count');
+      if (error) throw error;
+      return data as { count: number; categories: number };
+    },
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour
+  });
 
   const addCitation = () => {
     onCitationsChange([...citations, { text: "", url: "", source: "", year: new Date().getFullYear() }]);
@@ -286,7 +299,10 @@ export const ExternalCitationsSection = ({
             Approved Domains Only
           </p>
           <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-            Only citations from our 241 approved domains are allowed. Non-approved domains will be automatically blocked.
+            {domainData 
+              ? `Only citations from our ${domainData.count} approved domains across ${domainData.categories} categories are allowed. Non-approved domains will be automatically blocked.`
+              : 'Only citations from our approved domains are allowed. Non-approved domains will be automatically blocked.'
+            }
           </p>
         </div>
 
