@@ -318,51 +318,61 @@ const CitationCompliance = () => {
               <CardHeader>
                 <CardTitle>Clean Duplicate Citations</CardTitle>
                 <CardDescription>
-                  Remove duplicate "According to Source (Year), According to Source (Year)," patterns from articles
+                  Automatically remove duplicate "According to Source (Year)" citations from all published articles
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Alert>
+                <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     <div className="space-y-2">
-                      <p className="font-semibold">🔍 Duplicate Citation Detection</p>
-                      <p>This tool scans all published articles for duplicate inline citations that make content look less credible.</p>
+                      <p className="font-semibold text-lg">⚠️ Duplicate Citations Found</p>
+                      <p className="text-base">
+                        Multiple articles contain duplicate inline citations that reduce credibility and harm SEO.
+                      </p>
                       <p className="mt-2">Example issue:</p>
-                      <code className="block bg-muted p-2 rounded text-sm mt-1">
+                      <code className="block bg-background/50 p-3 rounded text-sm mt-1 border">
                         "According to The Olive Press (2025), According to The Olive Press (2025), ..."
                       </code>
-                      <p className="mt-2">The tool will:</p>
+                      <p className="mt-3 font-semibold">What this tool does:</p>
                       <ol className="list-decimal list-inside space-y-1 mt-2">
-                        <li>Scan all published articles for duplicate citations</li>
-                        <li>Keep only the first occurrence of each citation</li>
-                        <li>Backup original content to article_revisions (can rollback)</li>
-                        <li>Update date_modified timestamp</li>
+                        <li>Scans all {stats?.totalArticles || 0} published articles</li>
+                        <li>Detects and removes duplicate citation patterns</li>
+                        <li>Keeps only the first occurrence of each citation</li>
+                        <li>Backs up original content (can rollback if needed)</li>
+                        <li>Updates timestamps for rebuild</li>
                       </ol>
                     </div>
                   </AlertDescription>
                 </Alert>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col gap-3 pt-4">
+                  <Button
+                    size="lg"
+                    onClick={() => handleCleanup(false)}
+                    disabled={isCleaning}
+                    className="w-full h-14 text-lg"
+                  >
+                    {isCleaning ? (
+                      <>
+                        <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                        Cleaning {stats?.totalArticles || 0} Articles...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-5 w-5 mr-2" />
+                        Auto-Fix All {stats?.totalArticles || 0} Articles Now
+                      </>
+                    )}
+                  </Button>
+                  
                   <Button
                     variant="outline"
                     onClick={() => handleCleanup(true)}
                     disabled={isCleaning}
                   >
                     <FileText className="h-4 w-4 mr-2" />
-                    Preview Changes (Dry Run)
-                  </Button>
-                  <Button
-                    onClick={() => handleCleanup(false)}
-                    disabled={isCleaning}
-                    variant="destructive"
-                  >
-                    {isCleaning ? (
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <XCircle className="h-4 w-4 mr-2" />
-                    )}
-                    Clean All Duplicates
+                    Preview Changes First (Dry Run)
                   </Button>
                 </div>
 
