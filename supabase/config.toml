@@ -145,6 +145,10 @@ verify_jwt = false
 verify_jwt = false
 timeout = 120
 
+[functions.backfill-orphaned-related-articles]
+verify_jwt = false
+timeout = 120
+
 [functions.backfill-diagrams]
 verify_jwt = false
 timeout = 300
