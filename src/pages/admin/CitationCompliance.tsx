@@ -326,18 +326,26 @@ const CitationCompliance = () => {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     <div className="space-y-2">
-                      <p className="font-semibold text-lg">⚠️ Duplicate Citations Found</p>
+                      <p className="font-semibold text-lg">⚠️ Content Issues Detected</p>
                       <p className="text-base">
-                        Multiple articles contain duplicate inline citations that reduce credibility and harm SEO.
+                        Multiple articles contain formatting artifacts and duplicate citations that harm credibility and SEO.
                       </p>
-                      <p className="mt-2">Example issue:</p>
-                      <code className="block bg-background/50 p-3 rounded text-sm mt-1 border">
-                        "According to The Olive Press (2025), According to The Olive Press (2025), ..."
-                      </code>
+                      <div className="mt-3 space-y-2">
+                        <p className="font-semibold">Issues found:</p>
+                        <div className="space-y-1">
+                          <code className="block bg-background/50 p-2 rounded text-xs border">
+                            1. Code fences: '''html at start of articles
+                          </code>
+                          <code className="block bg-background/50 p-2 rounded text-xs border">
+                            2. Duplicates: "According to Source (2025), According to Source (2025)"
+                          </code>
+                        </div>
+                      </div>
                       <p className="mt-3 font-semibold">What this tool does:</p>
-                      <ol className="list-decimal list-inside space-y-1 mt-2">
+                      <ol className="list-decimal list-inside space-y-1 mt-2 text-sm">
                         <li>Scans all {stats?.totalArticles || 0} published articles</li>
-                        <li>Detects and removes duplicate citation patterns</li>
+                        <li>Removes '''html and ```html code fence artifacts</li>
+                        <li>Removes duplicate citation patterns</li>
                         <li>Keeps only the first occurrence of each citation</li>
                         <li>Backs up original content (can rollback if needed)</li>
                         <li>Updates timestamps for rebuild</li>
@@ -356,12 +364,12 @@ const CitationCompliance = () => {
                     {isCleaning ? (
                       <>
                         <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
-                        Cleaning {stats?.totalArticles || 0} Articles...
+                        Fixing Content Issues in {stats?.totalArticles || 0} Articles...
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="h-5 w-5 mr-2" />
-                        Auto-Fix All {stats?.totalArticles || 0} Articles Now
+                        Fix All Content Issues ({stats?.totalArticles || 0} Articles)
                       </>
                     )}
                   </Button>
@@ -381,13 +389,14 @@ const CitationCompliance = () => {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>
                       <div className="font-semibold mb-2">
-                        {cleanupResult.dryRun ? '📋 Dry Run Results' : '✅ Cleanup Complete'}
+                        {cleanupResult.dryRun ? '📋 Dry Run Results' : '✅ Content Issues Fixed'}
                       </div>
                       <div className="text-sm space-y-1">
                         <p>• Total articles scanned: {cleanupResult.totalArticles}</p>
-                        <p>• Articles with duplicates: {cleanupResult.processedArticles}</p>
+                        <p>• Articles fixed: {cleanupResult.processedArticles}</p>
+                        <p>• Code fences removed: {cleanupResult.results?.filter((r: any) => r.hadCodeFences).length || 0} articles</p>
+                        <p>• Duplicate citations removed: {cleanupResult.totalDuplicatesRemoved} instances</p>
                         <p>• Articles skipped (clean): {cleanupResult.skippedArticles}</p>
-                        <p className="font-semibold text-green-600">• Total duplicates removed: {cleanupResult.totalDuplicatesRemoved}</p>
                         {cleanupResult.errors > 0 && (
                           <p className="text-red-600">• Errors: {cleanupResult.errors}</p>
                         )}
@@ -399,10 +408,15 @@ const CitationCompliance = () => {
                             {cleanupResult.results
                               .filter((r: any) => r.status === 'success')
                               .map((result: any, i: number) => (
-                                <li key={i} className="flex items-center gap-2">
-                                  <CheckCircle2 className="h-3 w-3 text-green-600" />
-                                  <span>{result.slug}: {result.duplicatesRemoved} duplicate(s) removed</span>
-                                </li>
+                                 <li key={i} className="flex items-center gap-2">
+                                   <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                   <span>
+                                     {result.slug}: 
+                                     {result.hadCodeFences && ' code fences removed'}
+                                     {result.hadCodeFences && result.duplicatesRemoved > 0 && ', '}
+                                     {result.duplicatesRemoved > 0 && `${result.duplicatesRemoved} duplicate(s) removed`}
+                                   </span>
+                                 </li>
                               ))}
                           </ul>
                         </div>

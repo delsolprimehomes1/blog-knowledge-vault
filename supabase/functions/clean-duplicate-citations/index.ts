@@ -45,37 +45,54 @@ serve(async (req) => {
 
     for (const article of articles || []) {
       try {
-        const content = article.detailed_content;
+        let content = article.detailed_content;
+        let issuesFound = [];
         
-        // Regex to find duplicate "According to" patterns
-        // Matches: "According to Source (Year), According to Source (Year),"
+        // Check for code fence artifacts
+        const hasCodeFences = /^['`]{3,}html\s*/i.test(content) || /['`]{3,}\s*$/i.test(content);
+        
+        // Check for duplicate "According to" patterns
         const duplicatePattern = /(According to [^(]+\([0-9]{4}\),\s*){2,}/g;
         const hasDuplicates = duplicatePattern.test(content);
 
-        if (!hasDuplicates) {
-          console.log(`⏭️  Skipping ${article.slug} - no duplicates found`);
+        if (!hasCodeFences && !hasDuplicates) {
+          console.log(`⏭️  Skipping ${article.slug} - no issues found`);
           skippedCount++;
           results.push({
             slug: article.slug,
             status: 'skipped',
-            reason: 'No duplicate citations found'
+            reason: 'No issues found'
           });
           continue;
         }
 
-        console.log(`Found duplicates in ${article.slug}, cleaning...`);
+        console.log(`Found issues in ${article.slug}, cleaning...`);
 
-        // Remove duplicate "According to" phrases, keeping only the first occurrence
-        let cleanedContent = content.replace(
-          duplicatePattern,
-          (match: string) => {
-            // Extract just the first occurrence
-            const firstOccurrence = match.match(/According to [^(]+\([0-9]{4}\),\s*/)?.[0];
-            return firstOccurrence || match;
-          }
-        );
+        // Start with original content
+        let cleanedContent = content;
+        
+        // 1. Remove code fence artifacts at start and end
+        if (hasCodeFences) {
+          cleanedContent = cleanedContent.replace(/^['`]{3,}html\s*/i, '');
+          cleanedContent = cleanedContent.replace(/['`]{3,}\s*$/i, '');
+          issuesFound.push('code_fences');
+          console.log(`  ✓ Removed code fences from ${article.slug}`);
+        }
 
-        const duplicatesRemoved = (content.match(duplicatePattern) || []).length;
+        // 2. Remove duplicate "According to" phrases, keeping only the first occurrence
+        const duplicatesRemoved = (cleanedContent.match(duplicatePattern) || []).length;
+        if (hasDuplicates) {
+          cleanedContent = cleanedContent.replace(
+            duplicatePattern,
+            (match: string) => {
+              // Extract just the first occurrence
+              const firstOccurrence = match.match(/According to [^(]+\([0-9]{4}\),\s*/)?.[0];
+              return firstOccurrence || match;
+            }
+          );
+          issuesFound.push(`${duplicatesRemoved}_duplicates`);
+          console.log(`  ✓ Removed ${duplicatesRemoved} duplicate citations from ${article.slug}`);
+        }
 
         if (!dryRun) {
           // Create revision before updating
@@ -102,13 +119,15 @@ serve(async (req) => {
         processedCount++;
         fixedDuplicatesCount += duplicatesRemoved;
         
-        console.log(`✓ ${dryRun ? '[DRY RUN] ' : ''}Cleaned ${article.slug}: ${duplicatesRemoved} duplicate citations removed`);
+        console.log(`✓ ${dryRun ? '[DRY RUN] ' : ''}Cleaned ${article.slug}: ${issuesFound.join(', ')} fixed`);
         
         results.push({
           slug: article.slug,
           headline: article.headline,
           status: 'success',
-          duplicatesRemoved
+          issuesFixed: issuesFound,
+          duplicatesRemoved,
+          hadCodeFences: hasCodeFences
         });
 
       } catch (articleError) {
