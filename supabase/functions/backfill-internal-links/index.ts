@@ -71,20 +71,28 @@ serve(async (req) => {
         try {
           console.log(`  📝 Finding links for: "${article.headline}" (${article.language})`);
 
-          // Call find-internal-links edge function
-          const { data: linksData, error: linksError } = await supabase.functions.invoke('find-internal-links', {
-            body: {
+          // Call find-internal-links edge function using direct HTTP fetch
+          const response = await fetch(`${supabaseUrl}/functions/v1/find-internal-links`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
               content: article.detailed_content || '',
               headline: article.headline,
               currentArticleId: article.id,
               language: article.language,
               funnelStage: article.funnel_stage
-            }
+            })
           });
 
-          if (linksError) {
-            throw new Error(`find-internal-links failed: ${linksError.message}`);
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`find-internal-links failed: ${response.status} ${errorText}`);
           }
+
+          const linksData = await response.json();
 
           if (linksData?.links && linksData.links.length > 0) {
             // Convert suggested links to internal_links format
