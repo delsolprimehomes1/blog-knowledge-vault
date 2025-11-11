@@ -61,6 +61,20 @@ export default function FAQBackfill() {
     },
   });
 
+  // Fetch total published articles count
+  const { data: totalPublished } = useQuery({
+    queryKey: ["total-published-articles"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("blog_articles")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "published");
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
   const handleGenerateFAQs = async () => {
     if (!articlesNeedingFAQs || articlesNeedingFAQs.length === 0) {
       toast.info("All articles already have FAQs!");
@@ -170,8 +184,8 @@ export default function FAQBackfill() {
                     </span>
                   </div>
                   <div className="text-3xl font-bold text-green-600">
-                    {articlesNeedingFAQs ? (
-                      <>{100 - articlesNeedingFAQs.length}</>
+                    {articlesNeedingFAQs && totalPublished ? (
+                      <>{totalPublished - articlesNeedingFAQs.length}</>
                     ) : (
                       "—"
                     )}
@@ -254,7 +268,7 @@ export default function FAQBackfill() {
               ) : (
                 <>
                   <Sparkles className="mr-2 h-5 w-5" />
-                  {regenerateExisting ? "Regenerate" : "Generate"} FAQs for {articlesNeedingFAQs?.length || 0} Articles
+                  {regenerateExisting ? "Regenerate" : "Generate"} FAQs for {regenerateExisting ? totalPublished : articlesNeedingFAQs?.length || 0} Articles
                 </>
               )}
             </Button>
