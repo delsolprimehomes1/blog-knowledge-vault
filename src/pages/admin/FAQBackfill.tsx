@@ -43,6 +43,11 @@ export default function FAQBackfill() {
             return true;
           }
           
+          // Has fewer than 3 FAQs (minimum recommended)
+          if (Array.isArray(article.faq_entities) && article.faq_entities.length < 3) {
+            return true;
+          }
+          
           // Has FAQs but they're empty
           const hasEmptyFaqs = Array.isArray(article.faq_entities) && article.faq_entities.some((faq: any) => 
             !faq.question?.trim() || !faq.answer?.trim()
@@ -199,11 +204,14 @@ export default function FAQBackfill() {
               articles that don't have them yet. Each FAQ includes:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Exactly 1 FAQ that directly answers the article title</li>
-              <li>150-250 word comprehensive answer optimized for AI/LLM reading</li>
+              <li>3-5 FAQs that answer key questions from the article content</li>
+              <li>50-75 word answers per FAQ, optimized for AI/LLM reading</li>
               <li>JSON-LD FAQPage schema with speakable markup</li>
               <li>Funnel-stage-specific focus (TOFU/MOFU/BOFU)</li>
             </ul>
+            <p className="text-sm text-muted-foreground mt-2">
+              💡 Articles with fewer than 3 FAQs are considered as needing FAQ enhancement
+            </p>
             <p className="text-sm text-muted-foreground mt-2">
               ⚡ New articles will automatically get FAQs when published!
             </p>
@@ -228,7 +236,7 @@ export default function FAQBackfill() {
                 className="h-4 w-4 rounded border-gray-300"
               />
               <label htmlFor="regenerate-existing" className="text-sm font-medium cursor-pointer">
-                Regenerate existing FAQs (convert multi-FAQ articles to single FAQ format)
+                Regenerate existing FAQs for all published articles (overwrites current FAQs)
               </label>
             </div>
 
