@@ -31,6 +31,7 @@ interface ArticleContentProps {
   relatedClusterArticles?: RelatedClusterArticle[];
   funnelStage?: "TOFU" | "MOFU" | "BOFU";
   articleId?: string;
+  language?: string;
 }
 
 export const ArticleContent = ({
@@ -48,6 +49,7 @@ export const ArticleContent = ({
   relatedClusterArticles = [],
   funnelStage = "TOFU",
   articleId = "",
+  language = 'en',
 }: ArticleContentProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   

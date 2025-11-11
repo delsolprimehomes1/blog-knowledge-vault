@@ -1,5 +1,16 @@
 import { ExternalCitation, InternalLink } from "@/types/blog";
 
+const CITATION_PHRASES: Record<string, string> = {
+  en: 'According to',
+  de: 'Laut',              // German
+  nl: 'Volgens',           // Dutch
+  fr: 'Selon',             // French
+  pl: 'Według',            // Polish
+  sv: 'Enligt',            // Swedish
+  da: 'Ifølge',            // Danish
+  hu: 'Szerint'            // Hungarian (note: comes after the source name)
+};
+
 /**
  * Injects internal links by replacing [INTERNAL_LINK: ...] placeholders
  */
@@ -193,7 +204,8 @@ const isApprovedDomain = (url: string): boolean => {
  */
 export const injectInlineCitations = (
   content: string,
-  citations: ExternalCitation[]
+  citations: ExternalCitation[],
+  language: string = 'en'  // Default to English if not provided
 ): string => {
   if (!citations || citations.length === 0) {
     console.log('[injectInlineCitations] No citations provided');
@@ -329,7 +341,14 @@ export const injectInlineCitations = (
       
       // Create the inline citation with enhanced metadata for tracking
       const citationLink = `<a href="${citation.url}" class="inline-citation" target="_blank" rel="noopener nofollow sponsored" data-citation-source="${citation.source}" data-citation-type="${citation.sourceType || 'external'}" data-authority-score="${citation.authorityScore || 0}" data-tooltip="✓ External source verified — click to read original" title="Source: ${citation.source}">${citation.source}</a>`;
-      const citationPhrase = `According to ${citationLink} (${citationYear}), `;
+      
+      // Get the translated phrase
+      const translatedPhrase = CITATION_PHRASES[language] || CITATION_PHRASES['en'];
+      
+      // Hungarian uses reverse order: "Source szerint" instead of "Szerint Source"
+      const citationPhrase = language === 'hu' 
+        ? `${citationLink} ${translatedPhrase} (${citationYear}), `
+        : `${translatedPhrase} ${citationLink} (${citationYear}), `;
       
       // Insert at the beginning of the first sentence
       const updatedParagraph = citationPhrase + paragraphContent;
@@ -360,7 +379,14 @@ export const injectInlineCitations = (
         const citationYear = citation.year || new Date().getFullYear();
         
         const citationLink = `<a href="${citation.url}" class="inline-citation" target="_blank" rel="noopener nofollow sponsored" data-citation-source="${citation.source}" data-citation-type="${citation.sourceType || 'external'}" data-authority-score="${citation.authorityScore || 0}" data-tooltip="✓ External source verified — click to read original" title="Source: ${citation.source}">${citation.source}</a>`;
-        const citationPhrase = `According to ${citationLink} (${citationYear}), `;
+        
+        // Get the translated phrase
+        const translatedPhrase = CITATION_PHRASES[language] || CITATION_PHRASES['en'];
+        
+        // Hungarian uses reverse order: "Source szerint" instead of "Szerint Source"
+        const citationPhrase = language === 'hu' 
+          ? `${citationLink} ${translatedPhrase} (${citationYear}), `
+          : `${translatedPhrase} ${citationLink} (${citationYear}), `;
         
         const updatedParagraph = citationPhrase + paragraph[1];
         processedContent = processedContent.replace(paragraph[0], paragraph[0].replace(paragraph[1], updatedParagraph));

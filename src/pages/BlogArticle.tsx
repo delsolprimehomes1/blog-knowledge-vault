@@ -394,6 +394,7 @@ const BlogArticle = () => {
               relatedClusterArticles={(article as any).related_cluster_articles || []}
               funnelStage={article.funnel_stage as "TOFU" | "MOFU" | "BOFU"}
               articleId={article.id}
+              language={article.language}
             />
 
             <SpeakableBox answer={article.speakable_answer} language={article.language} />
