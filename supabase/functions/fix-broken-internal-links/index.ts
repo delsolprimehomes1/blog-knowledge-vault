@@ -37,7 +37,23 @@ Deno.serve(async (req) => {
 
     console.log('Starting broken internal links fix process...');
 
-    // Step 1: Fetch all published articles with internal_links
+    // Step 1: Fetch ALL valid slugs for in-memory lookup (OPTIMIZATION)
+    console.log('Fetching all valid slugs for fast lookup...');
+    const { data: allArticles, error: slugsError } = await supabase
+      .from('blog_articles')
+      .select('slug')
+      .eq('status', 'published');
+
+    if (slugsError) {
+      console.error('Error fetching valid slugs:', slugsError);
+      throw slugsError;
+    }
+
+    // Create Set for O(1) lookup performance
+    const validSlugs = new Set(allArticles?.map(a => a.slug) || []);
+    console.log(`Loaded ${validSlugs.size} valid slugs into memory`);
+
+    // Step 2: Fetch all published articles with internal_links
     const { data: articles, error: fetchError } = await supabase
       .from('blog_articles')
       .select('id, slug, headline, internal_links, language, funnel_stage, detailed_content')
@@ -51,7 +67,7 @@ Deno.serve(async (req) => {
 
     console.log(`Fetched ${articles?.length || 0} articles to check`);
 
-    // Step 2: Validate internal links and identify broken ones
+    // Step 3: Validate internal links using in-memory Set (OPTIMIZED)
     const articlesWithBrokenLinks: BrokenLinkResult[] = [];
     
     for (const article of articles || []) {
@@ -66,13 +82,8 @@ Deno.serve(async (req) => {
         // Extract slug from URL (e.g., /blog/some-slug -> some-slug)
         const slug = link.url.replace('/blog/', '').replace(/^\//, '');
 
-        // Check if this slug exists in the database
-        const { count } = await supabase
-          .from('blog_articles')
-          .select('*', { count: 'exact', head: true })
-          .eq('slug', slug);
-
-        if (count === 0) {
+        // Check against in-memory Set (O(1) lookup, no database query!)
+        if (!validSlugs.has(slug)) {
           brokenLinks.push({
             url: link.url,
             slug: slug,
@@ -95,7 +106,7 @@ Deno.serve(async (req) => {
     const totalBrokenLinks = articlesWithBrokenLinks.reduce((sum, a) => sum + a.brokenLinks.length, 0);
     console.log(`Total broken links: ${totalBrokenLinks}`);
 
-    // Step 3: Fix articles with broken links
+    // Step 4: Fix articles with broken links
     const fixResults: FixResult[] = [];
     let successCount = 0;
     let errorCount = 0;
@@ -148,16 +159,13 @@ Deno.serve(async (req) => {
             throw new Error('No new links generated');
           }
 
-          // Validate new links - check that slugs exist and are complete
+          // Validate new links using in-memory Set (OPTIMIZED)
           let validLinks = 0;
           for (const link of newLinks) {
             const slug = link.url.replace('/blog/', '').replace(/^\//, '');
-            const { count } = await supabase
-              .from('blog_articles')
-              .select('*', { count: 'exact', head: true })
-              .eq('slug', slug);
             
-            if (count && count > 0 && slug.length > 20) {
+            // Check against Set (O(1), no database query!)
+            if (validSlugs.has(slug) && slug.length > 20) {
               validLinks++;
             }
           }
