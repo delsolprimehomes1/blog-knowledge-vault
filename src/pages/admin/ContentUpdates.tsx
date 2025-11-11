@@ -66,7 +66,7 @@ const ContentUpdates = () => {
       setIsBackfilling(true);
       setBackfillResult(null);
       
-      const BATCH_SIZE = 10;
+      const BATCH_SIZE = 5;
       
       // First, check how many articles need processing
       const { count } = await supabase
