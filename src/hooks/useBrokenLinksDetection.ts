@@ -18,9 +18,24 @@ export const useBrokenLinksDetection = () => {
   return useQuery({
     queryKey: ['broken-links-detection'],
     queryFn: async (): Promise<BrokenLinksStats> => {
-      console.log('Starting broken links detection...');
+      console.log('Starting optimized broken links detection...');
 
-      // Fetch all published articles with internal_links
+      // STEP 1: Fetch all valid slugs (1 query)
+      const { data: allArticles, error: slugsError } = await supabase
+        .from('blog_articles')
+        .select('slug')
+        .eq('status', 'published');
+
+      if (slugsError) {
+        console.error('Error fetching valid slugs:', slugsError);
+        throw slugsError;
+      }
+
+      // Create a Set for O(1) lookup performance
+      const validSlugs = new Set(allArticles?.map(a => a.slug) || []);
+      console.log(`Loaded ${validSlugs.size} valid slugs`);
+
+      // STEP 2: Fetch all articles with internal_links (1 query)
       const { data: articles, error } = await supabase
         .from('blog_articles')
         .select('id, slug, headline, internal_links')
@@ -32,15 +47,16 @@ export const useBrokenLinksDetection = () => {
         throw error;
       }
 
+      // STEP 3: Check for broken links in memory (JavaScript, no queries)
       const brokenLinkArticles: BrokenLinkInfo[] = [];
       let totalBrokenLinks = 0;
 
-      // Check each article for broken links
       for (const article of articles || []) {
         const internalLinks = article.internal_links as any[];
         if (!internalLinks || internalLinks.length === 0) continue;
 
         let brokenCount = 0;
+        const brokenLinksInArticle: string[] = [];
 
         for (const link of internalLinks) {
           if (!link.url) continue;
@@ -48,18 +64,15 @@ export const useBrokenLinksDetection = () => {
           // Extract slug from URL
           const slug = link.url.replace('/blog/', '').replace(/^\//, '');
 
-          // Check if this slug exists in the database
-          const { count } = await supabase
-            .from('blog_articles')
-            .select('*', { count: 'exact', head: true })
-            .eq('slug', slug);
-
-          if (count === 0) {
+          // Check against in-memory Set (O(1) operation)
+          if (!validSlugs.has(slug)) {
             brokenCount++;
+            brokenLinksInArticle.push(slug);
           }
         }
 
         if (brokenCount > 0) {
+          console.log(`Article "${article.headline}" has ${brokenCount} broken links:`, brokenLinksInArticle);
           brokenLinkArticles.push({
             articleId: article.id,
             articleSlug: article.slug,
@@ -70,7 +83,7 @@ export const useBrokenLinksDetection = () => {
         }
       }
 
-      console.log(`Found ${totalBrokenLinks} broken links in ${brokenLinkArticles.length} articles`);
+      console.log(`✅ Detection complete: ${totalBrokenLinks} broken links in ${brokenLinkArticles.length} articles`);
 
       return {
         totalBrokenLinks,
