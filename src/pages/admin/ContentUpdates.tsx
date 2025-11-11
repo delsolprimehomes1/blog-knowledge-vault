@@ -40,6 +40,8 @@ const ContentUpdates = () => {
     errors: number;
     total: number;
   } | null>(null);
+  const [isFixingCanonicals, setIsFixingCanonicals] = useState(false);
+  const [canonicalFixResult, setCanonicalFixResult] = useState<any>(null);
 
   // Query to count articles with diagrams
   const { data: articlesWithDiagrams = 0 } = useQuery({
@@ -176,6 +178,40 @@ const ContentUpdates = () => {
     }
   };
 
+  const handleFixCanonicalUrls = async () => {
+    setIsFixingCanonicals(true);
+    setCanonicalFixResult(null);
+    
+    try {
+      toast.info("Standardizing canonical URLs to delsolprimehomes.com...");
+      
+      const { data, error } = await supabase.functions.invoke('backfill-canonical-urls', {
+        body: { dryRun: false }
+      });
+
+      if (error) throw error;
+
+      setCanonicalFixResult(data);
+
+      if (data.failed > 0) {
+        toast.warning(`Canonical URL fix completed with ${data.failed} errors`);
+      } else {
+        toast.success(`✅ ${data.updated} canonical URLs standardized to delsolprimehomes.com`);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['blog-articles'] });
+    } catch (error) {
+      console.error('Error fixing canonical URLs:', error);
+      toast.error("Failed to fix canonical URLs");
+      setCanonicalFixResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsFixingCanonicals(false);
+    }
+  };
+
   const handleBulkDeleteDiagrams = async () => {
     setIsDeletingDiagrams(true);
     setDeleteResult(null);
@@ -294,6 +330,92 @@ const ContentUpdates = () => {
                 <>
                   <Link2 className="mr-2 h-4 w-4" />
                   Run Internal Links Backfill
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Canonical URLs Fix Section */}
+        <Card className="border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-background">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Fix Canonical URLs
+            </CardTitle>
+            <CardDescription>
+              Standardize all canonical URLs to use delsolprimehomes.com (without www)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>This tool will:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Find all published articles with incorrect canonical URLs</li>
+                <li>Update URLs to format: https://delsolprimehomes.com/blog/&#123;slug&#125;</li>
+                <li>Fix articles pointing to delsolhomes.com (wrong domain)</li>
+                <li>Remove www. prefix from URLs</li>
+                <li>Process all articles in batches of 10</li>
+              </ul>
+            </div>
+
+            {canonicalFixResult && (
+              <Alert className={canonicalFixResult.success ? "border-green-500 bg-green-50 dark:bg-green-950/20" : "border-red-500 bg-red-50 dark:bg-red-950/20"}>
+                <div className="flex items-start gap-2">
+                  {canonicalFixResult.success ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                  )}
+                  <AlertDescription className="text-sm">
+                    <div className="font-semibold mb-1">
+                      {canonicalFixResult.success ? "Canonical URLs Fixed" : "Fix Failed"}
+                    </div>
+                    <div className="space-y-1">
+                      {canonicalFixResult.totalArticles !== undefined && (
+                        <p>Total articles checked: {canonicalFixResult.totalArticles}</p>
+                      )}
+                      {canonicalFixResult.updated !== undefined && (
+                        <p className="text-green-600 dark:text-green-400">
+                          ✅ URLs updated: {canonicalFixResult.updated}
+                        </p>
+                      )}
+                      {canonicalFixResult.skipped !== undefined && (
+                        <p className="text-muted-foreground">
+                          ⏭️ Already correct: {canonicalFixResult.skipped}
+                        </p>
+                      )}
+                      {canonicalFixResult.failed > 0 && (
+                        <p className="text-red-600 dark:text-red-400">
+                          ❌ Errors: {canonicalFixResult.failed}
+                        </p>
+                      )}
+                      {canonicalFixResult.error && (
+                        <p className="text-red-600 dark:text-red-400">
+                          Error: {canonicalFixResult.error}
+                        </p>
+                      )}
+                    </div>
+                  </AlertDescription>
+                </div>
+              </Alert>
+            )}
+
+            <Button 
+              onClick={handleFixCanonicalUrls}
+              disabled={isFixingCanonicals}
+              size="lg"
+              className="w-full"
+            >
+              {isFixingCanonicals ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Fixing Canonical URLs...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Standardize Canonical URLs
                 </>
               )}
             </Button>
