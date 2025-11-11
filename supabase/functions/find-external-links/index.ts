@@ -227,6 +227,16 @@ serve(async (req) => {
       verified: true
     }));
 
+    // Deduplicate by URL (in case batch system returns duplicates)
+    const uniqueCitations = Array.from(
+      new Map(citations.map((c: Citation) => [c.url, c])).values()
+    );
+
+    if (citations.length > uniqueCitations.length) {
+      console.log(`🔄 Deduplicated ${citations.length} → ${uniqueCitations.length} unique URLs`);
+      console.log(`   Removed ${citations.length - uniqueCitations.length} duplicate URLs`);
+    }
+
     // Skip old Perplexity call logic - now handled by batch system
     /* OLD CODE BELOW - KEEPING FOR REFERENCE BUT NOT EXECUTING
     console.log(`🔍 Citation search - Using TOP 20 PRIORITY domains (strategically selected for E-E-A-T authority)`);
@@ -274,8 +284,8 @@ Return only the JSON array, nothing else.`;
     // Skipping to validation phase
     */
 
-    // Domain filtering already done by batch system
-    const domainFilteredCitations = citations;
+    // Domain filtering already done by batch system - use deduplicated citations
+    const domainFilteredCitations = uniqueCitations;
 
     // PHASE 2: Verify URLs with retry logic
     const verifiedCitations = await Promise.all(

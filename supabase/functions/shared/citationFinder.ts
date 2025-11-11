@@ -105,6 +105,32 @@ async function selectPriorityDomains(language: string, focusArea?: string): Prom
 /**
  * Find better, more authoritative citations for an article
  */
+/**
+ * Deduplicate citations by URL, keeping the one with highest authority score
+ * If descriptions differ, they are merged
+ */
+function deduplicateCitations(citations: any[]): any[] {
+  const urlMap = new Map<string, any>();
+  
+  for (const citation of citations) {
+    const existing = urlMap.get(citation.url);
+    
+    if (!existing || citation.authorityScore > existing.authorityScore) {
+      // Keep the citation with the highest authority score
+      // Merge descriptions if we're replacing and they differ
+      if (existing && existing.description !== citation.description) {
+        citation.description = `${existing.description}; ${citation.description}`;
+      }
+      urlMap.set(citation.url, citation);
+    } else if (existing && existing.description !== citation.description) {
+      // If we're not replacing, still merge descriptions
+      existing.description = `${existing.description}; ${citation.description}`;
+    }
+  }
+  
+  return Array.from(urlMap.values());
+}
+
 export async function findBetterCitations(
   articleTopic: string,
   articleLanguage: string,
@@ -486,17 +512,25 @@ Return only the JSON array, nothing else.`;
     const status = scoredCitations.length >= targetCitations ? 'success' : 
                    scoredCitations.length > 0 ? 'partial' : 'failed';
 
+    // Deduplicate citations by URL, keeping the one with highest authority score
+    const deduplicatedCitations = deduplicateCitations(scoredCitations);
+    
+    if (scoredCitations.length > deduplicatedCitations.length) {
+      console.log(`🔄 Deduplicated ${scoredCitations.length} → ${deduplicatedCitations.length} unique citations`);
+      console.log(`   Removed ${scoredCitations.length - deduplicatedCitations.length} duplicate URLs`);
+    }
+
     console.log(`
 📊 Citation Discovery Results:
    Initial: ${citations.length}
-   After filtering: ${scoredCitations.length}
+   After filtering: ${deduplicatedCitations.length}
    Target: ${targetCitations}
    Status: ${status}
    Category: ${selection.category}
     `);
 
     return {
-      citations: scoredCitations.slice(0, targetCitations),
+      citations: deduplicatedCitations.slice(0, targetCitations),
       category: selection.category,
       batchSize: selection.domains.length,
       status
