@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
+import { useBrokenLinksDetection } from "@/hooks/useBrokenLinksDetection";
 
 // Lazy load the heavy ContentFreshnessPanel component
 const ContentFreshnessPanel = lazy(() => 
@@ -42,6 +43,11 @@ const ContentUpdates = () => {
   } | null>(null);
   const [isFixingCanonicals, setIsFixingCanonicals] = useState(false);
   const [canonicalFixResult, setCanonicalFixResult] = useState<any>(null);
+  const [isFixingBrokenLinks, setIsFixingBrokenLinks] = useState(false);
+  const [brokenLinksFixResult, setBrokenLinksFixResult] = useState<any>(null);
+
+  // Detect broken links
+  const { data: brokenLinksStats, isLoading: isLoadingBrokenLinks, refetch: refetchBrokenLinks } = useBrokenLinksDetection();
 
   // Query to count articles with diagrams
   const { data: articlesWithDiagrams = 0 } = useQuery({
@@ -246,6 +252,50 @@ const ContentUpdates = () => {
     }
   };
 
+  const handleFixBrokenLinks = async () => {
+    setIsFixingBrokenLinks(true);
+    setBrokenLinksFixResult(null);
+    
+    try {
+      toast.info("🔗 Scanning and fixing broken internal links...", {
+        description: "This may take a few minutes"
+      });
+      
+      const { data, error } = await supabase.functions.invoke('fix-broken-internal-links', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      setBrokenLinksFixResult(data);
+
+      if (data.articles_failed > 0) {
+        toast.warning(`Fix completed with ${data.articles_failed} errors`, {
+          description: `${data.articles_fixed} articles fixed, ${data.links_fixed} links repaired`
+        });
+      } else {
+        toast.success(`✅ Successfully fixed all broken links!`, {
+          description: `${data.articles_fixed} articles updated, ${data.links_fixed} links repaired`
+        });
+      }
+
+      // Refetch broken links stats and article data
+      await refetchBrokenLinks();
+      await queryClient.invalidateQueries({ queryKey: ['blog-articles'] });
+    } catch (error) {
+      console.error('Error fixing broken links:', error);
+      toast.error("Failed to fix broken links", {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+      setBrokenLinksFixResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsFixingBrokenLinks(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -255,6 +305,134 @@ const ContentUpdates = () => {
             Monitor and maintain content freshness for optimal AI citation likelihood.
           </p>
         </div>
+
+        {/* Broken Internal Links Fix Section */}
+        <Card className="border-destructive/30 bg-gradient-to-br from-destructive/10 to-background">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Broken Internal Links Detected
+            </CardTitle>
+            <CardDescription>
+              Fix truncated slugs in the "Related Reading" section that cause 404 errors
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoadingBrokenLinks ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-destructive/5 p-4 rounded-lg border border-destructive/20">
+                    <div className="text-2xl font-bold text-destructive">
+                      {brokenLinksStats?.totalBrokenLinks || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Broken Links Found</div>
+                  </div>
+                  <div className="bg-destructive/5 p-4 rounded-lg border border-destructive/20">
+                    <div className="text-2xl font-bold text-destructive">
+                      {brokenLinksStats?.articlesAffected || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Articles Affected</div>
+                  </div>
+                </div>
+
+                <div className="text-sm text-muted-foreground space-y-2">
+                  <p><strong>Problem:</strong> Truncated slugs in internal_links JSONB field causing 404 errors</p>
+                  <p><strong>Solution:</strong></p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>Scan all articles for broken internal link slugs</li>
+                    <li>Call AI to regenerate proper links with full-length slugs</li>
+                    <li>Update internal_links field with corrected data</li>
+                    <li>Process in batches to avoid rate limits</li>
+                  </ul>
+                </div>
+
+                {brokenLinksFixResult && (
+                  <Alert className={brokenLinksFixResult.success ? "border-green-500 bg-green-50 dark:bg-green-950/20" : "border-red-500 bg-red-50 dark:bg-red-950/20"}>
+                    <div className="flex items-start gap-2">
+                      {brokenLinksFixResult.success ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+                      ) : (
+                        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                      )}
+                      <AlertDescription className="text-sm">
+                        <div className="font-semibold mb-1">
+                          {brokenLinksFixResult.success ? "Broken Links Fixed!" : "Fix Failed"}
+                        </div>
+                        <div className="space-y-1">
+                          {brokenLinksFixResult.total_checked !== undefined && (
+                            <p>Total articles checked: {brokenLinksFixResult.total_checked}</p>
+                          )}
+                          {brokenLinksFixResult.articles_with_broken_links !== undefined && (
+                            <p>Articles with broken links: {brokenLinksFixResult.articles_with_broken_links}</p>
+                          )}
+                          {brokenLinksFixResult.articles_fixed !== undefined && (
+                            <p className="text-green-600 dark:text-green-400">
+                              ✅ Articles fixed: {brokenLinksFixResult.articles_fixed}
+                            </p>
+                          )}
+                          {brokenLinksFixResult.links_fixed !== undefined && (
+                            <p className="text-green-600 dark:text-green-400">
+                              🔗 Links repaired: {brokenLinksFixResult.links_fixed}
+                            </p>
+                          )}
+                          {brokenLinksFixResult.articles_failed > 0 && (
+                            <p className="text-red-600 dark:text-red-400">
+                              ❌ Errors: {brokenLinksFixResult.articles_failed}
+                            </p>
+                          )}
+                          {brokenLinksFixResult.error && (
+                            <p className="text-red-600 dark:text-red-400">
+                              Error: {brokenLinksFixResult.error}
+                            </p>
+                          )}
+                        </div>
+                      </AlertDescription>
+                    </div>
+                  </Alert>
+                )}
+
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleFixBrokenLinks}
+                    disabled={isFixingBrokenLinks || (brokenLinksStats?.totalBrokenLinks || 0) === 0}
+                    size="lg"
+                    className="flex-1"
+                    variant="destructive"
+                  >
+                    {isFixingBrokenLinks ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Fixing Broken Links...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Fix All {brokenLinksStats?.totalBrokenLinks || 0} Broken Links
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    onClick={() => refetchBrokenLinks()}
+                    disabled={isLoadingBrokenLinks}
+                    size="lg"
+                    variant="outline"
+                  >
+                    {isLoadingBrokenLinks ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Refresh"
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Internal Links Backfill Section */}
         <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
