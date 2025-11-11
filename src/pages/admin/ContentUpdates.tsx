@@ -66,7 +66,7 @@ const ContentUpdates = () => {
       setIsBackfilling(true);
       setBackfillResult(null);
       
-      const BATCH_SIZE = 25;
+      const BATCH_SIZE = 10;
       
       // First, check how many articles need processing
       const { count } = await supabase
@@ -117,9 +117,9 @@ const ContentUpdates = () => {
         totalErrors += data.error_count || 0;
         if (data.errors) allErrors.push(...data.errors);
         
-        // Wait 2 seconds between batches to avoid rate limits
+        // Wait 5 seconds between batches to avoid rate limits
         if (batchNum < totalBatches - 1) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
       

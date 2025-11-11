@@ -62,10 +62,10 @@ serve(async (req) => {
     let errorCount = 0;
     const errors: string[] = [];
 
-    // Process in batches of 10 to avoid rate limits
-    for (let i = 0; i < articles.length; i += 10) {
-      const batch = articles.slice(i, i + 10);
-      console.log(`\n🔄 Processing batch ${Math.floor(i / 10) + 1}/${Math.ceil(articles.length / 10)} (${batch.length} articles)`);
+    // Process in batches of 5 to avoid rate limits
+    for (let i = 0; i < articles.length; i += 5) {
+      const batch = articles.slice(i, i + 5);
+      console.log(`\n🔄 Processing batch ${Math.floor(i / 5) + 1}/${Math.ceil(articles.length / 5)} (${batch.length} articles)`);
 
       for (const article of batch) {
         try {
@@ -125,10 +125,10 @@ serve(async (req) => {
         }
       }
 
-      // Wait 2 seconds between batches to avoid rate limits
-      if (i + 10 < articles.length) {
-        console.log(`  ⏳ Waiting 2 seconds before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait 5 seconds between batches to avoid rate limits
+      if (i + 5 < articles.length) {
+        console.log(`  ⏳ Waiting 5 seconds before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
 
