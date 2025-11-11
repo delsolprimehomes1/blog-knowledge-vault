@@ -257,11 +257,11 @@ const ContentUpdates = () => {
     setBrokenLinksFixResult(null);
     
     try {
-      toast.info("🔗 Scanning and fixing broken internal links...", {
-        description: "This may take a few minutes"
+      toast.info("🔗 Removing broken internal links...", {
+        description: "This should take 30-60 seconds"
       });
       
-      const { data, error } = await supabase.functions.invoke('fix-broken-internal-links', {
+      const { data, error } = await supabase.functions.invoke('remove-broken-internal-links', {
         body: {}
       });
 
@@ -269,14 +269,16 @@ const ContentUpdates = () => {
 
       setBrokenLinksFixResult(data);
 
-      if (data.articles_failed > 0) {
-        toast.warning(`Fix completed with ${data.articles_failed} errors`, {
-          description: `${data.articles_fixed} articles fixed, ${data.links_fixed} links repaired`
+      if (!data.success) {
+        toast.error(`❌ Failed to remove broken links`, {
+          description: data.error || 'Unknown error'
         });
       } else {
-        toast.success(`✅ Successfully fixed all broken links!`, {
-          description: `${data.articles_fixed} articles updated, ${data.links_fixed} links repaired`
+        toast.success(`✅ Removed ${data.totalLinksRemoved} broken links!`, {
+          description: `Updated ${data.articlesUpdated} articles`
         });
+        // Refresh broken links detection
+        await refetchBrokenLinks();
       }
 
       // Refetch broken links stats and article data
@@ -345,9 +347,9 @@ const ContentUpdates = () => {
                   <p><strong>Solution:</strong></p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
                     <li>Scan all articles for broken internal link slugs</li>
-                    <li>Call AI to regenerate proper links with full-length slugs</li>
-                    <li>Update internal_links field with corrected data</li>
-                    <li>Process in batches to avoid rate limits</li>
+                    <li>Remove broken links immediately (no regeneration)</li>
+                    <li>Update internal_links field with only valid links</li>
+                    <li>Fast processing - completes in 30-60 seconds</li>
                   </ul>
                 </div>
 
@@ -361,28 +363,20 @@ const ContentUpdates = () => {
                       )}
                       <AlertDescription className="text-sm">
                         <div className="font-semibold mb-1">
-                          {brokenLinksFixResult.success ? "Broken Links Fixed!" : "Fix Failed"}
+                          {brokenLinksFixResult.success ? "Broken Links Removed!" : "Removal Failed"}
                         </div>
                         <div className="space-y-1">
-                          {brokenLinksFixResult.total_checked !== undefined && (
-                            <p>Total articles checked: {brokenLinksFixResult.total_checked}</p>
+                          {brokenLinksFixResult.totalArticlesProcessed !== undefined && (
+                            <p>Total articles scanned: {brokenLinksFixResult.totalArticlesProcessed}</p>
                           )}
-                          {brokenLinksFixResult.articles_with_broken_links !== undefined && (
-                            <p>Articles with broken links: {brokenLinksFixResult.articles_with_broken_links}</p>
-                          )}
-                          {brokenLinksFixResult.articles_fixed !== undefined && (
+                          {brokenLinksFixResult.articlesUpdated !== undefined && (
                             <p className="text-green-600 dark:text-green-400">
-                              ✅ Articles fixed: {brokenLinksFixResult.articles_fixed}
+                              ✅ Articles updated: {brokenLinksFixResult.articlesUpdated}
                             </p>
                           )}
-                          {brokenLinksFixResult.links_fixed !== undefined && (
+                          {brokenLinksFixResult.totalLinksRemoved !== undefined && (
                             <p className="text-green-600 dark:text-green-400">
-                              🔗 Links repaired: {brokenLinksFixResult.links_fixed}
-                            </p>
-                          )}
-                          {brokenLinksFixResult.articles_failed > 0 && (
-                            <p className="text-red-600 dark:text-red-400">
-                              ❌ Errors: {brokenLinksFixResult.articles_failed}
+                              🔗 Broken links removed: {brokenLinksFixResult.totalLinksRemoved}
                             </p>
                           )}
                           {brokenLinksFixResult.error && (
@@ -407,12 +401,12 @@ const ContentUpdates = () => {
                     {isFixingBrokenLinks ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Fixing Broken Links...
+                        Removing Broken Links...
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Fix All {brokenLinksStats?.totalBrokenLinks || 0} Broken Links
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove All {brokenLinksStats?.totalBrokenLinks || 0} Broken Links
                       </>
                     )}
                   </Button>
