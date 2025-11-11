@@ -104,18 +104,37 @@ const ContentUpdates = () => {
           description: `Articles ${offset + 1}-${Math.min(offset + BATCH_SIZE, totalArticles)}`
         });
         
-        const { data, error } = await supabase.functions.invoke('backfill-internal-links', {
-          body: { 
-            limit: BATCH_SIZE, 
-            offset 
+        // Create abort controller with 120 second timeout
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), 120000); // 120 seconds
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('backfill-internal-links', {
+            body: { 
+              limit: BATCH_SIZE, 
+              offset 
+            },
+            signal: abortController.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (error) throw error;
+          
+          totalSuccess += data.success_count || 0;
+          totalErrors += data.error_count || 0;
+          if (data.errors) allErrors.push(...data.errors);
+        } catch (err: any) {
+          clearTimeout(timeoutId);
+          
+          if (err.name === 'AbortError') {
+            // Timeout after 120 seconds - this is a real problem
+            toast.error(`Batch ${batchNum + 1} timed out after 120 seconds`);
+            totalErrors += BATCH_SIZE;
+            throw new Error(`Edge function timeout after 120 seconds`);
           }
-        });
-        
-        if (error) throw error;
-        
-        totalSuccess += data.success_count || 0;
-        totalErrors += data.error_count || 0;
-        if (data.errors) allErrors.push(...data.errors);
+          throw err;
+        }
         
         // Wait 5 seconds between batches to avoid rate limits
         if (batchNum < totalBatches - 1) {
