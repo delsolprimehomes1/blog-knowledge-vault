@@ -56,7 +56,7 @@ export function generateAboutBreadcrumbSchema(): any {
         "@type": "ListItem",
         "position": 1,
         "name": "Home",
-        "item": `${BASE_URL}/blog`
+        "item": `${BASE_URL}`
       },
       {
         "@type": "ListItem",
