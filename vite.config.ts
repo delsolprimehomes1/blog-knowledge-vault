@@ -4,33 +4,14 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import type { Plugin } from "vite";
 
-// Plugin to generate sitemap after build (static pages temporarily disabled for performance)
+// Sitemap generation moved to postbuild script for better reliability
+// This plugin is kept for potential future use but currently does nothing
 function staticPageGenerator(): Plugin {
   return {
     name: "static-page-generator",
     async closeBundle() {
-      // Only run in production builds
-      if (process.env.NODE_ENV === 'production') {
-        const distPath = path.resolve(__dirname, 'dist');
-        
-        // TEMPORARILY DISABLED: Static page generation (causes build timeouts)
-        // console.log('\n📄 Generating static pages...');
-        // try {
-        //   const { generateStaticPages } = await import('./scripts/generateStaticPages');
-        //   await generateStaticPages(distPath);
-        // } catch (err) {
-        //   console.error('Failed to generate static pages:', err);
-        // }
-        
-        console.log('\n🗺️  Generating sitemap...');
-        try {
-          const { generateSitemap } = await import('./scripts/generateSitemap');
-          await generateSitemap(distPath);
-        } catch (err) {
-          console.error('Failed to generate sitemap:', err);
-          // Don't fail the build if sitemap generation fails
-        }
-      }
+      // Sitemap generation now handled by standalone script in postbuild
+      // This prevents build timeouts and ensures reliable generation
     }
   };
 }
