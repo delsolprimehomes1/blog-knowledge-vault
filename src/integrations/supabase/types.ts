@@ -1303,6 +1303,129 @@ export type Database = {
           },
         ]
       }
+      sitemap_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          details: Json | null
+          id: string
+          is_resolved: boolean | null
+          message: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          is_resolved?: boolean | null
+          message: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          is_resolved?: boolean | null
+          message?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+        }
+        Relationships: []
+      }
+      sitemap_validations: {
+        Row: {
+          articles_in_sitemap: number
+          articles_with_changefreq: number
+          articles_with_images: number
+          articles_with_lastmod: number
+          articles_with_priority: number
+          broken_urls: Json | null
+          broken_urls_count: number | null
+          coverage_percentage: number
+          created_at: string
+          health_score: number
+          id: string
+          images_with_caption: number | null
+          images_with_title: number | null
+          last_submitted_to_bing: string | null
+          last_submitted_to_gsc: string | null
+          missing_article_slugs: Json | null
+          recommendations: Json | null
+          sitemap_file_size_kb: number | null
+          total_images: number | null
+          total_published_articles: number
+          total_urls: number
+          validated_by: string | null
+          validation_duration_ms: number | null
+          xml_is_valid: boolean
+          xml_validation_errors: Json | null
+        }
+        Insert: {
+          articles_in_sitemap: number
+          articles_with_changefreq?: number
+          articles_with_images?: number
+          articles_with_lastmod?: number
+          articles_with_priority?: number
+          broken_urls?: Json | null
+          broken_urls_count?: number | null
+          coverage_percentage: number
+          created_at?: string
+          health_score: number
+          id?: string
+          images_with_caption?: number | null
+          images_with_title?: number | null
+          last_submitted_to_bing?: string | null
+          last_submitted_to_gsc?: string | null
+          missing_article_slugs?: Json | null
+          recommendations?: Json | null
+          sitemap_file_size_kb?: number | null
+          total_images?: number | null
+          total_published_articles: number
+          total_urls: number
+          validated_by?: string | null
+          validation_duration_ms?: number | null
+          xml_is_valid?: boolean
+          xml_validation_errors?: Json | null
+        }
+        Update: {
+          articles_in_sitemap?: number
+          articles_with_changefreq?: number
+          articles_with_images?: number
+          articles_with_lastmod?: number
+          articles_with_priority?: number
+          broken_urls?: Json | null
+          broken_urls_count?: number | null
+          coverage_percentage?: number
+          created_at?: string
+          health_score?: number
+          id?: string
+          images_with_caption?: number | null
+          images_with_title?: number | null
+          last_submitted_to_bing?: string | null
+          last_submitted_to_gsc?: string | null
+          missing_article_slugs?: Json | null
+          recommendations?: Json | null
+          sitemap_file_size_kb?: number | null
+          total_images?: number | null
+          total_published_articles?: number
+          total_urls?: number
+          validated_by?: string | null
+          validation_duration_ms?: number | null
+          xml_is_valid?: boolean
+          xml_validation_errors?: Json | null
+        }
+        Relationships: []
+      }
       user_role_changes: {
         Row: {
           action: string

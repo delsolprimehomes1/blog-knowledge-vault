@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, FileText, Users, Settings, Menu, Bot, Download, CheckCircle, Sparkles, Image, Activity, RefreshCw, HelpCircle } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Settings, Menu, Bot, Download, CheckCircle, Sparkles, Image, Activity, RefreshCw, HelpCircle, FileCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import logo from "@/assets/logo.png";
@@ -17,6 +17,7 @@ const navigation = [
   { name: "Cluster Generator", href: "/admin/cluster-generator", icon: Sparkles },
   { name: "Batch Image Generation", href: "/admin/tools/batch-image-generation", icon: Image },
   { name: "Citation Health", href: "/admin/citation-health", icon: Activity },
+  { name: "Sitemap Health", href: "/admin/sitemap-health", icon: FileCheck2 },
   { name: "Content Updates", href: "/admin/content-updates", icon: RefreshCw },
   { name: "FAQ Management", href: "/admin/faq-backfill", icon: HelpCircle },
   { name: "System Check", href: "/admin/system-check", icon: CheckCircle },

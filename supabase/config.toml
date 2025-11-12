@@ -194,3 +194,6 @@ verify_jwt = false
 
 [functions.get-domain-count]
 verify_jwt = false
+
+[functions.validate-sitemap]
+verify_jwt = false

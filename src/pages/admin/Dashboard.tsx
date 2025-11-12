@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { ContentFreshnessPanel } from "@/components/admin/ContentFreshnessPanel";
 import { CitationHealthWidget } from "@/components/admin/CitationHealthWidget";
+import { SitemapHealthWidget } from "@/components/admin/SitemapHealthWidget";
 
 const Dashboard = () => {
   const navigate = useNavigate();
