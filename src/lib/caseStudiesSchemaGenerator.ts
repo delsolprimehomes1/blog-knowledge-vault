@@ -49,23 +49,9 @@ export function generateCaseStudySchema(caseStudy: CaseStudy): any {
     "areaServed": {
       "@type": "City",
       "name": caseStudy.location
-    },
-    "review": {
-      "@type": "Review",
-      "author": {
-        "@type": "Person",
-        "name": caseStudy.testimonial.author
-      },
-      "reviewRating": {
-        "@type": "Rating",
-        "ratingValue": caseStudy.testimonial.rating,
-        "bestRating": "5",
-        "worstRating": "1"
-      },
-      "reviewBody": caseStudy.testimonial.quote,
-      "datePublished": new Date().toISOString().split('T')[0],
-      "itemReviewed": LOCAL_BUSINESS_REVIEWED_ITEM
     }
+    // TODO: Add real, verified customer reviews when available
+    // Must comply with Google's Review Snippet guidelines
   };
 }
 

@@ -81,32 +81,16 @@ export function generateHomeBreadcrumbSchema() {
   };
 }
 
-export function generateHomeReviewsSchema() {
-  return {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "itemListElement": [
-      {
-        "@type": "Review",
-        "position": 1,
-        "author": { "@type": "Person", "name": "James & Sarah M." },
-        "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5", "worstRating": "1" },
-        "reviewBody": "Our experience buying in Marbella was incredible. The team guided us through every step, from viewings to final paperwork. Their multilingual support made everything seamless.",
-        "datePublished": "2024-11-01",
-        "itemReviewed": LOCAL_BUSINESS_REVIEWED_ITEM
-      },
-      {
-        "@type": "Review",
-        "position": 2,
-        "author": { "@type": "Person", "name": "Henrik L." },
-        "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5", "worstRating": "1" },
-        "reviewBody": "Professional, knowledgeable, and genuinely caring. They found us the perfect villa in Estepona and handled all the legal complexities with ease.",
-        "datePublished": "2024-09-15",
-        "itemReviewed": LOCAL_BUSINESS_REVIEWED_ITEM
-      }
-    ]
-  };
-}
+/**
+ * TODO: Add real, verified customer reviews
+ * 
+ * Requirements:
+ * - Must be actual customer testimonials with written consent
+ * - Must include real dates and verifiable details
+ * - Consider integrating with Google Reviews API or Trustpilot
+ * 
+ * See: https://developers.google.com/search/docs/appearance/structured-data/review-snippet
+ */
 
 export function generateAllHomeSchemas() {
   return {
@@ -114,7 +98,6 @@ export function generateAllHomeSchemas() {
     organization: ORGANIZATION_SCHEMA,
     speakable: generateHomeSpeakableSchema(),
     breadcrumb: generateHomeBreadcrumbSchema(),
-    reviews: generateHomeReviewsSchema(),
     imageGallery: generateImageGallerySchema(),
     heroImages: getAllHeroImageSchemas()
   };
