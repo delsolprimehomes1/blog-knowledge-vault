@@ -232,6 +232,8 @@ const BlogIndex = () => {
         ogDescription="Expert guides on buying property in Costa del Sol. Real estate market trends, legal advice, and lifestyle insights for UK and Irish buyers."
         ogImage={`${baseUrl}/costa-del-sol-bg.jpg`}
         robots="index, follow"
+        prevPage={currentPage > 1 ? `${baseUrl}/blog?page=${currentPage - 1}` : undefined}
+        nextPage={currentPage < totalPages ? `${baseUrl}/blog?page=${currentPage + 1}` : undefined}
         schemas={[
           schemas.collection,
           schemas.breadcrumb,

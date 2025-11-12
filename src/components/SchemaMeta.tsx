@@ -27,6 +27,10 @@ interface SchemaMetaProps {
   robots?: string;
   language?: string;
   
+  // Pagination (for rel=prev/next)
+  prevPage?: string;
+  nextPage?: string;
+  
   // Hreflang (multi-language)
   hreflangLinks?: Array<{ lang: string; url: string }>;
   
@@ -48,6 +52,8 @@ export function SchemaMeta({
   twitterImage,
   robots = 'index, follow',
   language = 'en-GB',
+  prevPage,
+  nextPage,
   hreflangLinks = [],
   schemas = [],
 }: SchemaMetaProps) {
@@ -66,6 +72,10 @@ export function SchemaMeta({
       <link rel="canonical" href={canonical} />
       <meta name="robots" content={robots} />
       <meta httpEquiv="content-language" content={language} />
+      
+      {/* Pagination link tags */}
+      {prevPage && <link rel="prev" href={prevPage} />}
+      {nextPage && <link rel="next" href={nextPage} />}
       
       {/* Open Graph */}
       <meta property="og:title" content={finalOgTitle} />
