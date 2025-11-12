@@ -23,7 +23,6 @@ export interface GeneratedSchemas {
   article: any;
   speakable: any;
   breadcrumb: any;
-  faq?: any;
   organization: any;
   localBusiness: any;
   errors: SchemaValidationError[];
@@ -304,6 +303,19 @@ export function generateArticleSchema(
   
   if (reviewer) {
     schema.reviewedBy = generatePersonSchema(reviewer);
+  }
+  
+  // Add FAQs as mainEntity if they exist (nested inside BlogPosting)
+  if (article.faq_entities && article.faq_entities.length > 0) {
+    schema.mainEntity = article.faq_entities.map(faq => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer,
+        ...(author && { "author": generatePersonSchema(author) })
+      }
+    }));
   }
   
   // Filter out banned competitor citations from schema
@@ -610,7 +622,6 @@ export function generateAllSchemas(
   const articleResult = generateArticleSchema(article, author, reviewer, baseUrl);
   const speakable = generateSpeakableSchema(article);
   const breadcrumb = generateBreadcrumbSchema(article, baseUrl);
-  const faq = generateFAQSchema(article, author);
   const organization = ORGANIZATION_SCHEMA;
   const localBusiness = generateLocalBusinessSchema(baseUrl);
   
@@ -620,7 +631,6 @@ export function generateAllSchemas(
     article: articleResult.schema,
     speakable,
     breadcrumb,
-    faq,
     organization,
     localBusiness,
     errors: [...articleResult.errors, ...validationErrors]

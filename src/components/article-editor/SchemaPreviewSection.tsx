@@ -44,7 +44,7 @@ export const SchemaPreviewSection = ({
   if (!schemas) return null;
 
   const hasErrors = schemas.errors.length > 0;
-  const schemaCount = 3 + (schemas.faq ? 1 : 0) + 1; // article + speakable + breadcrumb + faq? + organization
+  const schemaCount = 5; // article + speakable + breadcrumb + organization + localBusiness
 
   return (
     <Card>
@@ -104,11 +104,10 @@ export const SchemaPreviewSection = ({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <Tabs defaultValue="article" className="mt-4">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="article">Article</TabsTrigger>
                 <TabsTrigger value="speakable">Speakable</TabsTrigger>
                 <TabsTrigger value="breadcrumb">Breadcrumb</TabsTrigger>
-                {schemas.faq && <TabsTrigger value="faq">FAQ</TabsTrigger>}
                 <TabsTrigger value="organization">Organization</TabsTrigger>
               </TabsList>
 
@@ -174,29 +173,6 @@ export const SchemaPreviewSection = ({
                   </Button>
                 </div>
               </TabsContent>
-
-              {schemas.faq && (
-                <TabsContent value="faq" className="mt-4">
-                  <div className="relative">
-                    <pre className="p-4 bg-muted rounded-lg text-xs overflow-x-auto max-h-96">
-                      {JSON.stringify(schemas.faq, null, 2)}
-                    </pre>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copySchema("FAQ", schemas.faq)}
-                      className="absolute top-2 right-2"
-                    >
-                      {copied === "FAQ" ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </TabsContent>
-              )}
 
               <TabsContent value="organization" className="mt-4">
                 <div className="relative">
