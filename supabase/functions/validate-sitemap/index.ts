@@ -34,7 +34,7 @@ serve(async (req) => {
     console.log(`Found ${totalPublished} published articles`);
 
     // 2. Fetch sitemap.xml from production
-    const sitemapUrl = 'https://delsol-blog.lovableproject.com/sitemap.xml';
+    const sitemapUrl = 'https://delsolprimehomes.com/sitemap.xml';
     let sitemapXml = '';
     let xmlIsValid = false;
     let xmlValidationErrors = [];
@@ -48,7 +48,7 @@ serve(async (req) => {
         xmlValidationErrors.push('Invalid XML structure or missing required elements');
       }
     } catch (error) {
-      xmlValidationErrors.push(`Failed to fetch sitemap: ${error.message}`);
+      xmlValidationErrors.push(`Failed to fetch sitemap: ${(error as Error).message}`);
     }
 
     // 3. Extract URLs from sitemap
@@ -236,7 +236,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Validation error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
