@@ -4,7 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import type { Plugin } from "vite";
 
-// Plugin to generate static HTML pages and sitemap after build
+// Plugin to generate sitemap after build (static pages temporarily disabled for performance)
 function staticPageGenerator(): Plugin {
   return {
     name: "static-page-generator",
@@ -13,14 +13,14 @@ function staticPageGenerator(): Plugin {
       if (process.env.NODE_ENV === 'production') {
         const distPath = path.resolve(__dirname, 'dist');
         
-        console.log('\n📄 Generating static pages...');
-        try {
-          const { generateStaticPages } = await import('./scripts/generateStaticPages');
-          await generateStaticPages(distPath);
-        } catch (err) {
-          console.error('Failed to generate static pages:', err);
-          // Don't fail the build if static generation fails
-        }
+        // TEMPORARILY DISABLED: Static page generation (causes build timeouts)
+        // console.log('\n📄 Generating static pages...');
+        // try {
+        //   const { generateStaticPages } = await import('./scripts/generateStaticPages');
+        //   await generateStaticPages(distPath);
+        // } catch (err) {
+        //   console.error('Failed to generate static pages:', err);
+        // }
         
         console.log('\n🗺️  Generating sitemap...');
         try {
