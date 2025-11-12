@@ -67,13 +67,6 @@ export const ORGANIZATION_SCHEMA = {
     { "@type": "City", "name": "Benalmádena" },
     { "@type": "City", "name": "Mijas" }
   ],
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.8",
-    "reviewCount": "127",
-    "bestRating": "5",
-    "worstRating": "1"
-  },
   "contactPoint": {
     "@type": "ContactPoint",
     "contactType": "Customer Service",
@@ -99,14 +92,6 @@ export const LOCAL_BUSINESS_REVIEWED_ITEM = {
     "addressLocality": "Fuengirola",
     "addressRegion": "Costa del Sol",
     "addressCountry": "ES"
-  },
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.8",
-    "reviewCount": "127",
-    "ratingCount": "127",
-    "bestRating": "5",
-    "worstRating": "1"
   }
 };
 
@@ -584,13 +569,6 @@ export function generateLocalBusinessSchema(baseUrl: string = "https://delsolpri
       "@type": "GeoCoordinates",
       "latitude": 36.5397,
       "longitude": -4.6262
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.8",
-      "reviewCount": "127",
-      "bestRating": "5",
-      "worstRating": "1"
     },
     "openingHoursSpecification": [
       {

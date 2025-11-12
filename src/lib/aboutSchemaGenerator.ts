@@ -26,14 +26,7 @@ export function generateAboutPageSchema(): any {
         "Luxury Villa Sales",
         "Spanish Property Law",
         "Expatriate Relocation Services"
-      ],
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.8",
-        "reviewCount": "127",
-        "bestRating": "5",
-        "worstRating": "1"
-      }
+      ]
     },
     "dateModified": new Date().toISOString().split('T')[0],
     "inLanguage": "en-GB",
