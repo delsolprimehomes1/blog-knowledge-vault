@@ -105,7 +105,7 @@ const FAQ = () => {
         </section>
 
         {/* FAQ Content */}
-        <section className="py-16 px-4 md:px-8" itemScope itemType="https://schema.org/FAQPage">
+        <section className="py-16 px-4 md:px-8">
           <div className="max-w-4xl mx-auto">
             <Accordion type="single" collapsible className="space-y-4">
               {FAQ_ITEMS.map((item, index) => (

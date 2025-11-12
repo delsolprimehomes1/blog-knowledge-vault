@@ -18,8 +18,6 @@ export const FAQSection = ({ faqEntities }: FAQSectionProps) => {
   return (
     <section 
       className="faq-section bg-gradient-to-br from-muted/30 to-muted/10 rounded-2xl p-8 md:p-10 border border-border/50"
-      itemScope 
-      itemType="https://schema.org/FAQPage"
     >
       <div className="flex items-center gap-3 mb-6">
         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
