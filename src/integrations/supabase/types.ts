@@ -759,6 +759,7 @@ export type Database = {
         Row: {
           anchor_text: string | null
           article_id: string | null
+          citation_domain: string | null
           citation_source: string | null
           citation_url: string
           context_paragraph_index: number | null
@@ -773,6 +774,7 @@ export type Database = {
         Insert: {
           anchor_text?: string | null
           article_id?: string | null
+          citation_domain?: string | null
           citation_source?: string | null
           citation_url: string
           context_paragraph_index?: number | null
@@ -787,6 +789,7 @@ export type Database = {
         Update: {
           anchor_text?: string | null
           article_id?: string | null
+          citation_domain?: string | null
           citation_source?: string | null
           citation_url?: string
           context_paragraph_index?: number | null
@@ -1059,6 +1062,39 @@ export type Database = {
           replacement_url?: string
           status?: string | null
           suggested_by?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      domain_usage_stats: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          domain: string
+          id: string
+          last_used_at: string | null
+          tier: string | null
+          total_uses: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          domain: string
+          id?: string
+          last_used_at?: string | null
+          tier?: string | null
+          total_uses?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          domain?: string
+          id?: string
+          last_used_at?: string | null
+          tier?: string | null
+          total_uses?: number | null
           updated_at?: string | null
         }
         Relationships: []
