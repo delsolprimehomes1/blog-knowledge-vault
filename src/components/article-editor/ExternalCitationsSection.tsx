@@ -49,7 +49,7 @@ export const ExternalCitationsSection = ({
     onCitationsChange([...citations, { text: "", url: "", source: "", year: new Date().getFullYear() }]);
   };
 
-  const handleAddCitationFromFinder = async (citation: { url: string; sourceName: string; anchorText: string }) => {
+  const handleAddCitationFromFinder = async (citation: { url: string; source: string; text: string }) => {
     // Validate before adding
     const result = await validateCitationCompliance(citation.url);
     
@@ -60,9 +60,9 @@ export const ExternalCitationsSection = ({
     }
     
     const newCitation: ExternalCitation = {
-      text: citation.anchorText,
+      text: citation.text,
       url: citation.url,
-      source: citation.sourceName,
+      source: citation.source,
       year: new Date().getFullYear(),
     };
     onCitationsChange([...citations, newCitation]);
