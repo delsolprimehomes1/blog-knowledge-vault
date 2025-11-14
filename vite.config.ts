@@ -4,14 +4,24 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import type { Plugin } from "vite";
 
-// Sitemap generation moved to postbuild script for better reliability
-// This plugin is kept for potential future use but currently does nothing
+// Static page generator for blog articles - generates HTML files during build
+// This ensures all published articles have pre-rendered HTML with correct schemas
 function staticPageGenerator(): Plugin {
   return {
     name: "static-page-generator",
     async closeBundle() {
-      // Sitemap generation now handled by standalone script in postbuild
-      // This prevents build timeouts and ensures reliable generation
+      if (process.env.NODE_ENV === 'production') {
+        try {
+          console.log('\n📄 Generating static pages...');
+          const { generateStaticPages } = await import('./scripts/generateStaticPages.js');
+          const distDir = path.resolve(__dirname, './dist');
+          await generateStaticPages(distDir);
+          console.log('✅ Static pages generated successfully\n');
+        } catch (error) {
+          console.error('⚠️  Static page generation failed:', error);
+          // Don't fail the build, just log the error
+        }
+      }
     }
   };
 }
