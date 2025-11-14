@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ExternalCitationsSectionProps {
+  articleId?: string;
   citations: ExternalCitation[];
   onCitationsChange: (citations: ExternalCitation[]) => void;
   errors: Record<string, string>;
@@ -22,6 +23,7 @@ interface ExternalCitationsSectionProps {
 }
 
 export const ExternalCitationsSection = ({
+  articleId,
   citations,
   onCitationsChange,
   errors,
@@ -133,6 +135,7 @@ export const ExternalCitationsSection = ({
         {/* AI-Powered Better Citation Finder (New - Perplexity) */}
         {headline && articleContent && (
           <BetterCitationFinder
+            articleId={articleId}
             articleTopic={headline}
             articleLanguage={language}
             articleContent={articleContent}

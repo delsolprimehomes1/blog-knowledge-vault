@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 import { findCitationsWithCascade, verifyCitations } from "../shared/batchedCitationFinder.ts";
 
 const corsHeaders = {
@@ -13,6 +14,7 @@ serve(async (req) => {
 
   try {
     const { 
+      articleId,
       articleTopic,
       articleLanguage = 'en',
       articleContent,
@@ -33,10 +35,18 @@ serve(async (req) => {
       throw new Error('PERPLEXITY_API_KEY is not configured');
     }
 
+    // Initialize Supabase client for domain tracking
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     console.log(`Finding better citations for: "${articleTopic}" (${articleLanguage})`);
     console.log(`Parameters: targetCount=${targetCount}, prioritizeGov=${prioritizeGovernment}, minGov=${minimumGovPercentage}%`);
+    if (articleId) {
+      console.log(`Domain rotation enabled for article: ${articleId.substring(0, 8)}...`);
+    }
 
-    // Find citations with cascading batch system
+    // Find citations with cascading batch system + domain rotation
     const citations = await findCitationsWithCascade(
       articleTopic,
       articleLanguage,
@@ -45,7 +55,9 @@ serve(async (req) => {
       perplexityApiKey,
       focusArea,
       prioritizeGovernment,
-      minimumGovPercentage
+      minimumGovPercentage,
+      articleId,
+      supabase
     );
 
     if (citations.length === 0) {
