@@ -8,6 +8,12 @@
 import { getAllApprovedDomains } from "./approvedDomains.ts";
 import { isCompetitor } from "./competitorBlacklist.ts";
 import { calculateAuthorityScore } from "./authorityScoring.ts";
+import { 
+  getArticleUsedDomains, 
+  getUnderutilizedDomains, 
+  filterAndPrioritizeDomains 
+} from "./domainRotation.ts";
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 export interface BetterCitation {
   url: string;
@@ -262,7 +268,9 @@ export async function findCitationsWithCascade(
   perplexityApiKey: string,
   focusArea?: string,
   prioritizeGovernment: boolean = true,
-  minimumGovPercentage: number = 70
+  minimumGovPercentage: number = 70,
+  articleId?: string,
+  supabaseClient?: SupabaseClient
 ): Promise<BetterCitation[]> {
   
   
@@ -270,6 +278,18 @@ export async function findCitationsWithCascade(
   console.log(`   Priority: Government sources = ${prioritizeGovernment}, Target ${minimumGovPercentage}% gov sources`);
   if (focusArea) {
     console.log(`   Focus: ${focusArea}`);
+  }
+  
+  // Get domain diversity data if article ID provided
+  let usedDomains: string[] = [];
+  let underutilizedDomains: string[] = [];
+  
+  if (articleId && supabaseClient) {
+    console.log(`\n🔄 Domain rotation active for article ${articleId.substring(0, 8)}...`);
+    usedDomains = await getArticleUsedDomains(supabaseClient, articleId);
+    underutilizedDomains = await getUnderutilizedDomains(supabaseClient, 200);
+    console.log(`   🚫 Excluding ${usedDomains.length} domains already used in this article`);
+    console.log(`   ✨ Prioritizing ${underutilizedDomains.length} underutilized domains`);
   }
 
   // Reorder batches if prioritizing government sources
@@ -296,8 +316,20 @@ export async function findCitationsWithCascade(
       break;
     }
 
+    // Apply domain filtering if enabled
+    const filteredDomains = articleId && supabaseClient
+      ? filterAndPrioritizeDomains(batch.domains, usedDomains, underutilizedDomains)
+      : batch.domains;
+    
+    if (filteredDomains.length === 0) {
+      console.log(`   ⏭️  Skipping ${batch.name} - all domains already used in this article`);
+      continue;
+    }
+    
+    console.log(`   📦 ${batch.name}: ${batch.domains.length} total → ${filteredDomains.length} available domains`);
+
     const batchResults = await searchBatch(
-      batch.domains,
+      filteredDomains,
       focusArea || articleTopic,
       articleContent,
       articleLanguage,

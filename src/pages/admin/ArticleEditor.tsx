@@ -971,6 +971,7 @@ const ArticleEditor = () => {
 
         {/* Section 6: External Citations */}
         <ExternalCitationsSection
+          articleId={id}
           citations={externalCitations}
           onCitationsChange={setExternalCitations}
           errors={errors}

@@ -20,6 +20,7 @@ interface BetterCitation {
 }
 
 interface BetterCitationFinderProps {
+  articleId?: string;
   articleTopic: string;
   articleLanguage: string;
   articleContent: string;
@@ -28,6 +29,7 @@ interface BetterCitationFinderProps {
 }
 
 export const BetterCitationFinder = ({
+  articleId,
   articleTopic,
   articleLanguage,
   articleContent,
@@ -43,6 +45,7 @@ export const BetterCitationFinder = ({
     try {
       const { data, error } = await supabase.functions.invoke('find-better-citations', {
         body: {
+          articleId,
           articleTopic,
           articleLanguage,
           articleContent: articleContent.substring(0, 2000),
@@ -60,7 +63,9 @@ export const BetterCitationFinder = ({
       
       toast({
         title: "Citations Found!",
-        description: `Found ${data.verifiedCount}/${data.totalFound} verified authoritative sources`,
+        description: articleId 
+          ? `Found ${data.verifiedCount}/${data.totalFound} unique sources (domain rotation active)`
+          : `Found ${data.verifiedCount}/${data.totalFound} verified authoritative sources`,
       });
     } catch (error: any) {
       console.error('Citation search error:', error);
