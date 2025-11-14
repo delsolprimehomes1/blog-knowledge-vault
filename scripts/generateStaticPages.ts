@@ -286,15 +286,14 @@ function generateStaticHTML(article: ArticleData, assetPaths: AssetPaths): strin
   const articleSchema = generateArticleSchema(article);
   const speakableSchema = generateSpeakableSchema(article);
   const breadcrumbSchema = generateBreadcrumbSchema(article);
-  const faqSchema = generateFAQSchema(article);
+  // FAQs are now embedded in BlogPosting schema as mainEntity (better for AI, prevents duplicate FAQPage errors)
   
   const schemas = [
     organizationSchema,
     authorSchema,
     articleSchema,
     speakableSchema,
-    breadcrumbSchema,
-    faqSchema
+    breadcrumbSchema
   ].filter(Boolean);
 
   // Build hreflang links for translations
