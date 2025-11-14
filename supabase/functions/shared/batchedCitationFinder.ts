@@ -1,19 +1,9 @@
-/**
- * Batched Citation Finder with Progressive Fallback
- * 
- * Searches approved domains in priority tiers, stopping when target is reached.
- * Ensures ONLY approved domains are cited, never the entire web.
- */
-
 import { getAllApprovedDomains } from "./approvedDomains.ts";
 import { isCompetitor } from "./competitorBlacklist.ts";
 import { calculateAuthorityScore } from "./authorityScoring.ts";
-import { 
-  getArticleUsedDomains, 
-  getUnderutilizedDomains, 
-  filterAndPrioritizeDomains 
-} from "./domainRotation.ts";
+import { getArticleUsedDomains, getUnderutilizedDomains, filterAndPrioritizeDomains } from "./domainRotation.ts";
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { parseArticleContent, formatSentencesForPrompt, type ArticleSentence } from './articleAnalyzer.ts';
 
 export interface BetterCitation {
   url: string;
@@ -25,389 +15,143 @@ export interface BetterCitation {
   suggestedContext?: string;
   verified?: boolean;
   batchTier?: string;
+  targetSentence?: string;
+  sentenceId?: string;
+  suggestedAnchor?: string;
+  placementContext?: string;
+  confidenceScore?: number;
 }
 
-/**
- * Priority batches - organized by authority level
- */
 const DOMAIN_BATCHES = {
-  tierS: [
-    // Government & Official Tourism (Highest Authority)
-    'boe.es', 'agenciatributaria.es', 'exteriores.gob.es', 'juntadeandalucia.es',
-    'gov.uk', 'gov.ie', 'spain.info', 'andalucia.org', 'visitcostadelsol.com',
-    'cnmc.es', 'ine.es', 'catastro.gob.es', 'mjusticia.gob.es',
-    'extranjeria.administracionespublicas.gob.es'
-  ],
-  tierA: [
-    // Legal, Healthcare, Education, Major Infrastructure
-    'abogadoespanol.com', 'legalservicesinspain.com', 'lexidy.com',
-    'sspa.juntadeandalucia.es', 'quironsalud.es', 'nhs.uk', 'sanitas.com',
-    'uma.es', 'britishcouncil.es', 'ibo.org', 'nabss.org',
-    'aena.es', 'renfe.com', 'registradores.org', 'notariado.org',
-    'malagasolicitors.es', 'cofaes.es', 'vithas.es', 'hospiten.com'
-  ],
-  tierB: [
-    // Established News & Expat Resources
-    'surinenglish.com', 'euroweeklynews.com', 'theolivepress.es',
-    'thelocal.es', 'expatica.com', 'internations.org', 'expatarrivals.com',
-    'spainexpat.com', 'britoninspain.com', 'eyeonspain.com',
-    'essentialmagazine.com', 'thinkspain.com', 'spainenglish.com',
-    'inspain.news', 'lachispa.net', 'andaluciatoday.com'
-  ],
-  tierC: [
-    // Tourism, Culture, Museums
-    'cuevadenerja.es', 'malaga.com', 'turismo.malaga.eu', 'turismo.benalmadena.es',
-    'turismo.estepona.es', 'turismo.fuengirola.es', 'blog.visitcostadelsol.com',
-    'malagaturismo.com', 'festivaldemalaga.com', 'museosdemalaga.com',
-    'guidetomalaga.com', 'worldtravelguide.net', 'aqualand.es',
-    'bioparcfuengirola.es', 'selwomarina.es', 'rmcr.org', 'stupabenalmadena.org',
-    'castillomonumentocolomares.com', 'mariposariodebenalmadena.com'
-  ],
-  tierD: [
-    // Nature, Outdoor, Climate
-    'caminodelrey.info', 'transandalus.com', 'outdooractive.com',
-    'weatherspark.com', 'aemet.es', 'wmo.int', 'weather-and-climate.com',
-    'climasyviajes.com', 'climatestotravel.com', 'wikipedia.org',
-    'senderismomalaga.com', 'cyclespain.net', 'malagacyclingclub.com',
-    'coastalpath.net', 'bicicletasdelsol.com', 'actividadesmalaga.com',
-    'diverland.es', 'telefericobenalmadena.com', 'duomoturismo.com'
-  ],
-  tierE: [
-    // Sports, Gastronomy, Local Services
-    'padelfederacion.es', 'worldpadeltour.com', 'marbellaguide.com',
-    'michelin.com', 'tasteatlas.com', 'gastronomiamalaga.com',
-    'tastingspain.es', 'rutasdelvino.es', 'sherry.wine', 'vinomalaga.com',
-    'alorenademalaga.com', 'atarazanasmarket.es', 'slowfoodmalaga.com',
-    'vivagym.es', 'clubelcandado.com', 'puenteromano.com',
-    'reservadelhigueronresort.com', 'yogamarbella.com'
-  ],
-  tierF: [
-    // Local Government, Shopping, Telecom, Sustainability
-    'marbella.es', 'fuengirola.es', 'benalmadena.es', 'estepona.es',
-    'mijas.es', 'torremolinos.es', 'manilva.es', 'casares.es',
-    'elcorteingles.es', 'miramarcc.com', 'movistar.es', 'vodafone.es',
-    'agenciaandaluzadelaenergia.es', 'wwf.es', 'renewableenergyworld.com',
-    'malaga.eu', 'educasol.org', 'energy.ec.europa.eu'
-  ]
+  tierS: ['boe.es', 'agenciatributaria.es', 'exteriores.gob.es', 'juntadeandalucia.es', 'gov.uk', 'gov.ie', 'spain.info', 'andalucia.org', 'visitcostadelsol.com', 'cnmc.es', 'ine.es', 'catastro.gob.es', 'mjusticia.gob.es', 'extranjeria.administracionespublicas.gob.es'],
+  tierA: ['abogadoespanol.com', 'legalservicesinspain.com', 'lexidy.com', 'sspa.juntadeandalucia.es', 'quironsalud.es', 'nhs.uk', 'sanitas.com', 'uma.es', 'britishcouncil.es', 'ibo.org', 'nabss.org', 'aena.es', 'renfe.com', 'registradores.org', 'notariado.org', 'malagasolicitors.es', 'cofaes.es', 'vithas.es', 'hospiten.com'],
+  tierB: ['surinenglish.com', 'euroweeklynews.com', 'theolivepress.es', 'thelocal.es', 'expatica.com', 'internations.org', 'expatarrivals.com', 'spainexpat.com', 'britoninspain.com', 'eyeonspain.com', 'essentialmagazine.com', 'thinkspain.com', 'spainenglish.com', 'inspain.news', 'lachispa.net', 'andaluciatoday.com'],
+  tierC: ['cuevadenerja.es', 'malaga.com', 'turismo.malaga.eu', 'turismo.benalmadena.es', 'turismo.estepona.es', 'turismo.fuengirola.es', 'blog.visitcostadelsol.com', 'malagaturismo.com', 'festivaldemalaga.com', 'museosdemalaga.com', 'guidetomalaga.com', 'worldtravelguide.net', 'aqualand.es', 'bioparcfuengirola.es', 'selwomarina.es', 'rmcr.org', 'stupabenalmadena.org', 'castillomonumentocolomares.com', 'mariposariodebenalmadena.com'],
+  tierD: ['caminodelrey.info', 'transandalus.com', 'outdooractive.com', 'weatherspark.com', 'aemet.es', 'wmo.int', 'weather-and-climate.com', 'climasyviajes.com', 'climatestotravel.com', 'wikipedia.org', 'senderismomalaga.com', 'cyclespain.net', 'malagacyclingclub.com', 'coastalpath.net', 'bicicletasdelsol.com', 'actividadesmalaga.com', 'diverland.es', 'telefericobenalmadena.com', 'duomoturismo.com'],
+  tierE: ['padelfederacion.es', 'worldpadeltour.com', 'marbellaguide.com', 'michelin.com', 'tasteatlas.com', 'gastronomiamalaga.com', 'tastingspain.es', 'rutasdelvino.es', 'sherry.wine', 'vinomalaga.com', 'alorenademalaga.com', 'atarazanasmarket.es', 'slowfoodmalaga.com', 'vivagym.es', 'clubelcandado.com', 'puenteromano.com', 'reservadelhigueronresort.com', 'yogamarbella.com'],
+  tierF: ['marbella.es', 'fuengirola.es', 'benalmadena.es', 'estepona.es', 'mijas.es', 'torremolinos.es', 'manilva.es', 'casares.es', 'elcorteingles.es', 'miramarcc.com', 'movistar.es', 'vodafone.es', 'agenciaandaluzadelaenergia.es', 'wwf.es', 'renewableenergyworld.com', 'malaga.eu', 'educasol.org', 'energy.ec.europa.eu']
 };
 
-/**
- * Search a specific batch of domains with Perplexity
- */
 async function searchBatch(
   batchDomains: string[],
   articleTopic: string,
   articleContent: string,
-  articleLanguage: string,
+  targetCount: number,
   perplexityApiKey: string,
-  batchName: string
+  tier: string,
+  citationSentences?: ArticleSentence[],
+  prioritizeGovernment = true,
+  focusArea?: string
 ): Promise<BetterCitation[]> {
+  if (batchDomains.length === 0) return [];
   
-  const languageInstructions = articleLanguage === 'es'
-    ? 'Proporciona descripciones en español.'
-    : 'Provide descriptions in English.';
+  const domainQuery = batchDomains.map(d => `site:${d}`).join(' OR ');
+  const contentSnippet = citationSentences ? articleContent.substring(0, 3000) : articleContent.substring(0, 500);
+  const citationOpportunities = citationSentences ? formatSentencesForPrompt(citationSentences.slice(0, 10)) : '';
 
-  const prompt = `CRITICAL RESTRICTION: You MUST ONLY cite sources from these EXACT domains. DO NOT use any other websites.
-
-APPROVED DOMAINS FOR THIS SEARCH:
-${batchDomains.map(d => `- ${d}`).join('\n')}
-
-TASK: Find 5-8 authoritative sources about "${articleTopic}"
-
-${languageInstructions}
-
-Article Context: ${articleContent.substring(0, 500)}
-
-STRICT REQUIREMENTS:
-1. ⚠️ ONLY USE THE DOMAINS LISTED ABOVE - NO EXCEPTIONS
-2. Each URL must be from one of the approved domains
-3. Find recent, high-quality articles
-4. Prioritize government, educational, and official sources
-5. Return ONLY a valid JSON array
-
-RESPONSE FORMAT (JSON array only, no other text):
-[
-  {
-    "url": "full URL from approved domain",
-    "source": "exact domain name from list",
-    "description": "what this source covers",
-    "relevance": "why relevant to topic",
-    "language": "${articleLanguage}"
-  }
-]
-
-REMINDER: The domains listed above are the ONLY acceptable sources. Any URL from another domain will be rejected.`;
-
-  console.log(`🔍 Searching ${batchName} (${batchDomains.length} domains)...`);
+  const enhancedPrompt = citationSentences ? `Find citations for these claims about "${articleTopic}": ${citationOpportunities}. Use only: ${domainQuery}. Return JSON with supportsSentence, suggestedAnchor, confidenceScore.` : `Find ${targetCount} citations for "${articleTopic}". Use only: ${domainQuery}. Return JSON array.`;
 
   try {
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${perplexityApiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${perplexityApiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'sonar-pro',
-        messages: [
-          { role: 'system', content: 'You are a citation research assistant. You must ONLY cite from the approved domain list provided. Return ONLY valid JSON arrays with no additional text.' },
-          { role: 'user', content: prompt }
-        ],
+        messages: [{ role: 'system', content: 'Return ONLY valid JSON.' }, { role: 'user', content: enhancedPrompt }],
+        max_tokens: 3000,
         temperature: 0.2,
-        max_tokens: 2000,
-        return_images: false,
-        return_related_questions: false
-      }),
+        search_domain_filter: batchDomains
+      })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ ${batchName} failed: ${response.status}`);
-      console.error(`   Error response:`, errorText);
-      console.error(`   Attempted domains:`, batchDomains.slice(0, 5).join(', '), `... (${batchDomains.length} total)`);
-      return [];
-    }
-
     const data = await response.json();
-    const content = data.choices[0]?.message?.content || '[]';
+    let rawText = data.choices?.[0]?.message?.content || '[]';
+    rawText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
-    // Parse JSON response
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.log(`⚠️ ${batchName}: No valid JSON found`);
-      return [];
+    const results = JSON.parse(rawText);
+    const validCitations: BetterCitation[] = [];
+
+    for (const result of results) {
+      const url = result.url?.trim();
+      if (!url || !url.startsWith('http') || isCompetitor(url)) continue;
+
+      const citation: BetterCitation = {
+        url,
+        source: result.source || new URL(url).hostname,
+        description: result.description || '',
+        relevance: result.relevance || '',
+        authorityScore: calculateAuthorityScore(url),
+        language: 'en',
+        batchTier: tier
+      };
+
+      if (result.supportsSentence && citationSentences) {
+        const idx = result.supportsSentence - 1;
+        if (idx >= 0 && idx < citationSentences.length) {
+          citation.targetSentence = citationSentences[idx].text;
+          citation.suggestedAnchor = result.suggestedAnchor;
+          citation.confidenceScore = result.confidenceScore || 85;
+          citation.placementContext = result.placementContext;
+        }
+      }
+
+      validCitations.push(citation);
+      if (validCitations.length >= targetCount) break;
     }
 
-    const citations = JSON.parse(jsonMatch[0]) as BetterCitation[];
-    
-    // Helper function to extract domain from URL
-    const extractDomain = (url: string): string => {
-      try {
-        const urlObj = new URL(url);
-        return urlObj.hostname.replace(/^www\./, '').toLowerCase();
-      } catch {
-        return '';
-      }
-    };
-
-    // Normalize batch domains for comparison
-    const normalizedBatchDomains = batchDomains.map(d => d.toLowerCase().replace(/^www\./, ''));
-    
-    // Import full approved domain list for additional safety check
-    const allApprovedDomains = getAllApprovedDomains();
-    
-    // Filter: competitors, invalid URLs, and URLs NOT from approved batch domains
-    const validCitations = citations
-      .filter(c => {
-        if (!c.url) {
-          console.log(`   ⚠️ Rejected: Missing URL`);
-          return false;
-        }
-        
-        if (isCompetitor(c.url)) {
-          console.log(`   ⚠️ Rejected: Competitor - ${c.url}`);
-          return false;
-        }
-        
-        const citationDomain = extractDomain(c.url);
-        if (!citationDomain) {
-          console.log(`   ⚠️ Rejected: Invalid URL - ${c.url}`);
-          return false;
-        }
-        
-        // Check if domain is in the approved batch
-        const isInBatch = normalizedBatchDomains.some(approvedDomain => 
-          citationDomain === approvedDomain || citationDomain.endsWith(`.${approvedDomain}`)
-        );
-        
-        // Also check against full approved domain list as safety net
-        const isInFullList = allApprovedDomains.some(approvedDomain => {
-          const normalizedApproved = approvedDomain.toLowerCase().replace(/^www\./, '');
-          return citationDomain === normalizedApproved || citationDomain.endsWith(`.${normalizedApproved}`);
-        });
-        
-        if (!isInBatch && !isInFullList) {
-          console.log(`   ⚠️ Rejected: Not from approved domains - ${c.url} (domain: ${citationDomain})`);
-          return false;
-        }
-        
-        return true;
-      })
-      .map(c => {
-        const scores = calculateAuthorityScore({
-          url: c.url,
-          sourceName: c.source || '',
-          description: c.description || '',
-          isAccessible: true
-        });
-        return {
-          ...c,
-          authorityScore: scores.totalScore,
-          batchTier: batchName
-        };
-      });
-
-    console.log(`   ✅ ${batchName}: Found ${validCitations.length} valid citations (from ${citations.length} total)`);
     return validCitations;
-
   } catch (error) {
-    console.error(`❌ ${batchName} error:`, error);
+    console.error(`Batch ${tier} error:`, error);
     return [];
   }
 }
 
-/**
- * Find citations using cascading batch strategy
- * Searches high-authority batches first, stops when target is reached
- */
 export async function findCitationsWithCascade(
   articleTopic: string,
   articleLanguage: string,
   articleContent: string,
-  targetCount: number,
+  targetCount = 8,
   perplexityApiKey: string,
   focusArea?: string,
-  prioritizeGovernment: boolean = true,
-  minimumGovPercentage: number = 70,
+  prioritizeGovernment = true,
+  minimumGovPercentage = 70,
   articleId?: string,
-  supabaseClient?: SupabaseClient
+  supabaseClient?: SupabaseClient,
+  enableEnhancedAnalysis = true
 ): Promise<BetterCitation[]> {
+  const citationSentences = enableEnhancedAnalysis ? parseArticleContent(articleContent, 15) : undefined;
+  const allCitations: BetterCitation[] = [];
   
-  
-  console.log(`\n🎯 Finding ${targetCount} citations for: "${articleTopic}" (${articleLanguage})`);
-  console.log(`   Priority: Government sources = ${prioritizeGovernment}, Target ${minimumGovPercentage}% gov sources`);
-  if (focusArea) {
-    console.log(`   Focus: ${focusArea}`);
-  }
-  
-  // Get domain diversity data if article ID provided
-  let usedDomains: string[] = [];
-  let underutilizedDomains: string[] = [];
+  let usedInArticle: string[] = [];
+  let underutilized: string[] = [];
   
   if (articleId && supabaseClient) {
-    console.log(`\n🔄 Domain rotation active for article ${articleId.substring(0, 8)}...`);
-    usedDomains = await getArticleUsedDomains(supabaseClient, articleId);
-    underutilizedDomains = await getUnderutilizedDomains(supabaseClient, 200);
-    console.log(`   🚫 Excluding ${usedDomains.length} domains already used in this article`);
-    console.log(`   ✨ Prioritizing ${underutilizedDomains.length} underutilized domains`);
+    [usedInArticle, underutilized] = await Promise.all([
+      getArticleUsedDomains(supabaseClient, articleId),
+      getUnderutilizedDomains(supabaseClient, 150)
+    ]);
   }
 
-  // Reorder batches if prioritizing government sources
-  let batches = [
-    { name: 'Tier S (Gov/Official)', domains: DOMAIN_BATCHES.tierS, isGov: true },
-    { name: 'Tier A (Professional)', domains: DOMAIN_BATCHES.tierA, isGov: false },
-    { name: 'Tier B (News/Expat)', domains: DOMAIN_BATCHES.tierB, isGov: false },
-    { name: 'Tier C (Tourism)', domains: DOMAIN_BATCHES.tierC, isGov: false },
-    { name: 'Tier D (Nature/Climate)', domains: DOMAIN_BATCHES.tierD, isGov: false },
-    { name: 'Tier E (Sports/Food)', domains: DOMAIN_BATCHES.tierE, isGov: false },
-    { name: 'Tier F (Local Services)', domains: DOMAIN_BATCHES.tierF, isGov: false }
-  ];
-
-  if (prioritizeGovernment) {
-    // When prioritizing government, search Tier S twice (at start and again if needed)
-    console.log(`   🏛️ Prioritizing government sources - will search Tier S intensively`);
+  for (const [tier, domains] of Object.entries(DOMAIN_BATCHES)) {
+    if (allCitations.length >= targetCount) break;
+    const filteredDomains = articleId && supabaseClient ? filterAndPrioritizeDomains(domains, usedInArticle, underutilized) : domains;
+    const batch = await searchBatch(filteredDomains, articleTopic, articleContent, targetCount - allCitations.length, perplexityApiKey, tier, citationSentences, prioritizeGovernment, focusArea);
+    allCitations.push(...batch);
   }
 
-  let allCitations: BetterCitation[] = [];
-
-  for (const batch of batches) {
-    if (allCitations.length >= targetCount) {
-      console.log(`✅ Target reached! Stopping at ${allCitations.length} citations`);
-      break;
-    }
-
-    // Apply domain filtering if enabled
-    const filteredDomains = articleId && supabaseClient
-      ? filterAndPrioritizeDomains(batch.domains, usedDomains, underutilizedDomains)
-      : batch.domains;
-    
-    if (filteredDomains.length === 0) {
-      console.log(`   ⏭️  Skipping ${batch.name} - all domains already used in this article`);
-      continue;
-    }
-    
-    console.log(`   📦 ${batch.name}: ${batch.domains.length} total → ${filteredDomains.length} available domains`);
-
-    const batchResults = await searchBatch(
-      filteredDomains,
-      focusArea || articleTopic,
-      articleContent,
-      articleLanguage,
-      perplexityApiKey,
-      batch.name
-    );
-
-    allCitations.push(...batchResults);
-    console.log(`   📊 Total: ${allCitations.length}/${targetCount}`);
-
-    // Small delay between batches
-    if (allCitations.length < targetCount && batches.indexOf(batch) < batches.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-  }
-
-  // Sort by authority score and return top results
-  const sortedCitations = allCitations
-    .sort((a, b) => b.authorityScore - a.authorityScore)
-    .slice(0, targetCount);
-
-  // Calculate government percentage
-  const govSourceCount = sortedCitations.filter(c => 
-    /\.(gov|gob\.es|edu|europa\.eu)($|\/)/.test(c.url)
-  ).length;
-  const govPercentage = (govSourceCount / sortedCitations.length) * 100;
-
-  console.log(`\n✨ Final: ${sortedCitations.length} citations selected`);
-  console.log(`   Government sources: ${govSourceCount}/${sortedCitations.length} (${govPercentage.toFixed(1)}%)`);
-  
-  if (prioritizeGovernment && govPercentage < minimumGovPercentage) {
-    console.log(`   ⚠️ Below target of ${minimumGovPercentage}% government sources`);
-  }
-  
-  console.log(`   Tier breakdown:`, 
-    sortedCitations.reduce((acc, c) => {
-      acc[c.batchTier || 'unknown'] = (acc[c.batchTier || 'unknown'] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  );
-
-  return sortedCitations;
+  return allCitations.sort((a, b) => b.authorityScore - a.authorityScore).slice(0, targetCount);
 }
 
-/**
- * Verify citation URLs are accessible
- */
 export async function verifyCitations(citations: BetterCitation[]): Promise<BetterCitation[]> {
-  console.log(`\n🔍 Verifying ${citations.length} URLs...`);
-  
-  const verificationPromises = citations.map(async (citation) => {
-    try {
-      const response = await fetch(citation.url, {
-        method: 'HEAD',
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      return {
-        ...citation,
-        verified: response.ok,
-        statusCode: response.status
-      };
-    } catch {
-      return {
-        ...citation,
-        verified: false
-      };
-    }
-  });
-
-  const verifiedCitations = await Promise.all(verificationPromises);
-  const verifiedCount = verifiedCitations.filter(c => c.verified).length;
-  
-  console.log(`   ✅ ${verifiedCount}/${citations.length} URLs verified`);
-  
-  return verifiedCitations.sort((a, b) => {
-    if (a.verified && !b.verified) return -1;
-    if (!a.verified && b.verified) return 1;
-    return b.authorityScore - a.authorityScore;
-  });
+  const verified = await Promise.all(
+    citations.map(async (c) => {
+      try {
+        const res = await fetch(c.url, { method: 'HEAD' });
+        return { ...c, verified: res.ok, statusCode: res.status };
+      } catch {
+        return { ...c, verified: false, statusCode: 0 };
+      }
+    })
+  );
+  return verified.sort((a, b) => (a.verified && !b.verified ? -1 : !a.verified && b.verified ? 1 : b.authorityScore - a.authorityScore));
 }

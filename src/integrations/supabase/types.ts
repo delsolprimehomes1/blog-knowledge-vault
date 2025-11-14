@@ -618,6 +618,50 @@ export type Database = {
         }
         Relationships: []
       }
+      citation_quality_scores: {
+        Row: {
+          authority_score: number | null
+          citation_id: string | null
+          created_at: string | null
+          diversity_score: number | null
+          final_score: number | null
+          id: string
+          recency_score: number | null
+          relevance_score: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          authority_score?: number | null
+          citation_id?: string | null
+          created_at?: string | null
+          diversity_score?: number | null
+          final_score?: number | null
+          id?: string
+          recency_score?: number | null
+          relevance_score?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          authority_score?: number | null
+          citation_id?: string | null
+          created_at?: string | null
+          diversity_score?: number | null
+          final_score?: number | null
+          id?: string
+          recency_score?: number | null
+          relevance_score?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citation_quality_scores_citation_id_fkey"
+            columns: ["citation_id"]
+            isOneToOne: false
+            referencedRelation: "citation_usage_tracking"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       citation_replacement_chunks: {
         Row: {
           auto_applied_count: number | null
@@ -762,13 +806,17 @@ export type Database = {
           citation_domain: string | null
           citation_source: string | null
           citation_url: string
+          confidence_score: number | null
           context_paragraph_index: number | null
           created_at: string | null
           first_added_at: string | null
           id: string
+          insertion_location: number | null
           is_active: boolean | null
           last_verified_at: string | null
           position_in_article: number | null
+          suggested_anchor: string | null
+          target_sentence: string | null
           updated_at: string | null
         }
         Insert: {
@@ -777,13 +825,17 @@ export type Database = {
           citation_domain?: string | null
           citation_source?: string | null
           citation_url: string
+          confidence_score?: number | null
           context_paragraph_index?: number | null
           created_at?: string | null
           first_added_at?: string | null
           id?: string
+          insertion_location?: number | null
           is_active?: boolean | null
           last_verified_at?: string | null
           position_in_article?: number | null
+          suggested_anchor?: string | null
+          target_sentence?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -792,13 +844,17 @@ export type Database = {
           citation_domain?: string | null
           citation_source?: string | null
           citation_url?: string
+          confidence_score?: number | null
           context_paragraph_index?: number | null
           created_at?: string | null
           first_added_at?: string | null
           id?: string
+          insertion_location?: number | null
           is_active?: boolean | null
           last_verified_at?: string | null
           position_in_article?: number | null
+          suggested_anchor?: string | null
+          target_sentence?: string | null
           updated_at?: string | null
         }
         Relationships: [

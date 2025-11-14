@@ -3,20 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Sparkles, ExternalLink, CheckCircle2, Copy, RefreshCw } from "lucide-react";
+import { Sparkles, Copy, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BetterCitation {
   url: string;
-  sourceName: string;
+  source: string;
   description: string;
   relevance: string;
   authorityScore: number;
-  language: string;
-  suggestedContext: string;
   verified?: boolean;
   statusCode?: number;
+  targetSentence?: string;
+  suggestedAnchor?: string;
+  placementContext?: string;
+  confidenceScore?: number;
 }
 
 interface BetterCitationFinderProps {
@@ -25,17 +26,10 @@ interface BetterCitationFinderProps {
   articleLanguage: string;
   articleContent: string;
   currentCitations: string[];
-  onAddCitation?: (citation: { url: string; sourceName: string; anchorText: string }) => void;
+  onAddCitation?: (citation: { url: string; source: string; text: string }) => void;
 }
 
-export const BetterCitationFinder = ({
-  articleId,
-  articleTopic,
-  articleLanguage,
-  articleContent,
-  currentCitations,
-  onAddCitation,
-}: BetterCitationFinderProps) => {
+export const BetterCitationFinder = ({ articleId, articleTopic, articleLanguage, articleContent, currentCitations, onAddCitation }: BetterCitationFinderProps) => {
   const [isSearching, setIsSearching] = useState(false);
   const [citations, setCitations] = useState<BetterCitation[]>([]);
   const { toast } = useToast();
@@ -44,36 +38,13 @@ export const BetterCitationFinder = ({
     setIsSearching(true);
     try {
       const { data, error } = await supabase.functions.invoke('find-better-citations', {
-        body: {
-          articleId,
-          articleTopic,
-          articleLanguage,
-          articleContent: articleContent.substring(0, 2000),
-          currentCitations,
-          focusArea: articleTopic.toLowerCase().includes('costa del sol') 
-            ? 'Costa del Sol real estate'
-            : undefined,
-          verifyUrls: true,
-        }
+        body: { articleId, articleTopic, articleLanguage, articleContent: articleContent.substring(0, 5000), currentCitations, verifyUrls: true }
       });
-
       if (error) throw error;
-
       setCitations(data.citations);
-      
-      toast({
-        title: "Citations Found!",
-        description: articleId 
-          ? `Found ${data.verifiedCount}/${data.totalFound} unique sources (domain rotation active)`
-          : `Found ${data.verifiedCount}/${data.totalFound} verified authoritative sources`,
-      });
+      toast({ title: "✨ Citations Found!", description: `Found ${data.verifiedCount}/${data.totalFound} citations with sentence-level mapping` });
     } catch (error: any) {
-      console.error('Citation search error:', error);
-      toast({
-        title: "Search Failed",
-        description: error.message || "Failed to find citations",
-        variant: "destructive",
-      });
+      toast({ title: "Search Failed", description: error.message || "Failed to find citations", variant: "destructive" });
     } finally {
       setIsSearching(false);
     }
@@ -81,157 +52,56 @@ export const BetterCitationFinder = ({
 
   const handleCopyUrl = (url: string) => {
     navigator.clipboard.writeText(url);
-    toast({
-      description: "URL copied to clipboard",
-    });
+    toast({ description: "URL copied" });
   };
 
   const handleAddCitation = (citation: BetterCitation) => {
     if (onAddCitation) {
-      onAddCitation({
-        url: citation.url,
-        sourceName: citation.sourceName,
-        anchorText: citation.sourceName,
-      });
-      toast({
-        description: "Citation added to article",
-      });
+      onAddCitation({ url: citation.url, source: citation.source, text: citation.suggestedAnchor || citation.source });
+      toast({ description: "Citation added" });
     }
   };
 
-  const getAuthorityBadgeColor = (score: number) => {
-    if (score >= 8) return "default";
-    if (score >= 6) return "secondary";
-    return "outline";
-  };
-
   return (
-    <Card className="border-purple-200 bg-purple-50/30">
+    <Card className="border-purple-200 bg-purple-50/30 dark:bg-purple-950/20">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-purple-600" />
-          AI Citation Finder
-        </CardTitle>
-        <CardDescription>
-          Discover high-authority sources with Perplexity AI
-        </CardDescription>
+        <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-600" />AI Citation Finder</CardTitle>
+        <CardDescription>Enhanced with sentence-level analysis for precise citation placement</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button
-          onClick={handleFindCitations}
-          disabled={isSearching || !articleTopic || !articleContent}
-          className="gap-2"
-        >
-          {isSearching ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              Searching for authoritative sources...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" />
-              Find Better Citations
-            </>
-          )}
+        <Button onClick={handleFindCitations} disabled={isSearching || !articleTopic} className="w-full">
+          {isSearching ? "Analyzing..." : "Find Citations with AI"}
         </Button>
-
         {citations.length > 0 && (
-          <>
-            <Alert>
-              <AlertDescription>
-                Found <strong>{citations.filter(c => c.verified !== false).length}</strong> verified,
-                high-authority sources in <strong>{articleLanguage}</strong>
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-3">
-              {citations.map((citation, index) => (
-                <div
-                  key={index}
-                  className={`border rounded-lg p-4 space-y-2 ${
-                    citation.verified === false ? 'opacity-60 bg-gray-50' : 'bg-white'
-                  }`}
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm mb-1">{citation.sourceName}</h4>
-                      <a
-                        href={citation.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline flex items-center gap-1 break-all"
-                      >
-                        {citation.url}
-                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                      </a>
+          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+            {citations.map((c, i) => (
+              <div key={i} className="border rounded-lg p-4 space-y-2 bg-card">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-semibold text-sm">{c.source}</h4>
+                      <Badge variant={c.authorityScore >= 8 ? "default" : "secondary"}>Authority: {c.authorityScore}/10</Badge>
+                      {c.confidenceScore && <Badge>{c.confidenceScore}%</Badge>}
+                      {c.verified && <Badge className="bg-green-600">✓ Verified</Badge>}
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {citation.verified !== false && (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      )}
-                      <Badge variant={getAuthorityBadgeColor(citation.authorityScore)}>
-                        Authority: {citation.authorityScore}/10
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-xs text-muted-foreground">{citation.description}</p>
-
-                  {/* Relevance */}
-                  <div className="bg-blue-50 border border-blue-200 rounded p-2">
-                    <p className="text-xs text-blue-900">
-                      <strong>Why relevant:</strong> {citation.relevance}
-                    </p>
-                  </div>
-
-                  {/* Suggested Context */}
-                  <div className="bg-green-50 border border-green-200 rounded p-2">
-                    <p className="text-xs text-green-900">
-                      <strong>💡 Suggested placement:</strong> {citation.suggestedContext}
-                    </p>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2">
-                    {onAddCitation && citation.verified !== false && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleAddCitation(citation)}
-                      >
-                        Add to Article
-                      </Button>
+                    {c.targetSentence && (
+                      <div className="bg-blue-50 dark:bg-blue-950 p-2 rounded text-sm">
+                        <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">📍 Placement:</p>
+                        <p className="italic">"{c.targetSentence}"</p>
+                      </div>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleCopyUrl(citation.url)}
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      Copy URL
-                    </Button>
+                    {c.suggestedAnchor && <code className="text-xs bg-yellow-100 dark:bg-yellow-900 px-2 py-1 rounded">{c.suggestedAnchor}</code>}
+                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block break-all">{c.url}</a>
+                    <p className="text-sm text-muted-foreground">{c.description}</p>
                   </div>
-
-                  {citation.verified === false && (
-                    <Alert variant="destructive">
-                      <AlertDescription className="text-xs">
-                        ⚠️ This URL could not be verified. Please check accessibility before using.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                  <div className="flex flex-col gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => handleCopyUrl(c.url)}><Copy className="h-4 w-4" /></Button>
+                    {onAddCitation && <Button variant="default" size="sm" onClick={() => handleAddCitation(c)}><Plus className="h-4 w-4" /></Button>}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {!isSearching && citations.length === 0 && (
-          <Alert>
-            <AlertDescription>
-              Click "Find Better Citations" to discover authoritative sources for this article using AI.
-            </AlertDescription>
-          </Alert>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
