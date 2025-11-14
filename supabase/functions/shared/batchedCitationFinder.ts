@@ -75,12 +75,19 @@ async function searchBatch(
       const url = result.url?.trim();
       if (!url || !url.startsWith('http') || isCompetitor(url)) continue;
 
+      const authorityScores = calculateAuthorityScore({
+        url,
+        sourceName: result.source || new URL(url).hostname,
+        description: result.description || '',
+        isAccessible: true
+      });
+
       const citation: BetterCitation = {
         url,
         source: result.source || new URL(url).hostname,
         description: result.description || '',
         relevance: result.relevance || '',
-        authorityScore: calculateAuthorityScore(url),
+        authorityScore: authorityScores.totalScore,
         language: 'en',
         batchTier: tier
       };
