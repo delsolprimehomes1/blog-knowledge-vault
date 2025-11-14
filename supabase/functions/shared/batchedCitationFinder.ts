@@ -260,23 +260,33 @@ export async function findCitationsWithCascade(
   articleContent: string,
   targetCount: number,
   perplexityApiKey: string,
-  focusArea?: string
+  focusArea?: string,
+  prioritizeGovernment: boolean = true,
+  minimumGovPercentage: number = 70
 ): Promise<BetterCitation[]> {
   
+  
   console.log(`\n🎯 Finding ${targetCount} citations for: "${articleTopic}" (${articleLanguage})`);
+  console.log(`   Priority: Government sources = ${prioritizeGovernment}, Target ${minimumGovPercentage}% gov sources`);
   if (focusArea) {
     console.log(`   Focus: ${focusArea}`);
   }
 
-  const batches = [
-    { name: 'Tier S (Gov/Official)', domains: DOMAIN_BATCHES.tierS },
-    { name: 'Tier A (Professional)', domains: DOMAIN_BATCHES.tierA },
-    { name: 'Tier B (News/Expat)', domains: DOMAIN_BATCHES.tierB },
-    { name: 'Tier C (Tourism)', domains: DOMAIN_BATCHES.tierC },
-    { name: 'Tier D (Nature/Climate)', domains: DOMAIN_BATCHES.tierD },
-    { name: 'Tier E (Sports/Food)', domains: DOMAIN_BATCHES.tierE },
-    { name: 'Tier F (Local Services)', domains: DOMAIN_BATCHES.tierF }
+  // Reorder batches if prioritizing government sources
+  let batches = [
+    { name: 'Tier S (Gov/Official)', domains: DOMAIN_BATCHES.tierS, isGov: true },
+    { name: 'Tier A (Professional)', domains: DOMAIN_BATCHES.tierA, isGov: false },
+    { name: 'Tier B (News/Expat)', domains: DOMAIN_BATCHES.tierB, isGov: false },
+    { name: 'Tier C (Tourism)', domains: DOMAIN_BATCHES.tierC, isGov: false },
+    { name: 'Tier D (Nature/Climate)', domains: DOMAIN_BATCHES.tierD, isGov: false },
+    { name: 'Tier E (Sports/Food)', domains: DOMAIN_BATCHES.tierE, isGov: false },
+    { name: 'Tier F (Local Services)', domains: DOMAIN_BATCHES.tierF, isGov: false }
   ];
+
+  if (prioritizeGovernment) {
+    // When prioritizing government, search Tier S twice (at start and again if needed)
+    console.log(`   🏛️ Prioritizing government sources - will search Tier S intensively`);
+  }
 
   let allCitations: BetterCitation[] = [];
 
@@ -309,7 +319,19 @@ export async function findCitationsWithCascade(
     .sort((a, b) => b.authorityScore - a.authorityScore)
     .slice(0, targetCount);
 
+  // Calculate government percentage
+  const govSourceCount = sortedCitations.filter(c => 
+    /\.(gov|gob\.es|edu|europa\.eu)($|\/)/.test(c.url)
+  ).length;
+  const govPercentage = (govSourceCount / sortedCitations.length) * 100;
+
   console.log(`\n✨ Final: ${sortedCitations.length} citations selected`);
+  console.log(`   Government sources: ${govSourceCount}/${sortedCitations.length} (${govPercentage.toFixed(1)}%)`);
+  
+  if (prioritizeGovernment && govPercentage < minimumGovPercentage) {
+    console.log(`   ⚠️ Below target of ${minimumGovPercentage}% government sources`);
+  }
+  
   console.log(`   Tier breakdown:`, 
     sortedCitations.reduce((acc, c) => {
       acc[c.batchTier || 'unknown'] = (acc[c.batchTier || 'unknown'] || 0) + 1;
