@@ -460,44 +460,8 @@ export function generateBreadcrumbSchema(
   };
 }
 
-export function generateFAQSchema(
-  article: BlogArticle,
-  author: Author | null
-): any | null {
-  if (!article.faq_entities || article.faq_entities.length === 0) {
-    return null;
-  }
-  
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": article.faq_entities.map(faq => ({
-      "@type": "Question",
-      "name": faq.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": faq.answer,
-        ...(author && { "author": generatePersonSchema(author) })
-      },
-      // Add speakable markup to each FAQ for AI/voice assistants
-      "speakable": {
-        "@type": "SpeakableSpecification",
-        "cssSelector": [".faq-question", ".faq-answer"]
-      }
-    })),
-    // Add page-level speakable for better AI discovery
-    "speakable": {
-      "@type": "SpeakableSpecification",
-      "cssSelector": [".faq-section"],
-      "xpath": ["/html/body/article/section[@class='faq-section']"]
-    },
-    "about": {
-      "@type": "Article",
-      "headline": article.headline,
-      "description": article.meta_description
-    }
-  };
-}
+// generateFAQSchema() removed - FAQs are now embedded in BlogPosting schema as mainEntity
+// This prevents duplicate FAQPage errors in Google Search Console and improves AI readiness
 
 export function validateSchemaRequirements(article: BlogArticle): SchemaValidationError[] {
   const errors: SchemaValidationError[] = [];
