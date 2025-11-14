@@ -18,7 +18,10 @@ serve(async (req) => {
       articleContent,
       currentCitations = [],
       focusArea,
-      verifyUrls = true
+      verifyUrls = true,
+      prioritizeGovernment = true,
+      targetCount = 8,
+      minimumGovPercentage = 70
     } = await req.json();
 
     if (!articleTopic || !articleContent) {
@@ -31,15 +34,18 @@ serve(async (req) => {
     }
 
     console.log(`Finding better citations for: "${articleTopic}" (${articleLanguage})`);
+    console.log(`Parameters: targetCount=${targetCount}, prioritizeGov=${prioritizeGovernment}, minGov=${minimumGovPercentage}%`);
 
     // Find citations with cascading batch system
     const citations = await findCitationsWithCascade(
       articleTopic,
       articleLanguage,
       articleContent,
-      8, // Target 8 citations
+      targetCount,
       perplexityApiKey,
-      focusArea
+      focusArea,
+      prioritizeGovernment,
+      minimumGovPercentage
     );
 
     if (citations.length === 0) {

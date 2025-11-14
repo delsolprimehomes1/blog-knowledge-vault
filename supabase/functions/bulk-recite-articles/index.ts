@@ -48,7 +48,16 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { preview = false, language = null, category = null, batchSize = 5 } = await req.json();
+    const { 
+      preview = false, 
+      language = null, 
+      category = null, 
+      batchSize = 5,
+      prioritizeGovernment = true,
+      targetCitationCount = 6,
+      minimumGovPercentage = 70,
+      onlyBelowTarget = true
+    } = await req.json();
 
     // Create job record WITH created_by
     const { data: job, error: jobError } = await supabase
@@ -67,7 +76,17 @@ serve(async (req) => {
     console.log(`🚀 Started bulk re-citation job ${job.id}`);
 
     // Start background processing (don't await)
-    processArticlesInBackground(job.id, preview, language, category, batchSize);
+    processArticlesInBackground(
+      job.id, 
+      preview, 
+      language, 
+      category, 
+      batchSize, 
+      prioritizeGovernment,
+      targetCitationCount,
+      minimumGovPercentage,
+      onlyBelowTarget
+    );
 
     // Return immediately with job ID
     return new Response(
@@ -95,7 +114,11 @@ async function processArticlesInBackground(
   preview: boolean,
   language: string | null,
   category: string | null,
-  batchSize: number
+  batchSize: number,
+  prioritizeGovernment: boolean,
+  targetCitationCount: number,
+  minimumGovPercentage: number,
+  onlyBelowTarget: boolean
 ) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -104,13 +127,13 @@ async function processArticlesInBackground(
   try {
     console.log(`📊 Processing job ${jobId} - Preview: ${preview}, Language: ${language}, Category: ${category}`);
 
-    // Query all published articles with external citations
+    // Query published articles
     let query = supabase
       .from('blog_articles')
       .select('id, slug, headline, detailed_content, language, category, external_citations, funnel_stage')
-      .eq('status', 'published')
-      .not('external_citations', 'is', null);
+      .eq('status', 'published');
 
+    // Filter by language and category
     if (language) {
       query = query.eq('language', language);
     }
@@ -118,13 +141,23 @@ async function processArticlesInBackground(
       query = query.eq('category', category);
     }
 
-    const { data: articles, error: fetchError } = await query;
+    const { data: allArticles, error: fetchError } = await query;
 
     if (fetchError) {
       throw new Error(`Failed to fetch articles: ${fetchError.message}`);
     }
 
-    console.log(`📊 Found ${articles?.length || 0} articles to process`);
+    // Filter articles based on onlyBelowTarget parameter
+    let articles = allArticles || [];
+    if (onlyBelowTarget) {
+      articles = articles.filter(article => {
+        const citationCount = Array.isArray(article.external_citations) ? article.external_citations.length : 0;
+        return citationCount < targetCitationCount;
+      });
+      console.log(`📊 Filtered to ${articles.length} articles with <${targetCitationCount} citations (from ${allArticles?.length || 0} total)`);
+    }
+
+    console.log(`📊 Processing ${articles.length} articles (Target: ${targetCitationCount} citations, ${minimumGovPercentage}% gov sources)`);
 
     if (!articles || articles.length === 0) {
       await supabase
@@ -165,7 +198,7 @@ async function processArticlesInBackground(
 
             console.log(`   Old citations count: ${oldCount}`);
 
-            // Call find-better-citations to get new citations
+            // Call find-better-citations with enhanced parameters
             const { data: citationData, error: citationError } = await supabase.functions.invoke(
               'find-better-citations',
               {
@@ -174,6 +207,9 @@ async function processArticlesInBackground(
                   articleContent: article.detailed_content.substring(0, 2000),
                   articleLanguage: article.language,
                   verifyUrls: false,
+                  prioritizeGovernment,
+                  targetCount: targetCitationCount,
+                  minimumGovPercentage,
                 }
               }
             );
