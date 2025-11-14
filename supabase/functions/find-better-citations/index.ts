@@ -46,7 +46,7 @@ serve(async (req) => {
       console.log(`Domain rotation enabled for article: ${articleId.substring(0, 8)}...`);
     }
 
-    // Find citations with cascading batch system + domain rotation
+    // Find citations with cascading batch system + domain rotation + enhanced analysis
     const citations = await findCitationsWithCascade(
       articleTopic,
       articleLanguage,
@@ -57,7 +57,8 @@ serve(async (req) => {
       prioritizeGovernment,
       minimumGovPercentage,
       articleId,
-      supabase
+      supabase,
+      true // Enable enhanced sentence-level analysis
     );
 
     if (citations.length === 0) {
