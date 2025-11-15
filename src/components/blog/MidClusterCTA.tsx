@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, BookOpen } from "lucide-react";
+import { useLanguageContext } from "@/hooks/useLanguageContext";
 
 interface RelatedArticle {
   id: string;
@@ -17,6 +18,7 @@ interface MidClusterCTAProps {
 }
 
 export const MidClusterCTA = ({ relatedArticles, stage, currentArticleId }: MidClusterCTAProps) => {
+  const { currentLanguage } = useLanguageContext();
   const [cta, setCta] = useState<RelatedArticle | null>(null);
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export const MidClusterCTA = ({ relatedArticles, stage, currentArticleId }: MidC
         </p>
         
         <a
-          href={`/blog/${cta.slug}`}
+          href={`/${currentLanguage}/blog/${cta.slug}`}
           className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-all font-medium shadow-md hover:shadow-lg"
           onClick={() => {
             // Track CTA click

@@ -293,7 +293,7 @@ const BlogArticle = () => {
   
   const schemas = generateAllSchemas(article, author || null, reviewer || null);
   const baseUrl = 'https://delsolprimehomes.com';
-  const currentUrl = `${baseUrl}/blog/${article.slug}`;
+  const currentUrl = `${baseUrl}/${article.language}/blog/${article.slug}`;
 
   const { links: hreflangLinks, warnings: hreflangWarnings } = useHreflang({
     pageType: 'blog-article',

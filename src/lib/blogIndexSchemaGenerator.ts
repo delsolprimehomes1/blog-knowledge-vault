@@ -71,7 +71,7 @@ export function generateBlogItemListSchema(
     "itemListElement": articles.slice(0, 20).map((article, index) => ({
       "@type": "ListItem",
       "position": index + 1,
-      "url": `${baseUrl}/blog/${article.slug}`,
+      "url": `${baseUrl}/${article.language || 'en'}/blog/${article.slug}`,
       "name": article.headline,
       "description": article.meta_description || article.headline,
       "image": article.featured_image_url,

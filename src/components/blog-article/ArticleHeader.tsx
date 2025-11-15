@@ -5,6 +5,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Clock, Calendar, RefreshCw, Languages } from "lucide-react";
 import { BlogArticle, Author } from "@/types/blog";
 import { useNavigate } from "react-router-dom";
+import { useLanguageContext } from "@/hooks/useLanguageContext";
 
 interface ArticleHeaderProps {
   article: BlogArticle;
@@ -26,6 +27,7 @@ const LANGUAGE_FLAGS: Record<string, { flag: string; name: string }> = {
 
 export const ArticleHeader = ({ article, author, reviewer, translations }: ArticleHeaderProps) => {
   const navigate = useNavigate();
+  const { currentLanguage } = useLanguageContext();
   const currentLang = LANGUAGE_FLAGS[article.language];
 
   return (
@@ -38,11 +40,11 @@ export const ArticleHeader = ({ article, author, reviewer, translations }: Artic
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/blog">Blog</BreadcrumbLink>
+            <BreadcrumbLink href={`/${currentLanguage}/blog`}>Blog</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href={`/blog/category/${article.category.toLowerCase()}`}>
+            <BreadcrumbLink href={`/${currentLanguage}/blog/category/${article.category.toLowerCase()}`}>
               {article.category}
             </BreadcrumbLink>
           </BreadcrumbItem>
@@ -56,7 +58,7 @@ export const ArticleHeader = ({ article, author, reviewer, translations }: Artic
       {/* Language selector - mobile below breadcrumb, desktop top-right */}
       {Object.keys(translations).length > 0 && (
         <div className="md:absolute static md:top-0 md:right-0 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border border-white/20 rounded-2xl px-3 py-2 shadow-lg w-fit ml-auto mb-4 md:mb-0">
-          <Select value={article.language} onValueChange={(lang) => navigate(`/blog/${translations[lang]}`)}>
+          <Select value={article.language} onValueChange={(lang) => navigate(`/${lang}/blog/${translations[lang]}`)}>
             <SelectTrigger className="w-[140px] border-0 bg-transparent h-8">
               <SelectValue>
                 <span className="text-sm font-medium">{currentLang?.flag}</span>

@@ -137,19 +137,19 @@ function generateHreflangLinks(article: SitemapArticle): Array<{
     href: string;
   }> = [];
   
-  // x-default
-  links.push({
-    rel: 'alternate',
-    hreflang: 'x-default',
-    href: `${BASE_URL}/blog/${article.slug}`
-  });
-  
-  // Primary language
+  // x-default (use primary language)
   const primaryLang = article.language || 'en';
   links.push({
     rel: 'alternate',
+    hreflang: 'x-default',
+    href: `${BASE_URL}/${primaryLang}/blog/${article.slug}`
+  });
+  
+  // Primary language
+  links.push({
+    rel: 'alternate',
     hreflang: primaryLang,
-    href: `${BASE_URL}/blog/${article.slug}`
+    href: `${BASE_URL}/${primaryLang}/blog/${article.slug}`
   });
   
   // Translations
@@ -159,7 +159,7 @@ function generateHreflangLinks(article: SitemapArticle): Array<{
         links.push({
           rel: 'alternate',
           hreflang: lang,
-          href: `${BASE_URL}/blog/${translation.slug}`
+          href: `${BASE_URL}/${lang}/blog/${translation.slug}`
         });
       }
     });
@@ -240,59 +240,47 @@ function generateUrlEntry(url: SitemapUrl): string {
  */
 function generateStaticPages(): SitemapUrl[] {
   const today = new Date().toISOString().split('T')[0];
+  const languages = ['en', 'nl', 'fr'];
+  const pages: SitemapUrl[] = [];
   
-  return [
-    {
-      loc: `${BASE_URL}/`,
-      lastmod: today,
-      changefreq: 'daily',
-      priority: '1.0'
-    },
-    {
-      loc: `${BASE_URL}/about`,
-      changefreq: 'monthly',
-      priority: '0.9'
-    },
-    {
-      loc: `${BASE_URL}/blog`,
-      lastmod: today,
-      changefreq: 'daily',
-      priority: '0.9'
-    },
-    {
-      loc: `${BASE_URL}/faq`,
-      changefreq: 'monthly',
-      priority: '0.9'
-    },
-    {
-      loc: `${BASE_URL}/qa`,
-      changefreq: 'monthly',
-      priority: '0.9'
-    },
-    {
-      loc: `${BASE_URL}/case-studies`,
-      changefreq: 'monthly',
-      priority: '0.8'
-    },
-    {
-      loc: `${BASE_URL}/privacy-policy`,
-      lastmod: '2025-01-27',
-      changefreq: 'yearly',
-      priority: '0.5'
-    },
-    {
-      loc: `${BASE_URL}/terms-of-service`,
-      lastmod: '2025-01-27',
-      changefreq: 'yearly',
-      priority: '0.5'
-    }
+  // Homepage (root)
+  pages.push({
+    loc: `${BASE_URL}/`,
+    lastmod: today,
+    changefreq: 'daily',
+    priority: '1.0'
+  });
+  
+  // Generate multilingual versions for each page
+  const pageTemplates = [
+    { path: 'about', changefreq: 'monthly' as const, priority: '0.9' },
+    { path: 'blog', changefreq: 'daily' as const, priority: '0.9', lastmod: today },
+    { path: 'faq', changefreq: 'monthly' as const, priority: '0.9' },
+    { path: 'qa', changefreq: 'monthly' as const, priority: '0.9' },
+    { path: 'case-studies', changefreq: 'monthly' as const, priority: '0.8' },
+    { path: 'privacy-policy', changefreq: 'yearly' as const, priority: '0.5', lastmod: '2025-01-27' },
+    { path: 'terms-of-service', changefreq: 'yearly' as const, priority: '0.5', lastmod: '2025-01-27' }
   ];
+  
+  languages.forEach(lang => {
+    pageTemplates.forEach(template => {
+      pages.push({
+        loc: `${BASE_URL}/${lang}/${template.path}`,
+        changefreq: template.changefreq,
+        priority: template.priority,
+        lastmod: template.lastmod
+      });
+    });
+  });
+  
+  return pages;
 }
 
 /**
  * Generate category page URLs
  */
 function generateCategoryPages(): SitemapUrl[] {
+  const languages = ['en', 'nl', 'fr'];
   const categories = [
     'buying-guides',
     'investment-strategies',
@@ -302,11 +290,19 @@ function generateCategoryPages(): SitemapUrl[] {
     'property-management'
   ];
   
-  return categories.map(category => ({
-    loc: `${BASE_URL}/blog/category/${category}`,
-    changefreq: 'weekly' as const,
-    priority: '0.8'
-  }));
+  const pages: SitemapUrl[] = [];
+  
+  languages.forEach(lang => {
+    categories.forEach(category => {
+      pages.push({
+        loc: `${BASE_URL}/${lang}/blog/category/${category}`,
+        changefreq: 'weekly' as const,
+        priority: '0.8'
+      });
+    });
+  });
+  
+  return pages;
 }
 
 export async function generateSitemap(distDir: string) {
@@ -369,7 +365,7 @@ export async function generateSitemap(distDir: string) {
       if (hreflangLinks.length > 2) multilingualCount++; // More than x-default and primary
       
       const articleUrl: SitemapUrl = {
-        loc: `${BASE_URL}/blog/${article.slug}`,
+        loc: `${BASE_URL}/${article.language || 'en'}/blog/${article.slug}`,
         lastmod: formatDate(article.date_modified || article.date_published),
         changefreq: calculateChangeFreq(article),
         priority: calculatePriority(article),
