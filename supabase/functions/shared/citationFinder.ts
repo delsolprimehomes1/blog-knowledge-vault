@@ -438,7 +438,7 @@ Return only the JSON array, nothing else.`;
       return_citations: true, // Get real citations from Perplexity's search results
       return_images: false,
       // CRITICAL: Only search approved domains (Perplexity limit: 20)
-      search_domain_filter: selection.domains.slice(0, 20),
+      search_domain_filter: domainsToUse,
     }),
   });
 

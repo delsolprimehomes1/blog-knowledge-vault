@@ -52,16 +52,14 @@ export async function calculateCitationScore(
   // Calculate components with reasonable penalty caps
   const noveltyBoost = domainUseCount < 5 ? 20 : domainUseCount < 10 ? 10 : 0;
   
-  // Progressive penalty: 0-30 uses = minimal, 30-100 = moderate, 100+ = heavy but capped
+  // Progressive penalty: 0-20 uses = minimal, 20-50 = moderate, 50+ = heavy
   let overusePenalty = 0;
-  if (domainUseCount > 100) {
-    overusePenalty = 40; // Cap at -40 for extreme overuse
-  } else if (domainUseCount > 50) {
-    overusePenalty = 20 + ((domainUseCount - 50) * 0.4); // -20 to -40 range
-  } else if (domainUseCount > 30) {
-    overusePenalty = 10 + ((domainUseCount - 30) * 0.5); // -10 to -20 range
+  if (domainUseCount > 50) {
+    overusePenalty = 50; // Heavy penalty for domains exceeding hard limit (shouldn't appear due to filter)
+  } else if (domainUseCount > 20) {
+    overusePenalty = (domainUseCount - 20) * 1.5; // Progressive: 0 to -45 range
   } else if (domainUseCount > 10) {
-    overusePenalty = (domainUseCount - 10) * 0.5; // 0 to -10 range
+    overusePenalty = (domainUseCount - 10) * 0.5; // Minimal: 0 to -5 range
   }
   
   const finalScore = relevanceScore + (trustScore / 10) + noveltyBoost - overusePenalty;
@@ -75,8 +73,8 @@ export async function calculateCitationScore(
     overusePenalty,
     finalScore,
     domainUseCount,
-    isOverused: domainUseCount > 50,
-    isCriticalOveruse: domainUseCount > 100
+    isOverused: domainUseCount > 20,      // Soft penalty threshold
+    isCriticalOveruse: domainUseCount > 50  // Hard block threshold
   };
 }
 

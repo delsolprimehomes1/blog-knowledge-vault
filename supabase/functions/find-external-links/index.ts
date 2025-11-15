@@ -8,7 +8,8 @@ import {
   getUnderutilizedDomains,
   getOverusedDomains,
   filterAndPrioritizeDomains,
-  extractDomain
+  extractDomain,
+  buildUnderutilizedBatch
 } from '../shared/domainRotation.ts';
 
 const corsHeaders = {
@@ -17,8 +18,8 @@ const corsHeaders = {
 };
 
 // Domain overuse thresholds
-const CRITICAL_OVERUSE_THRESHOLD = 100; // Hard block - domain is completely excluded
-const OVERUSE_WARNING_THRESHOLD = 30;   // Soft penalty - used for scoring penalty only (-40 max)
+const CRITICAL_OVERUSE_THRESHOLD = 50;  // HARD BLOCK - domain is completely excluded
+const OVERUSE_WARNING_THRESHOLD = 20;   // Soft penalty - used for scoring penalty only
 
 interface Citation {
   sourceName: string;
@@ -227,27 +228,30 @@ serve(async (req) => {
     let recentlyUsed: string[] = [];
     
     if (articleId) {
+      // Build dynamic underutilized batch for this request
+      const underutilizedBatch = await buildUnderutilizedBatch(
+        supabaseClient,
+        articleId,
+        20 // Perplexity's max domain filter size
+      );
+
+      console.log(`🎯 Underutilized domain pool: ${underutilizedBatch.stats.zeroUse} never used, ${underutilizedBatch.stats.minimalUse} minimal use, ${underutilizedBatch.stats.freshUse} fresh`);
+
+      // Override domain selection with underutilized batch
+      prioritizedDomains = underutilizedBatch.domains;
+      
+      // Also get usage stats for logging
       [usedInArticle, recentlyUsed] = await Promise.all([
         getArticleUsedDomains(supabaseClient, articleId),
         getRecentlyUsedDomains(supabaseClient, articleId, 5)
       ]);
 
-      const underutilized = await getUnderutilizedDomains(supabaseClient, 100);
-      const overusedDomains = await getOverusedDomains(supabaseClient, 30);
+      const overusedDomains = await getOverusedDomains(supabaseClient, 50);
       
-      console.log(`🔄 Domain rotation: ${usedInArticle.length} used in article, ${recentlyUsed.length} recently used, prioritizing ${underutilized.length} underutilized domains`);
-      console.log(`🚫 Excluding ${overusedDomains.length} overused domains (>30 uses): ${overusedDomains.slice(0, 5).join(', ')}${overusedDomains.length > 5 ? '...' : ''}`);
-      
-      // Prioritize fresh domains and exclude overused ones
-      prioritizedDomains = filterAndPrioritizeDomains(
-        allApprovedDomains,
-        usedInArticle,
-        recentlyUsed,
-        underutilized,
-        overusedDomains
-      );
+      console.log(`🔄 Domain rotation: ${usedInArticle.length} used in article, ${recentlyUsed.length} recently used`);
+      console.log(`🚫 Excluding ${overusedDomains.length} overused domains (>50 uses): ${overusedDomains.slice(0, 5).join(', ')}${overusedDomains.length > 5 ? '...' : ''}`);
 
-      console.log(`✅ Using ${prioritizedDomains.length} domains (approved: ${allApprovedDomains.length}, excluded overused: ${overusedDomains.length})`);
+      console.log(`✅ Using ${prioritizedDomains.length} priority domains for citation search`);
     }
     
     const { findBetterCitationsWithBatch } = await import('../shared/citationFinder.ts');
@@ -316,26 +320,29 @@ serve(async (req) => {
 
     console.log(`🔍 After filtering: ${filtered.length} citations (blocked ${scoredCitations.length - filtered.length} total: ${scoredCitations.length - filtered.length - blockedOveruse.length} low-trust, ${blockedOveruse.length} overused)`);
 
-    // Step 3: Fallback to best overused domains if all citations were filtered out
-    if (filtered.length === 0 && blockedOveruse.length > 0) {
+    // Step 3: Smart fallback when all citations are blocked
+    if (filtered.length === 0 && scoredCitations.length > 0) {
       console.warn(
-        '⚠️ All citations blocked by overuse filter. Using best overused domains as fallback. ' +
-        `Critically overused: ${blockedOveruse.length}. ` +
-        'Consider expanding the approved domain list to improve diversity.'
+        '⚠️ All eligible citations blocked. Returning fallback overused domains. ' +
+        `Total blocked: ${scoredCitations.length} (${blockedOveruse.length} overused, ` +
+        `${scoredCitations.filter(c => c.score.trustScore < 50).length} low-trust)`
       );
       
-      // Use the top 3 overused domains sorted by authority score
-      filtered = blockedOveruse
-        .filter(c => c.score.trustScore >= 50) // Still require minimum trust
+      // Use top 2-3 overused domains, marked as fallback
+      const fallbackCandidates = scoredCitations
+        .filter(c => c.score.domainUseCount > CRITICAL_OVERUSE_THRESHOLD && c.score.trustScore >= 50)
         .sort((a, b) => b.score.finalScore - a.score.finalScore)
-        .slice(0, 3); // Limit to top 3 to minimize repetition
+        .slice(0, 3)
+        .map(c => ({
+          ...c,
+          fallback: true  // Mark as fallback citation
+        }));
       
-      console.log(`🔄 Fallback: Using ${filtered.length} overused domains with highest authority scores`);
-    } else if (filtered.length === 0 && scoredCitations.length > 0) {
-      console.warn(
-        '⚠️ All candidate citations were filtered out due to low trust scores. ' +
-        `Low trust: ${scoredCitations.filter(c => c.score.trustScore < 50).length}. ` +
-        'No suitable citations available.'
+      filtered = fallbackCandidates;
+      
+      console.log(
+        `🔄 Fallback activated: Using ${filtered.length} overused domains: ` +
+        filtered.map(c => `${c.score.domain}(${c.score.domainUseCount} uses)`).join(', ')
       );
     }
     
