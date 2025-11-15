@@ -85,47 +85,50 @@ export function useHreflang({
     }
   };
 
-  // ALWAYS generate complete hreflang cluster for ALL active languages
+  // Generate hreflang cluster ONLY for languages with actual translations
   if (pageType === 'blog-article' && currentSlug) {
     // ========================================
-    // BLOG ARTICLES: Output ALL languages
+    // BLOG ARTICLES: Output ONLY existing translations
     // ========================================
     
     languages.forEach(lang => {
       const langCode = lang.language_code;
       
-      // Determine the slug for this language
-      let targetSlug: string;
-      
       if (langCode === currentLanguage) {
-        // Current language - use current slug
-        targetSlug = currentSlug;
+        // Current language - always include
+        links.push({
+          lang: lang.hreflang_code,
+          url: generateUrl(langCode, currentSlug)
+        });
       } else if (translations[langCode]) {
-        // Translation exists - use translated slug
-        targetSlug = translations[langCode];
+        // Translation exists - include it
+        links.push({
+          lang: lang.hreflang_code,
+          url: generateUrl(langCode, translations[langCode])
+        });
       } else {
-        // No translation - use current slug as placeholder
-        // (Google requires the tag even if page doesn't exist yet)
-        targetSlug = currentSlug;
+        // No translation - skip this language (don't create 404 placeholder)
         missingLanguages.push(lang.language_name);
-        warnings.push(`⚠️ ${lang.language_name} translation missing - using placeholder URL`);
       }
-      
+    });
+    
+    // Add x-default only if default language has translation or is current
+    if (currentLanguage === defaultLang.language_code) {
       links.push({
-        lang: lang.hreflang_code,
-        url: generateUrl(langCode, targetSlug)
+        lang: 'x-default',
+        url: generateUrl(defaultLang.language_code, currentSlug)
       });
-    });
+    } else if (translations[defaultLang.language_code]) {
+      links.push({
+        lang: 'x-default',
+        url: generateUrl(defaultLang.language_code, translations[defaultLang.language_code])
+      });
+    }
     
-    // ALWAYS add x-default (use default language version)
-    const defaultSlug = currentLanguage === defaultLang.language_code 
-      ? currentSlug 
-      : (translations[defaultLang.language_code] || currentSlug);
-    
-    links.push({
-      lang: 'x-default',
-      url: generateUrl(defaultLang.language_code, defaultSlug)
-    });
+    // Only show warnings if article is published with incomplete translations
+    if (missingLanguages.length > 0) {
+      warnings.push(`ℹ️ Missing translations: ${missingLanguages.join(', ')}`);
+    }
     
   } else {
     // ========================================
