@@ -14,13 +14,67 @@ export async function getUnderutilizedDomains(supabaseClient: SupabaseClient, li
   } catch { return []; }
 }
 
-export function filterAndPrioritizeDomains(allDomains: string[], usedInArticle: string[], underutilized: string[]): string[] {
-  const fresh = allDomains.filter(d => !usedInArticle.includes(d));
-  return fresh.sort((a, b) => {
-    const aScore = underutilized.includes(a) ? 1 : 0;
-    const bScore = underutilized.includes(b) ? 1 : 0;
-    return bScore - aScore;
-  });
+export async function getRecentlyUsedDomains(
+  supabaseClient: SupabaseClient,
+  currentArticleId: string,
+  lookbackCount: number = 5
+): Promise<string[]> {
+  try {
+    // Get last N published articles (excluding current)
+    const { data: recentArticles } = await supabaseClient
+      .from('blog_articles')
+      .select('id')
+      .eq('status', 'published')
+      .neq('id', currentArticleId)
+      .order('date_published', { ascending: false })
+      .limit(lookbackCount);
+    
+    if (!recentArticles || recentArticles.length === 0) return [];
+    
+    const articleIds = recentArticles.map(a => a.id);
+    
+    // Get all domains used in these articles
+    const { data: usedDomains } = await supabaseClient
+      .from('citation_usage_tracking')
+      .select('citation_domain')
+      .in('article_id', articleIds)
+      .eq('is_active', true);
+    
+    return [...new Set(usedDomains?.map(d => d.citation_domain).filter(Boolean) || [])];
+  } catch (error) {
+    console.error('Error fetching recently used domains:', error);
+    return [];
+  }
+}
+
+export function filterAndPrioritizeDomains(
+  allDomains: string[], 
+  usedInArticle: string[], 
+  recentlyUsed: string[],
+  underutilized: string[]
+): string[] {
+  // Priority 1: Never used in current article OR recent articles
+  const neverUsed = allDomains.filter(d => 
+    !usedInArticle.includes(d) && !recentlyUsed.includes(d)
+  );
+  
+  // Priority 2: Not used in current article (but maybe used recently)
+  const currentlyFresh = allDomains.filter(d => 
+    !usedInArticle.includes(d) && recentlyUsed.includes(d)
+  );
+  
+  // Sort both groups by underutilization score
+  const sortByUnderutilized = (domains: string[]) => 
+    domains.sort((a, b) => {
+      const aScore = underutilized.includes(a) ? 1 : 0;
+      const bScore = underutilized.includes(b) ? 1 : 0;
+      return bScore - aScore;
+    });
+  
+  return [
+    ...sortByUnderutilized(neverUsed),
+    ...sortByUnderutilized(currentlyFresh)
+  ];
 }
 
 export function extractDomain(url: string): string {
