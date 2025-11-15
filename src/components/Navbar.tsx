@@ -9,12 +9,14 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo-new.png";
+import { useLanguageContext } from "@/hooks/useLanguageContext";
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { currentLanguage } = useLanguageContext();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -132,12 +134,12 @@ export const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2">
             <NavLink
-              to="/blog"
+              to={`/${currentLanguage}/blog`}
               onMouseEnter={handleBlogHover}
               className={cn(
                 "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
                 "transition-all duration-200",
-                isActive("/blog")
+                isActive(`/${currentLanguage}/blog`)
                   ? "text-primary bg-primary/10"
                   : "text-foreground/70 hover:text-primary hover:bg-primary/5"
               )}
@@ -146,11 +148,11 @@ export const Navbar = () => {
             </NavLink>
 
             <NavLink
-              to="/about"
+              to={`/${currentLanguage}/about`}
               className={cn(
                 "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
                 "transition-all duration-200",
-                isActive("/about")
+                isActive(`/${currentLanguage}/about`)
                   ? "text-primary bg-primary/10"
                   : "text-foreground/70 hover:text-primary hover:bg-primary/5"
               )}
@@ -159,11 +161,11 @@ export const Navbar = () => {
             </NavLink>
 
             <NavLink
-              to="/faq"
+              to={`/${currentLanguage}/faq`}
               className={cn(
                 "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
                 "transition-all duration-200",
-                isActive("/faq")
+                isActive(`/${currentLanguage}/faq`)
                   ? "text-primary bg-primary/10"
                   : "text-foreground/70 hover:text-primary hover:bg-primary/5"
               )}
@@ -172,11 +174,11 @@ export const Navbar = () => {
             </NavLink>
 
             <NavLink
-              to="/qa"
+              to={`/${currentLanguage}/qa`}
               className={cn(
                 "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
                 "transition-all duration-200",
-                isActive("/qa")
+                isActive(`/${currentLanguage}/qa`)
                   ? "text-primary bg-primary/10"
                   : "text-foreground/70 hover:text-primary hover:bg-primary/5"
               )}
@@ -185,11 +187,11 @@ export const Navbar = () => {
             </NavLink>
 
             <NavLink
-              to="/case-studies"
+              to={`/${currentLanguage}/case-studies`}
               className={cn(
                 "px-4 md:px-6 py-2 rounded-lg font-medium text-sm md:text-base",
                 "transition-all duration-200",
-                isActive("/case-studies")
+                isActive(`/${currentLanguage}/case-studies`)
                   ? "text-primary bg-primary/10"
                   : "text-foreground/70 hover:text-primary hover:bg-primary/5"
               )}
@@ -229,13 +231,13 @@ export const Navbar = () => {
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <nav className="flex flex-col gap-4 mt-8">
                 <NavLink
-                  to="/blog"
+                  to={`/${currentLanguage}/blog`}
                   onMouseEnter={handleBlogHover}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
                     "px-4 py-3 rounded-lg font-medium text-lg",
                     "transition-all duration-200",
-                    isActive("/blog")
+                    isActive(`/${currentLanguage}/blog`)
                       ? "text-primary bg-primary/10"
                       : "text-foreground/70 hover:text-primary hover:bg-primary/5"
                   )}
@@ -244,12 +246,12 @@ export const Navbar = () => {
                 </NavLink>
 
                 <NavLink
-                  to="/about"
+                  to={`/${currentLanguage}/about`}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
                     "px-4 py-3 rounded-lg font-medium text-lg",
                     "transition-all duration-200",
-                    isActive("/about")
+                    isActive(`/${currentLanguage}/about`)
                       ? "text-primary bg-primary/10"
                       : "text-foreground/70 hover:text-primary hover:bg-primary/5"
                   )}
@@ -258,12 +260,12 @@ export const Navbar = () => {
                 </NavLink>
 
                 <NavLink
-                  to="/faq"
+                  to={`/${currentLanguage}/faq`}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
                     "px-4 py-3 rounded-lg font-medium text-lg",
                     "transition-all duration-200",
-                    isActive("/faq")
+                    isActive(`/${currentLanguage}/faq`)
                       ? "text-primary bg-primary/10"
                       : "text-foreground/70 hover:text-primary hover:bg-primary/5"
                   )}
@@ -272,12 +274,12 @@ export const Navbar = () => {
                 </NavLink>
 
                 <NavLink
-                  to="/qa"
+                  to={`/${currentLanguage}/qa`}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
                     "px-4 py-3 rounded-lg font-medium text-lg",
                     "transition-all duration-200",
-                    isActive("/qa")
+                    isActive(`/${currentLanguage}/qa`)
                       ? "text-primary bg-primary/10"
                       : "text-foreground/70 hover:text-primary hover:bg-primary/5"
                   )}
@@ -286,12 +288,12 @@ export const Navbar = () => {
                 </NavLink>
 
                 <NavLink
-                  to="/case-studies"
+                  to={`/${currentLanguage}/case-studies`}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
                     "px-4 py-3 rounded-lg font-medium text-lg",
                     "transition-all duration-200",
-                    isActive("/case-studies")
+                    isActive(`/${currentLanguage}/case-studies`)
                       ? "text-primary bg-primary/10"
                       : "text-foreground/70 hover:text-primary hover:bg-primary/5"
                   )}

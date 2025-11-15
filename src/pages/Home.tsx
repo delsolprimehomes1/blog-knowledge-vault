@@ -7,6 +7,7 @@ import { GoogleBusinessWidget } from "@/components/home/GoogleBusinessWidget";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { FeatureCards } from "@/components/home/FeatureCards";
 import { useHreflang } from "@/hooks/useHreflang";
+import { useLanguageContext } from "@/hooks/useLanguageContext";
 
 interface NavigationPillProps {
   title: string;
@@ -37,12 +38,13 @@ const NavigationPill = ({ title, path, icon: Icon, delay }: NavigationPillProps)
 const Home = () => {
   const schemas = generateAllHomeSchemas();
   const { links: hreflangLinks } = useHreflang({ pageType: 'home' });
+  const { currentLanguage } = useLanguageContext();
   
   const navigationLinks = [
-    { title: "About Us", path: "/about", icon: BookOpen },
-    { title: "FAQ", path: "/faq", icon: HelpCircle },
-    { title: "Blog", path: "/blog", icon: FileText },
-    { title: "Q&A", path: "/qa", icon: MessageCircle },
+    { title: "About Us", path: `/${currentLanguage}/about`, icon: BookOpen },
+    { title: "FAQ", path: `/${currentLanguage}/faq`, icon: HelpCircle },
+    { title: "Blog", path: `/${currentLanguage}/blog`, icon: FileText },
+    { title: "Q&A", path: `/${currentLanguage}/qa`, icon: MessageCircle },
   ];
 
   return (
@@ -97,7 +99,7 @@ const Home = () => {
 
               {/* CTA Button */}
               <Link
-                to="/blog"
+                to={`/${currentLanguage}/blog`}
                 className="mb-10 md:mb-12 px-6 md:px-8 py-3 md:py-4 bg-primary hover:bg-primary/90 text-white 
                          font-semibold text-base md:text-lg rounded-full
                          hover:scale-105 
