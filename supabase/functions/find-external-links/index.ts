@@ -309,20 +309,33 @@ serve(async (req) => {
     }
 
     // Step 2: Apply both trust and overuse filters
-    const filtered = scoredCitations
+    let filtered = scoredCitations
       .filter(c => c.score.trustScore >= 50) // Block low-trust domains
       .filter(c => c.score.domainUseCount <= CRITICAL_OVERUSE_THRESHOLD) // Block critically overused
       .sort((a, b) => b.score.finalScore - a.score.finalScore);
 
     console.log(`🔍 After filtering: ${filtered.length} citations (blocked ${scoredCitations.length - filtered.length} total: ${scoredCitations.length - filtered.length - blockedOveruse.length} low-trust, ${blockedOveruse.length} overused)`);
 
-    // Step 3: Fallback warning if all citations were filtered out
-    if (filtered.length === 0 && scoredCitations.length > 0) {
+    // Step 3: Fallback to best overused domains if all citations were filtered out
+    if (filtered.length === 0 && blockedOveruse.length > 0) {
       console.warn(
-        '⚠️ All candidate citations were filtered out. ' +
-        `Low trust: ${scoredCitations.filter(c => c.score.trustScore < 50).length}, ` +
+        '⚠️ All citations blocked by overuse filter. Using best overused domains as fallback. ' +
         `Critically overused: ${blockedOveruse.length}. ` +
-        'Consider expanding the approved domain list or adjusting thresholds.'
+        'Consider expanding the approved domain list to improve diversity.'
+      );
+      
+      // Use the top 3 overused domains sorted by authority score
+      filtered = blockedOveruse
+        .filter(c => c.score.trustScore >= 50) // Still require minimum trust
+        .sort((a, b) => b.score.finalScore - a.score.finalScore)
+        .slice(0, 3); // Limit to top 3 to minimize repetition
+      
+      console.log(`🔄 Fallback: Using ${filtered.length} overused domains with highest authority scores`);
+    } else if (filtered.length === 0 && scoredCitations.length > 0) {
+      console.warn(
+        '⚠️ All candidate citations were filtered out due to low trust scores. ' +
+        `Low trust: ${scoredCitations.filter(c => c.score.trustScore < 50).length}. ` +
+        'No suitable citations available.'
       );
     }
     
