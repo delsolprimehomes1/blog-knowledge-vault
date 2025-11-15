@@ -153,6 +153,9 @@ serve(async (req) => {
       currentCitations = []
     } = await req.json();
     
+    console.log(`📝 Request articleId: ${articleId || 'NOT PROVIDED'}`);
+    console.log(`📊 Current article has ${currentCitations.length} existing citations`);
+    
     // Dynamic authority score threshold based on funnel stage
     // TOFU: 35+ (accepts regional news, tourism sources, travel blogs)
     // MOFU: 45+ (accepts established regional news like SUR, Euro Weekly News)
