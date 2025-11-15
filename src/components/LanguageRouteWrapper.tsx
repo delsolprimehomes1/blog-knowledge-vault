@@ -33,10 +33,8 @@ export function LanguageRouteWrapper() {
     }
   }, [lang, languages, navigate, location]);
 
-  if (!lang) return null;
-
   return (
-    <LanguageProvider initialLanguage={lang}>
+    <LanguageProvider initialLanguage={lang || 'en'}>
       <Outlet />
     </LanguageProvider>
   );
