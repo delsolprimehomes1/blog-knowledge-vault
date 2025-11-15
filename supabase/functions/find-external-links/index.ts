@@ -16,6 +16,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Domain overuse thresholds
+const CRITICAL_OVERUSE_THRESHOLD = 100; // Hard block - domain is completely excluded
+const OVERUSE_WARNING_THRESHOLD = 30;   // Soft penalty - used for scoring penalty only (-40 max)
+
 interface Citation {
   sourceName: string;
   url: string;
@@ -288,13 +292,39 @@ serve(async (req) => {
     const bottomScore = Math.min(...scoredCitations.map(c => c.score.finalScore));
     console.log(`📊 Scoring: avg=${avgScore.toFixed(1)}, top=${topScore.toFixed(1)}, bottom=${bottomScore.toFixed(1)}`);
     
-    // Filter: Only block low trust domains (<50)
-    // Note: Overuse is now handled via penalty system (capped at -40), not hard blocking
+    // Step 1: Log which domains are critically overused (before filtering)
+    const blockedOveruse = scoredCitations.filter(
+      (c) => c.score.domainUseCount > CRITICAL_OVERUSE_THRESHOLD
+    );
+
+    if (blockedOveruse.length > 0) {
+      console.log(
+        `🚫 Blocked ${blockedOveruse.length} critically overused domains: ` +
+          blockedOveruse
+            .map((c) => `${c.score.domain}(${c.score.domainUseCount} uses)`)
+            .slice(0, 5) // Show first 5
+            .join(', ') +
+          (blockedOveruse.length > 5 ? '...' : '')
+      );
+    }
+
+    // Step 2: Apply both trust and overuse filters
     const filtered = scoredCitations
-      .filter(c => c.score.trustScore >= 50)
+      .filter(c => c.score.trustScore >= 50) // Block low-trust domains
+      .filter(c => c.score.domainUseCount <= CRITICAL_OVERUSE_THRESHOLD) // Block critically overused
       .sort((a, b) => b.score.finalScore - a.score.finalScore);
-    
-    console.log(`🔍 After trust filtering: ${filtered.length} citations (blocked ${scoredCitations.length - filtered.length} low-trust sources)`);
+
+    console.log(`🔍 After filtering: ${filtered.length} citations (blocked ${scoredCitations.length - filtered.length} total: ${scoredCitations.length - filtered.length - blockedOveruse.length} low-trust, ${blockedOveruse.length} overused)`);
+
+    // Step 3: Fallback warning if all citations were filtered out
+    if (filtered.length === 0 && scoredCitations.length > 0) {
+      console.warn(
+        '⚠️ All candidate citations were filtered out. ' +
+        `Low trust: ${scoredCitations.filter(c => c.score.trustScore < 50).length}, ` +
+        `Critically overused: ${blockedOveruse.length}. ` +
+        'Consider expanding the approved domain list or adjusting thresholds.'
+      );
+    }
     
     // Enforce domain diversity
     const diversified = enforceDomainDiversity(filtered, 10);
