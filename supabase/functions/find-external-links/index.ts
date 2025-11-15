@@ -410,53 +410,29 @@ Return only the JSON array, nothing else.`;
   - Rejected: ${rejectedCount}
 `);
 
-    // ✅ ENHANCED AUTHORITY SCORING (0-100 scale) - Prioritize high-quality sources
+    // ✅ USE WEIGHTED SCORING SYSTEM (already calculated earlier with domain diversity)
     const citationsWithScores = validCitations.map((citation: any) => {
-      let authorityScore = 30; // Higher baseline for verified sources
-      const urlLower = citation.url.toLowerCase();
+      // Use the finalScore from weighted scoring (calculated in lines 271-306)
+      const weightedScore = citation.score?.finalScore || 0;
       
-      // Government/official sources (highest authority) +40 points
-      if (isGovernmentDomain(citation.url)) authorityScore += 40;
+      // Normalize weighted score to 0-100 authority scale
+      // Weighted scores range: excellent sources (~80-120), good (~40-80), overused (<40)
+      // We want: >80 weighted = >70 authority, >40 weighted = >50 authority
+      const authorityScore = Math.max(0, Math.min(100, Math.round(weightedScore * 0.8 + 50)));
       
-      // Domain authority indicators
-      if (citation.url.includes('.edu')) authorityScore += 25;
-      if (citation.url.includes('.org')) authorityScore += 15;
-      
-      // Top-tier official sources +20 points
-      const topTier = ['boe.es', 'registradores', 'notariado', 'europa.eu', 'gov.uk', 'juntadeandalucia.es', 'ine.es', 'bde.es'];
-      if (topTier.some(domain => urlLower.includes(domain))) authorityScore += 20;
-      
-      // Regional news sources (Costa del Sol focus) +15 points
-      const regionalNews = [
-        'euroweeklynews.com', 'surinenglish.com', 'theolivepress.es',
-        'costadelsol.news', 'andalucia.com', 'malagahoy.es',
-        'diariosur.es', 'laopiniondemalaga.es', 'malagaes.com'
-      ];
-      if (regionalNews.some(domain => urlLower.includes(domain))) {
-        authorityScore += 15;
-        console.log(`✨ Regional news boost: ${citation.sourceName} (+15)`);
-      }
-      
-      // Tourism authorities +10 points
-      if (urlLower.includes('turismo') || urlLower.includes('tourism') || urlLower.includes('tourist')) {
-        authorityScore += 10;
-        console.log(`🏖️ Tourism authority boost: ${citation.sourceName} (+10)`);
-      }
-      
-      // Source name credibility
-      const sourceLower = citation.sourceName.toLowerCase();
-      if (sourceLower.includes('official')) authorityScore += 10;
-      if (sourceLower.includes('government') || sourceLower.includes('ministry')) authorityScore += 15;
-      if (sourceLower.includes('university') || sourceLower.includes('research')) authorityScore += 10;
+      console.log(`📊 ${citation.sourceName}:
+        weighted=${weightedScore.toFixed(1)} 
+        → authority=${authorityScore}/100 
+        (trust=${citation.score?.trustScore || 0}, uses=${citation.score?.domainUseCount || 0}, penalty=-${(citation.score?.overusePenalty || 0).toFixed(1)})`);
       
       return {
         ...citation,
-        authorityScore: Math.min(authorityScore, 100), // Cap at 100
+        authorityScore,
         authorityTier: authorityScore >= 70 ? 'High' : authorityScore >= 50 ? 'Medium' : 'Low'
       };
     });
 
-    // ✅ AGGRESSIVE FILTERING: Apply minimum authority score (now dynamic by funnel stage)
+    // ✅ WEIGHTED SCORE FILTERING: Apply minimum threshold (normalized to 0-100 scale)
     console.log(`\n📊 Authority Score Breakdown (${funnelStage} threshold: ${effectiveMinScore}):`);
     citationsWithScores.forEach((c: any) => {
       const passSymbol = c.authorityScore >= effectiveMinScore ? '✅' : '❌';
