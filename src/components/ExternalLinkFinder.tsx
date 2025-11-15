@@ -24,6 +24,22 @@ interface FoundCitation {
   anchorText: string;
   relevance: string;
   verified?: boolean;
+  // Domain-Aware Citation Engine metadata
+  domain?: string;
+  domainUseCount?: number;
+  trustScore?: number;
+  finalScore?: number;
+  isOverused?: boolean;
+  isCriticalOveruse?: boolean;
+}
+
+function extractDomain(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace('www.', '');
+  } catch {
+    return '';
+  }
 }
 
 export const ExternalLinkFinder = ({ 
@@ -92,6 +108,26 @@ export const ExternalLinkFinder = ({
     if (exists) {
       toast.info("This citation is already added");
       return;
+    }
+
+    // Phase 3: Enforce domain diversity - max 1 per domain
+    const linkDomain = link.domain || extractDomain(link.url);
+    const existingDomains = currentCitations.map(c => extractDomain(c.url));
+    
+    if (existingDomains.includes(linkDomain)) {
+      toast.error(
+        `Domain ${linkDomain} already used in this article. Maximum 1 citation per domain.`,
+        { duration: 4000 }
+      );
+      return;
+    }
+    
+    // Warn about overused domains
+    if (link.isCriticalOveruse) {
+      toast.warning(
+        `⚠️ ${linkDomain} has been used ${link.domainUseCount} times across your site. Consider using a different source for better diversity.`,
+        { duration: 5000 }
+      );
     }
 
     // Check if URL is a PDF
@@ -181,11 +217,18 @@ export const ExternalLinkFinder = ({
           <div className="space-y-3">
             {foundLinks.map((link, i) => (
               <Card key={i} className="p-4">
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <strong className="text-sm">{link.sourceName}</strong>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <strong className="text-sm">{link.sourceName}</strong>
+                      {link.verified && <Badge variant="secondary">✓ Verified</Badge>}
+                      {isOfficialGovernment(link.url) && <Badge variant="default">🔒 Official</Badge>}
+                      {link.trustScore && <Badge variant={link.trustScore >= 90 ? "default" : "secondary"}>Trust: {link.trustScore}</Badge>}
+                      {link.domainUseCount !== undefined && <Badge variant={link.isOverused ? "destructive" : "outline"}>Used {link.domainUseCount}×</Badge>}
+                      {link.isCriticalOveruse && <Badge variant="destructive" className="animate-pulse">⚠️ Critical</Badge>}
+                      {link.isOverused && !link.isCriticalOveruse && <Badge variant="outline" className="text-amber-600 border-amber-600">⚠️ Overused</Badge>}
+                    </div>
+                    {link.domain && <p className="text-xs text-muted-foreground"><span className="font-medium">Domain:</span> {link.domain} {link.finalScore && <><span className="ml-2 font-medium">Score:</span> {link.finalScore.toFixed(1)}</>}</p>}
                         {isOfficialGovernment(link.url) && (
                           <Badge variant="default" className="text-xs">
                             🔒 Official Government

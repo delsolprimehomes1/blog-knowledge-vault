@@ -247,6 +247,7 @@ serve(async (req) => {
     }
     
     const { findBetterCitationsWithBatch } = await import('../shared/citationFinder.ts');
+    const { calculateCitationScore, enforceDomainDiversity, logCitationScore } = await import('../shared/citationScoring.ts');
     
     const result = await findBetterCitationsWithBatch(
       headline,
@@ -267,30 +268,69 @@ serve(async (req) => {
 
     console.log(`✅ Found ${result.citations.length} citations from ${result.category} batch`);
 
+    // Phase 5: Apply weighted scoring to all citations
+    console.log('📊 Calculating weighted scores for all citations...');
+    const scoredCitations = await Promise.all(
+      result.citations.map(async (citation: any) => {
+        const score = await calculateCitationScore(
+          citation.url,
+          70, // Default relevance score
+          articleId,
+          supabaseClient
+        );
+        return { ...citation, score };
+      })
+    );
+    
+    // Log scoring statistics
+    const avgScore = scoredCitations.reduce((sum, c) => sum + c.score.finalScore, 0) / scoredCitations.length;
+    const topScore = Math.max(...scoredCitations.map(c => c.score.finalScore));
+    const bottomScore = Math.min(...scoredCitations.map(c => c.score.finalScore));
+    console.log(`📊 Scoring: avg=${avgScore.toFixed(1)}, top=${topScore.toFixed(1)}, bottom=${bottomScore.toFixed(1)}`);
+    
+    // Filter: Block critical overuse (>100) and low trust (<50)
+    const filtered = scoredCitations
+      .filter(c => c.score.trustScore >= 50)
+      .filter(c => c.score.domainUseCount <= 100)
+      .sort((a, b) => b.score.finalScore - a.score.finalScore);
+    
+    console.log(`🔍 After filtering: ${filtered.length} citations (blocked ${scoredCitations.length - filtered.length})`);
+    
+    // Enforce domain diversity
+    const diversified = enforceDomainDiversity(filtered, 10);
+    console.log(`✨ After diversity: ${diversified.length} unique domains`);
+    
+    // Log citation scores for analytics
+    await Promise.all(
+      diversified.map(c => logCitationScore(c.score, articleId, false, supabaseClient))
+    );
+
     // Filter out citations already used in article and recently used domains
-    let rotationFilteredCitations = result.citations;
+    let rotationFilteredCitations = diversified;
     if (articleId) {
       const usedUrls = new Set([...currentCitations, ...usedInArticle.map(d => `https://${d}`)]);
       const recentDomainSet = new Set(recentlyUsed);
       
-      rotationFilteredCitations = result.citations.filter((citation: any) => {
+      rotationFilteredCitations = diversified.filter((citation: any) => {
         const domain = extractDomain(citation.url);
         return !usedUrls.has(citation.url) && !recentDomainSet.has(domain);
       });
 
-      if (rotationFilteredCitations.length < result.citations.length) {
-        console.log(`📊 Domain rotation filtered ${result.citations.length} → ${rotationFilteredCitations.length} citations (removed duplicates and recent domains)`);
+      if (rotationFilteredCitations.length < diversified.length) {
+        console.log(`📊 Domain rotation filtered ${diversified.length} → ${rotationFilteredCitations.length} citations`);
       }
     }
 
-    // Transform to expected format
+    // Transform to expected format with scoring metadata
     const citations = rotationFilteredCitations.map((c: any) => ({
       sourceName: c.sourceName,
       url: c.url,
       anchorText: c.suggestedContext || c.description.substring(0, 50),
       contextInArticle: c.suggestedContext,
       relevance: c.relevance,
-      verified: true
+      verified: true,
+      // Include scoring metadata
+      score: c.score
     }));
 
     // Deduplicate by URL (in case batch system returns duplicates)

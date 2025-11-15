@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      approved_domains: {
+        Row: {
+          category: string
+          created_at: string | null
+          domain: string
+          id: string
+          is_allowed: boolean | null
+          notes: string | null
+          tier: string | null
+          trust_score: number
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          domain: string
+          id?: string
+          is_allowed?: boolean | null
+          notes?: string | null
+          tier?: string | null
+          trust_score: number
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          domain?: string
+          id?: string
+          is_allowed?: boolean | null
+          notes?: string | null
+          tier?: string | null
+          trust_score?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       article_link_patterns: {
         Row: {
           article_id: string
@@ -799,6 +835,63 @@ export type Database = {
         }
         Relationships: []
       }
+      citation_scoring_log: {
+        Row: {
+          article_id: string | null
+          citation_url: string
+          domain: string
+          final_score: number | null
+          id: string
+          novelty_boost: number | null
+          overuse_penalty: number | null
+          relevance_score: number | null
+          suggested_at: string | null
+          trust_score: number | null
+          was_selected: boolean | null
+        }
+        Insert: {
+          article_id?: string | null
+          citation_url: string
+          domain: string
+          final_score?: number | null
+          id?: string
+          novelty_boost?: number | null
+          overuse_penalty?: number | null
+          relevance_score?: number | null
+          suggested_at?: string | null
+          trust_score?: number | null
+          was_selected?: boolean | null
+        }
+        Update: {
+          article_id?: string | null
+          citation_url?: string
+          domain?: string
+          final_score?: number | null
+          id?: string
+          novelty_boost?: number | null
+          overuse_penalty?: number | null
+          relevance_score?: number | null
+          suggested_at?: string | null
+          trust_score?: number | null
+          was_selected?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citation_scoring_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citation_scoring_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       citation_usage_tracking: {
         Row: {
           anchor_text: string | null
@@ -1124,32 +1217,47 @@ export type Database = {
       }
       domain_usage_stats: {
         Row: {
+          articles_used_in: number | null
+          avg_uses_per_article: number | null
           category: string | null
           created_at: string | null
           domain: string
           id: string
+          last_suggested_at: string | null
           last_used_at: string | null
           tier: string | null
+          times_rejected: number | null
+          times_suggested: number | null
           total_uses: number | null
           updated_at: string | null
         }
         Insert: {
+          articles_used_in?: number | null
+          avg_uses_per_article?: number | null
           category?: string | null
           created_at?: string | null
           domain: string
           id?: string
+          last_suggested_at?: string | null
           last_used_at?: string | null
           tier?: string | null
+          times_rejected?: number | null
+          times_suggested?: number | null
           total_uses?: number | null
           updated_at?: string | null
         }
         Update: {
+          articles_used_in?: number | null
+          avg_uses_per_article?: number | null
           category?: string | null
           created_at?: string | null
           domain?: string
           id?: string
+          last_suggested_at?: string | null
           last_used_at?: string | null
           tier?: string | null
+          times_rejected?: number | null
+          times_suggested?: number | null
           total_uses?: number | null
           updated_at?: string | null
         }
