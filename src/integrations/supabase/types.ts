@@ -1590,6 +1590,170 @@ export type Database = {
         }
         Relationships: []
       }
+      translation_audit_log: {
+        Row: {
+          affected_language: string
+          article_headline: string | null
+          article_id: string
+          article_status: string | null
+          change_reason: string | null
+          change_type: string
+          changed_by: string | null
+          created_at: string | null
+          id: string
+          new_status: string | null
+          new_translation_slug: string | null
+          previous_status: string | null
+          previous_translation_slug: string | null
+          validation_result: Json | null
+        }
+        Insert: {
+          affected_language: string
+          article_headline?: string | null
+          article_id: string
+          article_status?: string | null
+          change_reason?: string | null
+          change_type: string
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          new_status?: string | null
+          new_translation_slug?: string | null
+          previous_status?: string | null
+          previous_translation_slug?: string | null
+          validation_result?: Json | null
+        }
+        Update: {
+          affected_language?: string
+          article_headline?: string | null
+          article_id?: string
+          article_status?: string | null
+          change_reason?: string | null
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          new_status?: string | null
+          new_translation_slug?: string | null
+          previous_status?: string | null
+          previous_translation_slug?: string | null
+          validation_result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_audit_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "translation_audit_log_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      translation_status: {
+        Row: {
+          article_id: string
+          bidirectional_valid: boolean | null
+          blocking_issues: string[] | null
+          completeness_score: number
+          content_similarity_score: number | null
+          created_at: string | null
+          has_translation: boolean
+          id: string
+          language_code: string
+          last_validated_at: string | null
+          linked_languages: number
+          missing_languages: string[] | null
+          total_languages: number
+          translation_article_id: string | null
+          translation_slug: string | null
+          updated_at: string | null
+          url_exists: boolean | null
+          validated_by: string | null
+          validation_status: string
+          warnings: string[] | null
+        }
+        Insert: {
+          article_id: string
+          bidirectional_valid?: boolean | null
+          blocking_issues?: string[] | null
+          completeness_score?: number
+          content_similarity_score?: number | null
+          created_at?: string | null
+          has_translation?: boolean
+          id?: string
+          language_code: string
+          last_validated_at?: string | null
+          linked_languages?: number
+          missing_languages?: string[] | null
+          total_languages: number
+          translation_article_id?: string | null
+          translation_slug?: string | null
+          updated_at?: string | null
+          url_exists?: boolean | null
+          validated_by?: string | null
+          validation_status?: string
+          warnings?: string[] | null
+        }
+        Update: {
+          article_id?: string
+          bidirectional_valid?: boolean | null
+          blocking_issues?: string[] | null
+          completeness_score?: number
+          content_similarity_score?: number | null
+          created_at?: string | null
+          has_translation?: boolean
+          id?: string
+          language_code?: string
+          last_validated_at?: string | null
+          linked_languages?: number
+          missing_languages?: string[] | null
+          total_languages?: number
+          translation_article_id?: string | null
+          translation_slug?: string | null
+          updated_at?: string | null
+          url_exists?: boolean | null
+          validated_by?: string | null
+          validation_status?: string
+          warnings?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_status_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "translation_status_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "translation_status_translation_article_id_fkey"
+            columns: ["translation_article_id"]
+            isOneToOne: false
+            referencedRelation: "blog_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "translation_status_translation_article_id_fkey"
+            columns: ["translation_article_id"]
+            isOneToOne: false
+            referencedRelation: "content_freshness_report"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_role_changes: {
         Row: {
           action: string
@@ -1693,6 +1857,10 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_translation_completeness: {
+        Args: { p_article_id: string }
+        Returns: number
+      }
       check_extension_exists: {
         Args: { extension_name: string }
         Returns: boolean
@@ -1706,6 +1874,10 @@ export type Database = {
           event_object_table: string
           trigger_name: string
         }[]
+      }
+      get_missing_languages: {
+        Args: { p_article_id: string }
+        Returns: string[]
       }
       get_table_columns: {
         Args: { table_name: string }
