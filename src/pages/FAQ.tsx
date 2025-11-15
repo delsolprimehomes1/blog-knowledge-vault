@@ -7,6 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
+import { useHreflang } from "@/hooks/useHreflang";
 
 const FAQ_ITEMS = [
   {
@@ -80,6 +81,8 @@ function generateBreadcrumbSchema() {
 }
 
 const FAQ = () => {
+  const { links: hreflangLinks } = useHreflang({ pageType: 'faq' });
+
   return (
     <>
       <SchemaMeta
@@ -87,6 +90,7 @@ const FAQ = () => {
         description="Get answers to common questions about buying property on the Costa del Sol, Golden Visa requirements, mortgages, and our real estate services."
         canonical="https://delsolprimehomes.com/faq"
         schemas={[generateFAQPageSchema(), ORGANIZATION_SCHEMA, generateBreadcrumbSchema()]}
+        hreflangLinks={hreflangLinks}
       />
 
       <div className="min-h-screen bg-background">

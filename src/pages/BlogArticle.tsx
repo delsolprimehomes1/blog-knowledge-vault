@@ -24,6 +24,7 @@ import { generateAllSchemas } from "@/lib/schemaGenerator";
 import { BlogArticle as BlogArticleType, Author, ExternalCitation, FunnelStage, InternalLink, FAQEntity } from "@/types/blog";
 import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 import { Navbar } from "@/components/Navbar";
+import { useHreflang } from "@/hooks/useHreflang";
 
 const BlogArticle = () => {
   console.log('🚀 BlogArticle component mounted');
@@ -291,27 +292,20 @@ const BlogArticle = () => {
   console.log('✅ Rendering full article:', article.id);
   
   const schemas = generateAllSchemas(article, author || null, reviewer || null);
-
-  const baseUrl = window.location.origin;
+  const baseUrl = 'https://delsolprimehomes.com';
   const currentUrl = `${baseUrl}/blog/${article.slug}`;
 
-  // Generate hreflang URLs from translations
-  const hreflangUrls = Object.entries(article.translations || {}).reduce((acc, [lang, slug]) => {
-    acc[lang] = `${baseUrl}/blog/${slug}`;
-    return acc;
-  }, {} as Record<string, string>);
+  const { links: hreflangLinks, warnings: hreflangWarnings } = useHreflang({
+    pageType: 'blog-article',
+    pageIdentifier: article.slug,
+    currentLanguage: article.language,
+    currentSlug: article.slug,
+    translations: article.translations || {},
+  });
 
-  // Language to hreflang mapping
-  const langToHreflang: Record<string, string> = {
-    en: 'en-GB',
-    de: 'de-DE',
-    nl: 'nl-NL',
-    fr: 'fr-FR',
-    pl: 'pl-PL',
-    sv: 'sv-SE',
-    da: 'da-DK',
-    hu: 'hu-HU',
-  };
+  if (hreflangWarnings.length > 0 && import.meta.env.DEV) {
+    console.warn('⚠️ Hreflang warnings:', hreflangWarnings);
+  }
 
   return (
     <>
@@ -345,13 +339,15 @@ const BlogArticle = () => {
         <meta name="twitter:description" content={article.meta_description} />
         <meta name="twitter:image" content={article.featured_image_url} />
         
-        {/* Hreflang Tags */}
-        {Object.entries(hreflangUrls).map(([lang, url]) => (
-          <link key={lang} rel="alternate" hrefLang={langToHreflang[lang]} href={url} />
+        {/* Hreflang Tags - Complete Cluster */}
+        {hreflangLinks.map((link) => (
+          <link
+            key={link.lang}
+            rel="alternate"
+            hrefLang={link.lang}
+            href={link.url}
+          />
         ))}
-        {hreflangUrls['en'] && (
-          <link rel="alternate" hrefLang="x-default" href={hreflangUrls['en']} />
-        )}
         
         {/* Additional Meta */}
         <meta name="robots" content="index, follow, max-image-preview:large" />

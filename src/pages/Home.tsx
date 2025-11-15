@@ -6,6 +6,7 @@ import { TestimonialsSection } from "@/components/home/TestimonialsSection";
 import { GoogleBusinessWidget } from "@/components/home/GoogleBusinessWidget";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { FeatureCards } from "@/components/home/FeatureCards";
+import { useHreflang } from "@/hooks/useHreflang";
 
 interface NavigationPillProps {
   title: string;
@@ -35,6 +36,7 @@ const NavigationPill = ({ title, path, icon: Icon, delay }: NavigationPillProps)
 
 const Home = () => {
   const schemas = generateAllHomeSchemas();
+  const { links: hreflangLinks } = useHreflang({ pageType: 'home' });
   
   const navigationLinks = [
     { title: "About Us", path: "/about", icon: BookOpen },
@@ -53,6 +55,7 @@ const Home = () => {
         ogDescription="35+ years of expertise guiding investors, homeowners, and dreamers along Spain's southern coast."
         ogImage="https://delsolprimehomes.com/images/costa-del-sol-beauty.jpg"
         schemas={Object.values(schemas)}
+        hreflangLinks={hreflangLinks}
       />
 
       <div className="min-h-screen relative overflow-hidden">

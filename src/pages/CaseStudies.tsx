@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, MapPin, Clock, Home } from "lucide-react";
 import { CaseStudy, generateCaseStudiesPageSchema, generateCaseStudiesBreadcrumbSchema } from "@/lib/caseStudiesSchemaGenerator";
 import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
+import { useHreflang } from "@/hooks/useHreflang";
 
 const CASE_STUDIES: CaseStudy[] = [
   {
@@ -142,6 +143,7 @@ const CaseStudyCard = ({ caseStudy }: { caseStudy: CaseStudy }) => (
 const CaseStudies = () => {
   const pageSchema = generateCaseStudiesPageSchema(CASE_STUDIES);
   const breadcrumbSchema = generateCaseStudiesBreadcrumbSchema();
+  const { links: hreflangLinks } = useHreflang({ pageType: 'case-studies' });
 
   return (
     <>
@@ -152,6 +154,17 @@ const CaseStudies = () => {
           content="Discover how we've helped international clients find their dream properties on Costa del Sol. Real success stories from buyers across Europe." 
         />
         <link rel="canonical" href="https://delsolprimehomes.com/case-studies" />
+        
+        {/* Hreflang Tags */}
+        {hreflangLinks.map((link) => (
+          <link
+            key={link.lang}
+            rel="alternate"
+            hrefLang={link.lang}
+            href={link.url}
+          />
+        ))}
+        
         <script type="application/ld+json">
           {JSON.stringify(pageSchema)}
         </script>

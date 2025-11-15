@@ -16,6 +16,7 @@ import { SchemaMeta } from "@/components/SchemaMeta";
 import { generateAllBlogIndexSchemas } from "@/lib/blogIndexSchemaGenerator";
 import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
 import { transformImage } from "@/lib/imageTransform";
+import { useHreflang } from "@/hooks/useHreflang";
 
 const ARTICLES_PER_PAGE = 9;
 
@@ -37,6 +38,7 @@ const BlogIndex = () => {
   // Use category from URL param if available, otherwise from search params
   const selectedCategory = categoryParam || searchParams.get("category") || "all";
   const selectedLanguage = searchParams.get("lang") || "all";
+  const { links: hreflangLinks } = useHreflang({ pageType: 'blog-index' });
 
   // Sync URL param to search params
   useEffect(() => {
@@ -234,6 +236,7 @@ const BlogIndex = () => {
         robots="index, follow"
         prevPage={currentPage > 1 ? `${baseUrl}/blog?page=${currentPage - 1}` : undefined}
         nextPage={currentPage < totalPages ? `${baseUrl}/blog?page=${currentPage + 1}` : undefined}
+        hreflangLinks={hreflangLinks}
         schemas={[
           schemas.collection,
           schemas.breadcrumb,

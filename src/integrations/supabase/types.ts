@@ -1395,6 +1395,78 @@ export type Database = {
           },
         ]
       }
+      page_translations: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_published: boolean | null
+          language_code: string
+          page_identifier: string | null
+          page_type: string
+          updated_at: string | null
+          url_slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_published?: boolean | null
+          language_code: string
+          page_identifier?: string | null
+          page_type: string
+          updated_at?: string | null
+          url_slug: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_published?: boolean | null
+          language_code?: string
+          page_identifier?: string | null
+          page_type?: string
+          updated_at?: string | null
+          url_slug?: string
+        }
+        Relationships: []
+      }
+      site_languages: {
+        Row: {
+          created_at: string | null
+          display_flag: string | null
+          hreflang_code: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          language_code: string
+          language_name: string
+          sort_order: number | null
+          url_prefix: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_flag?: string | null
+          hreflang_code: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          language_code: string
+          language_name: string
+          sort_order?: number | null
+          url_prefix?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_flag?: string | null
+          hreflang_code?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          language_code?: string
+          language_name?: string
+          sort_order?: number | null
+          url_prefix?: string | null
+        }
+        Relationships: []
+      }
       sitemap_alerts: {
         Row: {
           alert_type: string

@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ORGANIZATION_SCHEMA } from "@/lib/schemaGenerator";
+import { useHreflang } from "@/hooks/useHreflang";
 
 const QA_CATEGORIES = {
   legal: {
@@ -109,6 +110,7 @@ function generateBreadcrumbSchema() {
 const QA = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const { links: hreflangLinks } = useHreflang({ pageType: 'qa' });
 
   const filteredCategories = Object.entries(QA_CATEGORIES).reduce((acc, [key, category]) => {
     const filteredQuestions = category.questions.filter(
@@ -129,6 +131,7 @@ const QA = () => {
         description="Browse our comprehensive Q&A about Costa del Sol property buying, legal requirements, financing options, and lifestyle information for international buyers."
         canonical="https://delsolprimehomes.com/qa"
         schemas={[generateQAPageSchema(), ORGANIZATION_SCHEMA, generateBreadcrumbSchema()]}
+        hreflangLinks={hreflangLinks}
       />
 
       <div className="min-h-screen bg-background">
