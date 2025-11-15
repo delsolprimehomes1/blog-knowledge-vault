@@ -288,13 +288,13 @@ serve(async (req) => {
     const bottomScore = Math.min(...scoredCitations.map(c => c.score.finalScore));
     console.log(`📊 Scoring: avg=${avgScore.toFixed(1)}, top=${topScore.toFixed(1)}, bottom=${bottomScore.toFixed(1)}`);
     
-    // Filter: Block critical overuse (>100) and low trust (<50)
+    // Filter: Only block low trust domains (<50)
+    // Note: Overuse is now handled via penalty system (capped at -40), not hard blocking
     const filtered = scoredCitations
       .filter(c => c.score.trustScore >= 50)
-      .filter(c => c.score.domainUseCount <= 100)
       .sort((a, b) => b.score.finalScore - a.score.finalScore);
     
-    console.log(`🔍 After filtering: ${filtered.length} citations (blocked ${scoredCitations.length - filtered.length})`);
+    console.log(`🔍 After trust filtering: ${filtered.length} citations (blocked ${scoredCitations.length - filtered.length} low-trust sources)`);
     
     // Enforce domain diversity
     const diversified = enforceDomainDiversity(filtered, 10);
