@@ -145,13 +145,16 @@ export const ExternalCitationsSection = ({
         )}
 
         {/* Original External Link Finder (Backup) */}
-        <ExternalLinkFinder
-          articleContent={articleContent}
-          headline={headline}
-          currentCitations={citations}
-          onCitationsChange={onCitationsChange}
-          language={language}
-        />
+        {articleId && (
+          <ExternalLinkFinder
+            articleId={articleId}
+            articleContent={articleContent}
+            headline={headline}
+            currentCitations={citations}
+            onCitationsChange={onCitationsChange}
+            language={language}
+          />
+        )}
 
         {/* Manual Citations List */}
         <div className="space-y-4">

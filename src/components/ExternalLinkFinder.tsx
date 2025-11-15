@@ -10,6 +10,7 @@ import { Loader2, Search, ExternalLink, Plus, Eye } from "lucide-react";
 import { ExternalCitation } from "@/types/blog";
 
 interface ExternalLinkFinderProps {
+  articleId: string;
   articleContent: string;
   headline: string;
   currentCitations: ExternalCitation[];
@@ -26,6 +27,7 @@ interface FoundCitation {
 }
 
 export const ExternalLinkFinder = ({ 
+  articleId,
   articleContent, 
   headline,
   currentCitations,
@@ -50,10 +52,12 @@ export const ExternalLinkFinder = ({
       
       const { data, error } = await supabase.functions.invoke('find-external-links', {
         body: {
+          articleId,
           content: articleContent,
           headline: headline,
           language: language,
-          requireGovernmentSource: requireGovSource
+          requireGovernmentSource: requireGovSource,
+          currentCitations: currentCitations.map(c => c.url)
         }
       });
 

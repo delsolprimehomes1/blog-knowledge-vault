@@ -303,7 +303,9 @@ export async function findBetterCitationsWithBatch(
   funnelStage: 'TOFU' | 'MOFU' | 'BOFU',
   perplexityApiKey: string,
   focusArea?: string,
-  speakableContext?: string // NEW: JSON-LD speakable answer for better relevance
+  speakableContext?: string,
+  prioritizedDomains?: string[], // NEW: Fresh domains to prioritize
+  currentCitations?: string[] // NEW: Citations to avoid
 ): Promise<{
   citations: BetterCitation[];
   category: string;
@@ -336,16 +338,29 @@ export async function findBetterCitationsWithBatch(
     ? `\n\n**PRIMARY FOCUS (JSON-LD Speakable):**\n${speakableContext}\n\n⚠️ CRITICAL: Prioritize finding citations that directly support claims in this key section above. This is the most important part of the article for SEO.`
     : '';
 
+  // Use prioritized domains or fall back to selection
+  const domainsToUse = prioritizedDomains && prioritizedDomains.length > 0 
+    ? prioritizedDomains.slice(0, 20)
+    : selection.domains.slice(0, 20);
+
+  // Build avoid list for prompt
+  const avoidCitationsText = currentCitations && currentCitations.length > 0
+    ? `\n\n**AVOID These URLs (already used):**\n${currentCitations.slice(0, 15).join('\n')}\n\n⚠️ Do NOT suggest any of the above URLs. Find fresh, diverse sources instead.`
+    : '';
+
+  console.log(`🎯 Using ${domainsToUse.length} domains (${prioritizedDomains ? 'prioritized fresh' : 'standard selection'})`);
+
   const prompt = `You are an expert research assistant finding HIGH-AUTHORITY external sources for a ${config.name} language article.
 
 **CRITICAL REQUIREMENTS:**
 - You MUST ONLY provide URLs that you ACTUALLY FOUND through web search
 - DO NOT invent, generate, or hallucinate URLs under any circumstances
-- ONLY use URLs from these approved domains: ${selection.domains.slice(0, 20).join(', ')}
+- ONLY use URLs from these approved domains: ${domainsToUse.join(', ')}
 - Every URL must be a REAL, ACCESSIBLE page that exists on the internet
 - If you cannot find enough real sources, return fewer citations rather than making up URLs
 - Focus on ${selection.category} sources
-- PRIORITIZE: Government (.gov, .gob, .edu), Legal (registradores, notariado), Official Statistics (ine.es, bde.es)
+- PRIORITIZE: Fresh domains not recently used, Government (.gov, .gob, .edu), Legal (registradores, notariado), Official Statistics (ine.es, bde.es)
+- MAXIMIZE DIVERSITY: Use different domains for each citation when possible
 
 **Article Topic:** "${articleTopic}"
 **Funnel Stage:** ${funnelStage} (${funnelStage === 'TOFU' ? 'awareness' : funnelStage === 'MOFU' ? 'consideration' : 'decision'})
@@ -353,6 +368,7 @@ export async function findBetterCitationsWithBatch(
 **Target:** ${requestCount} HIGH-AUTHORITY citations (we'll filter to top ${targetCitations})
 ${focusContext}
 ${speakableSection}
+${avoidCitationsText}
 
 **Article Preview:**
 ${articleContent.substring(0, 1500)}

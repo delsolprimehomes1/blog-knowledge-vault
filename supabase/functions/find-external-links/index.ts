@@ -1,6 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 import { TOP_20_PRIORITY_DOMAINS } from '../shared/priorityDomains.ts';
 import { isApprovedDomain, getDomainCategory } from '../shared/approvedDomains.ts';
+import { 
+  getArticleUsedDomains, 
+  getRecentlyUsedDomains,
+  getUnderutilizedDomains,
+  filterAndPrioritizeDomains,
+  extractDomain
+} from '../shared/domainRotation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,14 +141,16 @@ serve(async (req) => {
 
   try {
     const { 
+      articleId,
       content, 
       headline, 
       language = 'en', 
       requireGovernmentSource = false,
       funnelStage = 'MOFU',
-      speakableContext, // NEW: JSON-LD speakable answer for better relevance
-      minAuthorityScore, // Will be set dynamically based on funnel stage if not provided
-      focusArea // Regional focus
+      speakableContext,
+      minAuthorityScore,
+      focusArea,
+      currentCitations = []
     } = await req.json();
     
     // Dynamic authority score threshold based on funnel stage
@@ -193,10 +203,39 @@ serve(async (req) => {
     // Use new batch-aware citation finder with approved domains enforcement
     console.log(`🔍 Using batch citation system (funnel: ${funnelStage})`);
     
-    // Import approved domains to ensure we only use vetted sources
+    // Initialize Supabase client for domain tracking
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+    // Import approved domains
     const { getAllApprovedDomains } = await import('../shared/approvedDomains.ts');
-    const approvedDomains = getAllApprovedDomains();
-    console.log(`✅ Enforcing ${approvedDomains.length} approved domains only`);
+    const allApprovedDomains = getAllApprovedDomains();
+    console.log(`✅ Total approved domains: ${allApprovedDomains.length}`);
+    
+    // Get domain rotation data if articleId is provided
+    let prioritizedDomains = allApprovedDomains;
+    let usedInArticle: string[] = [];
+    let recentlyUsed: string[] = [];
+    
+    if (articleId) {
+      [usedInArticle, recentlyUsed] = await Promise.all([
+        getArticleUsedDomains(supabaseClient, articleId),
+        getRecentlyUsedDomains(supabaseClient, articleId, 5)
+      ]);
+
+      const underutilized = await getUnderutilizedDomains(supabaseClient, 100);
+      
+      // Prioritize fresh domains
+      prioritizedDomains = filterAndPrioritizeDomains(
+        allApprovedDomains,
+        usedInArticle,
+        recentlyUsed,
+        underutilized
+      );
+
+      console.log(`🔄 Domain rotation: ${usedInArticle.length} used in article, ${recentlyUsed.length} recently used, prioritizing ${prioritizedDomains.slice(0, 20).length} fresh domains`);
+    }
     
     const { findBetterCitationsWithBatch } = await import('../shared/citationFinder.ts');
     
@@ -207,7 +246,9 @@ serve(async (req) => {
       funnelStage as 'TOFU' | 'MOFU' | 'BOFU',
       PERPLEXITY_API_KEY,
       focusArea || 'Costa del Sol real estate',
-      speakableContext // Pass speakable context for better relevance
+      speakableContext,
+      prioritizedDomains,
+      currentCitations
     );
 
     if (result.status === 'failed' || result.citations.length === 0) {
@@ -217,8 +258,24 @@ serve(async (req) => {
 
     console.log(`✅ Found ${result.citations.length} citations from ${result.category} batch`);
 
+    // Filter out citations already used in article and recently used domains
+    let rotationFilteredCitations = result.citations;
+    if (articleId) {
+      const usedUrls = new Set([...currentCitations, ...usedInArticle.map(d => `https://${d}`)]);
+      const recentDomainSet = new Set(recentlyUsed);
+      
+      rotationFilteredCitations = result.citations.filter((citation: any) => {
+        const domain = extractDomain(citation.url);
+        return !usedUrls.has(citation.url) && !recentDomainSet.has(domain);
+      });
+
+      if (rotationFilteredCitations.length < result.citations.length) {
+        console.log(`📊 Domain rotation filtered ${result.citations.length} → ${rotationFilteredCitations.length} citations (removed duplicates and recent domains)`);
+      }
+    }
+
     // Transform to expected format
-    const citations = result.citations.map((c: any) => ({
+    const citations = rotationFilteredCitations.map((c: any) => ({
       sourceName: c.sourceName,
       url: c.url,
       anchorText: c.suggestedContext || c.description.substring(0, 50),
