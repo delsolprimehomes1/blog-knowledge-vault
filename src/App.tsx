@@ -26,6 +26,8 @@ import CitationSanitization from "./pages/admin/CitationSanitization";
 import CitationSweepDashboard from "./pages/admin/CitationSweepDashboard";
 import SitemapHealth from "./pages/admin/SitemapHealth";
 import HreflangHealth from "./pages/admin/HreflangHealth";
+import { LanguageRouteWrapper } from "./components/LanguageRouteWrapper";
+import { RootRedirect } from "./components/RootRedirect";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import BlogArticle from "./pages/BlogArticle";
@@ -58,20 +60,28 @@ const App = () => (
         <AnalyticsProvider />
         
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/blog" element={<BlogIndex />} />
-          <Route path="/blog/category/:category" element={<BlogIndex />} />
-          <Route path="/blog/:slug" element={<BlogArticle />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/qa" element={<QA />} />
-          <Route path="/case-studies" element={<CaseStudies />} />
-          <Route path="/sitemap" element={<Sitemap />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms-of-service" element={<TermsOfService />} />
+          {/* Root redirect - detects language and redirects */}
+          <Route path="/" element={<RootRedirect />} />
           
-          {/* Protected Admin Routes */}
+          {/* Auth route (language-agnostic) */}
+          <Route path="/auth" element={<Auth />} />
+          
+          {/* Language-prefixed routes */}
+          <Route path="/:lang" element={<LanguageRouteWrapper />}>
+            <Route index element={<Home />} />
+            <Route path="blog" element={<BlogIndex />} />
+            <Route path="blog/category/:category" element={<BlogIndex />} />
+            <Route path="blog/:slug" element={<BlogArticle />} />
+            <Route path="about" element={<About />} />
+            <Route path="faq" element={<FAQ />} />
+            <Route path="qa" element={<QA />} />
+            <Route path="case-studies" element={<CaseStudies />} />
+            <Route path="sitemap" element={<Sitemap />} />
+            <Route path="privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="terms-of-service" element={<TermsOfService />} />
+          </Route>
+          
+          {/* Protected Admin Routes (language-agnostic) */}
           <Route path="/admin" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/admin/articles" element={<ProtectedRoute><Articles /></ProtectedRoute>} />
           <Route path="/admin/articles/new" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />
