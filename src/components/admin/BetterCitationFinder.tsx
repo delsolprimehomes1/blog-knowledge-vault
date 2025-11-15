@@ -18,6 +18,7 @@ interface BetterCitation {
   suggestedAnchor?: string;
   placementContext?: string;
   confidenceScore?: number;
+  relevanceExplanation?: string;
 }
 
 interface BetterCitationFinderProps {
@@ -88,6 +89,14 @@ export const BetterCitationFinder = ({ articleId, articleTopic, articleLanguage,
                       <div className="bg-blue-50 dark:bg-blue-950 p-2 rounded text-sm">
                         <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">📍 Placement:</p>
                         <p className="italic">"{c.targetSentence}"</p>
+                      </div>
+                    )}
+                    {c.relevanceExplanation && (
+                      <div className="bg-green-50 dark:bg-green-950 p-3 rounded-lg text-sm border-l-4 border-green-500">
+                        <p className="text-xs font-bold text-green-700 dark:text-green-300 mb-1 flex items-center gap-1">
+                          💡 Why This Citation Matters
+                        </p>
+                        <p className="text-green-800 dark:text-green-200">{c.relevanceExplanation}</p>
                       </div>
                     )}
                     {c.suggestedAnchor && <code className="text-xs bg-yellow-100 dark:bg-yellow-900 px-2 py-1 rounded">{c.suggestedAnchor}</code>}

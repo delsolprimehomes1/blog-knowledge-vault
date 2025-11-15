@@ -1,7 +1,7 @@
 import { getAllApprovedDomains } from "./approvedDomains.ts";
 import { isCompetitor } from "./competitorBlacklist.ts";
 import { calculateAuthorityScore } from "./authorityScoring.ts";
-import { getArticleUsedDomains, getUnderutilizedDomains, filterAndPrioritizeDomains } from "./domainRotation.ts";
+import { getArticleUsedDomains, getUnderutilizedDomains, getRecentlyUsedDomains, filterAndPrioritizeDomains } from "./domainRotation.ts";
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 import { parseArticleContent, formatSentencesForPrompt, type ArticleSentence } from './articleAnalyzer.ts';
 
@@ -20,6 +20,7 @@ export interface BetterCitation {
   suggestedAnchor?: string;
   placementContext?: string;
   confidenceScore?: number;
+  relevanceExplanation?: string;
 }
 
 const DOMAIN_BATCHES = {
@@ -89,7 +90,8 @@ async function searchBatch(
         relevance: result.relevance || '',
         authorityScore: authorityScores.totalScore,
         language: 'en',
-        batchTier: tier
+        batchTier: tier,
+        relevanceExplanation: `Supports "${result.supportsSentence ? citationSentences?.[result.supportsSentence - 1]?.text.substring(0, 60) : 'article claim'}..." with authoritative ${result.source || new URL(url).hostname} (${authorityScores.totalScore}/10 authority)`
       };
 
       if (result.supportsSentence && citationSentences) {
@@ -130,18 +132,21 @@ export async function findCitationsWithCascade(
   const allCitations: BetterCitation[] = [];
   
   let usedInArticle: string[] = [];
+  let recentlyUsed: string[] = [];
   let underutilized: string[] = [];
   
   if (articleId && supabaseClient) {
-    [usedInArticle, underutilized] = await Promise.all([
+    [usedInArticle, recentlyUsed, underutilized] = await Promise.all([
       getArticleUsedDomains(supabaseClient, articleId),
+      getRecentlyUsedDomains(supabaseClient, articleId, 5),
       getUnderutilizedDomains(supabaseClient, 150)
     ]);
+    console.log(`📊 Domain rotation stats: ${usedInArticle.length} in current article, ${recentlyUsed.length} in last 5 articles, ${underutilized.length} underutilized`);
   }
 
   for (const [tier, domains] of Object.entries(DOMAIN_BATCHES)) {
     if (allCitations.length >= targetCount) break;
-    const filteredDomains = articleId && supabaseClient ? filterAndPrioritizeDomains(domains, usedInArticle, underutilized) : domains;
+    const filteredDomains = articleId && supabaseClient ? filterAndPrioritizeDomains(domains, usedInArticle, recentlyUsed, underutilized) : domains;
     const batch = await searchBatch(filteredDomains, articleTopic, articleContent, targetCount - allCitations.length, perplexityApiKey, tier, citationSentences, prioritizeGovernment, focusArea);
     allCitations.push(...batch);
   }

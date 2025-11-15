@@ -7,6 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const TIMEOUT_MS = 7500; // 7.5 seconds (leave buffer for response)
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -47,7 +49,7 @@ serve(async (req) => {
     }
 
     // Find citations with cascading batch system + domain rotation + enhanced analysis
-    const citations = await findCitationsWithCascade(
+    const citationsPromise = findCitationsWithCascade(
       articleTopic,
       articleLanguage,
       articleContent,
@@ -60,6 +62,18 @@ serve(async (req) => {
       supabase,
       true // Enable enhanced sentence-level analysis
     );
+
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('⏱️ Citation search timeout after 7.5s - returning partial results')), TIMEOUT_MS)
+    );
+
+    let citations: any[];
+    try {
+      citations = await Promise.race([citationsPromise, timeoutPromise]);
+    } catch (error) {
+      console.error('Citation search timeout, returning empty array');
+      citations = [];
+    }
 
     if (citations.length === 0) {
       console.error('⚠️ No citations found across any batch tiers');
