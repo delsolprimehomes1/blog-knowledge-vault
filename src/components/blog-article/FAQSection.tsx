@@ -32,9 +32,6 @@ export const FAQSection = ({ faqEntities }: FAQSectionProps) => {
         {faqEntities.map((faq, index) => (
           <div 
             key={index}
-            itemScope 
-            itemProp="mainEntity" 
-            itemType="https://schema.org/Question"
             className="bg-background rounded-xl border border-border/50 shadow-sm overflow-hidden transition-all"
           >
             <button
@@ -44,7 +41,6 @@ export const FAQSection = ({ faqEntities }: FAQSectionProps) => {
             >
               <h3 
                 className="faq-question text-lg md:text-xl font-semibold text-foreground flex-1"
-                itemProp="name"
               >
                 {faq.question}
               </h3>
@@ -59,12 +55,9 @@ export const FAQSection = ({ faqEntities }: FAQSectionProps) => {
               className={`faq-answer overflow-hidden transition-all duration-300 ease-in-out ${
                 openIndex === index ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
               }`}
-              itemScope 
-              itemProp="acceptedAnswer" 
-              itemType="https://schema.org/Answer"
             >
               <div className="px-6 pb-6 prose prose-lg max-w-none text-muted-foreground leading-relaxed">
-                <p itemProp="text">{faq.answer}</p>
+                <p>{faq.answer}</p>
               </div>
             </div>
           </div>
