@@ -228,37 +228,35 @@ export const ExternalLinkFinder = ({
                       {link.isCriticalOveruse && <Badge variant="destructive" className="animate-pulse">⚠️ Critical</Badge>}
                       {link.isOverused && !link.isCriticalOveruse && <Badge variant="outline" className="text-amber-600 border-amber-600">⚠️ Overused</Badge>}
                     </div>
-                    {link.domain && <p className="text-xs text-muted-foreground"><span className="font-medium">Domain:</span> {link.domain} {link.finalScore && <><span className="ml-2 font-medium">Score:</span> {link.finalScore.toFixed(1)}</>}</p>}
-                        {isOfficialGovernment(link.url) && (
-                          <Badge variant="default" className="text-xs">
-                            🔒 Official Government
-                          </Badge>
-                        )}
-                        {link.verified && (
-                          <Badge variant="outline" className="text-xs">
-                            ✓ Verified
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <a 
-                        href={link.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline flex items-center gap-1"
-                      >
-                        {link.url.length > 60 ? link.url.substring(0, 60) + '...' : link.url}
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                      
+                    
+                    {link.domain && (
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">Suggested anchor:</span> "{link.anchorText}"
+                        <span className="font-medium">Domain:</span> {link.domain}
+                        {link.finalScore && (
+                          <>
+                            <span className="ml-2 font-medium">Score:</span> {link.finalScore.toFixed(1)}
+                          </>
+                        )}
                       </p>
-                      
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">Relevance:</span> {link.relevance}
-                      </p>
-                    </div>
+                    )}
+                    
+                    <a 
+                      href={link.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      {link.url.length > 60 ? link.url.substring(0, 60) + '...' : link.url}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium">Suggested anchor:</span> "{link.anchorText}"
+                    </p>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium">Relevance:</span> {link.relevance}
+                    </p>
                   </div>
 
                   <div className="flex gap-2">
