@@ -305,18 +305,6 @@ export function generateArticleSchema(
     schema.reviewedBy = generatePersonSchema(reviewer);
   }
   
-  // Add FAQs as mainEntity if they exist (nested inside BlogPosting)
-  if (article.faq_entities && article.faq_entities.length > 0) {
-    schema.mainEntity = article.faq_entities.map(faq => ({
-      "@type": "Question",
-      "name": faq.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": faq.answer,
-        ...(author && { "author": generatePersonSchema(author) })
-      }
-    }));
-  }
   
   // Filter out banned competitor citations from schema
   const safeCitations = filterBannedCitations(article.external_citations || []);
