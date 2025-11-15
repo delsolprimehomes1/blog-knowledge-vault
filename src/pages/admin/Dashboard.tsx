@@ -523,6 +523,39 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Translation Management */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Translation Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <Button 
+                onClick={() => navigate('/admin/translation-linker')}
+                variant="outline"
+                className="w-full"
+              >
+                <Globe className="mr-2 h-4 w-4" />
+                Link Translations
+              </Button>
+              <Button 
+                onClick={() => navigate('/admin/hreflang-health')}
+                variant="outline"
+                className="w-full"
+              >
+                <Activity className="mr-2 h-4 w-4" />
+                Hreflang Health
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Manage bidirectional translation links and monitor hreflang completeness for SEO
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );

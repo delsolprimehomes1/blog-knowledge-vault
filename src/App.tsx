@@ -26,6 +26,7 @@ import CitationSanitization from "./pages/admin/CitationSanitization";
 import CitationSweepDashboard from "./pages/admin/CitationSweepDashboard";
 import SitemapHealth from "./pages/admin/SitemapHealth";
 import HreflangHealth from "./pages/admin/HreflangHealth";
+import TranslationLinker from "./pages/admin/TranslationLinker";
 import { LanguageRouteWrapper } from "./components/LanguageRouteWrapper";
 import { RootRedirect } from "./components/RootRedirect";
 import Auth from "./pages/Auth";
@@ -102,6 +103,8 @@ const App = () => (
           <Route path="/admin/citation-sweep" element={<ProtectedRoute><CitationSweepDashboard /></ProtectedRoute>} />
           <Route path="/admin/sitemap-health" element={<ProtectedRoute><SitemapHealth /></ProtectedRoute>} />
           <Route path="/admin/hreflang-health" element={<ProtectedRoute><HreflangHealth /></ProtectedRoute>} />
+          <Route path="/admin/translation-linker" element={<ProtectedRoute><TranslationLinker /></ProtectedRoute>} />
+          <Route path="/admin/translation-linker" element={<ProtectedRoute><TranslationLinker /></ProtectedRoute>} />
           <Route path="/admin/docs/aeo-sge-guide" element={<ProtectedRoute><AEOGuide /></ProtectedRoute>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
