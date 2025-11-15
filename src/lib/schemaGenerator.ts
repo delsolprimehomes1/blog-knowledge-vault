@@ -291,7 +291,7 @@ export function generateArticleSchema(
     schema.relatedLink = (article as any).related_cluster_articles.map((relatedArticle: any) => ({
       "@type": "WebPage",
       "name": relatedArticle.headline,
-      "url": `${baseUrl}/blog/${relatedArticle.slug}`,
+      "url": `${baseUrl}/${relatedArticle.language || article.language || 'en'}/blog/${relatedArticle.slug}`,
       "position": "mid-article",
       "inLanguage": article.language
     }));

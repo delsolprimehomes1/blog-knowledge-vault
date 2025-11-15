@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Calendar, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FunnelStage } from "@/types/blog";
+import { useLanguageContext } from "@/hooks/useLanguageContext";
 
 interface CTAArticle {
   id: string;
@@ -19,6 +20,8 @@ interface FunnelCTAProps {
 }
 
 export const FunnelCTA = ({ funnelStage, ctaArticles }: FunnelCTAProps) => {
+  const { currentLanguage } = useLanguageContext();
+  
   if (funnelStage === "BOFU") {
     return (
       <div className="my-12 p-8 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border-2 border-primary/20">
@@ -73,7 +76,7 @@ export const FunnelCTA = ({ funnelStage, ctaArticles }: FunnelCTAProps) => {
                 <Badge variant="secondary">{article.category}</Badge>
                 <h3 className="text-xl font-semibold">{article.headline}</h3>
                 <Button asChild className="w-full gap-2">
-                  <Link to={`/blog/${article.slug}`}>
+                  <Link to={`/${currentLanguage}/blog/${article.slug}`}>
                     {funnelStage === "TOFU" ? "Learn More" : "Take Action"}
                     <ArrowRight className="h-4 w-4" />
                   </Link>

@@ -41,6 +41,7 @@ import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import { BlogLegacyRedirect } from "./components/BlogLegacyRedirect";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,9 @@ const App = () => (
           
           {/* Auth route (language-agnostic) */}
           <Route path="/auth" element={<Auth />} />
+          
+          {/* Legacy blog URL redirect - catches old /blog/:slug URLs */}
+          <Route path="/blog/:slug" element={<BlogLegacyRedirect />} />
           
           {/* Language-prefixed routes */}
           <Route path="/:lang" element={<LanguageRouteWrapper />}>

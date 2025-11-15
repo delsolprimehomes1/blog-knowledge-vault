@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { prefetchArticle, prefetchImage } from "@/lib/prefetch";
 import { transformImage, getResponsiveSrcSet, getResponsiveSizes } from "@/lib/imageTransform";
+import { useLanguageContext } from "@/hooks/useLanguageContext";
 
 interface Article {
   id: string;
@@ -18,6 +19,8 @@ interface RelatedArticlesProps {
 }
 
 export const RelatedArticles = ({ articles }: RelatedArticlesProps) => {
+  const { currentLanguage } = useLanguageContext();
+  
   if (articles.length === 0) return null;
 
   const handleArticleHover = (article: Article) => {
@@ -36,7 +39,7 @@ export const RelatedArticles = ({ articles }: RelatedArticlesProps) => {
           return (
             <Link
               key={article.id}
-              to={`/blog/${article.slug}`}
+              to={`/${currentLanguage}/blog/${article.slug}`}
               className="flex-shrink-0 w-80 snap-start"
               onMouseEnter={() => handleArticleHover(article)}
             >
