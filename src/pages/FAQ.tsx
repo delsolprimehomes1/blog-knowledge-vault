@@ -109,31 +109,24 @@ const FAQ = () => {
           <div className="max-w-4xl mx-auto">
             <Accordion type="single" collapsible className="space-y-4">
               {FAQ_ITEMS.map((item, index) => (
-                <AccordionItem
-                  key={index}
-                  value={`item-${index}`}
-                  className="bg-card border border-border rounded-lg px-6 py-2"
-                  itemScope
-                  itemProp="mainEntity"
-                  itemType="https://schema.org/Question"
-                >
-                  <AccordionTrigger className="text-left hover:no-underline">
-                    <span 
-                      className="font-semibold text-lg text-foreground pr-4"
-                      itemProp="name"
-                    >
-                      {item.question}
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent 
-                    className="text-muted-foreground leading-relaxed pt-2 pb-4"
-                    itemScope
-                    itemProp="acceptedAnswer"
-                    itemType="https://schema.org/Answer"
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
+                className="bg-card border border-border rounded-lg px-6 py-2"
+              >
+                <AccordionTrigger className="text-left hover:no-underline">
+                  <span 
+                    className="font-semibold text-lg text-foreground pr-4"
                   >
-                    <div itemProp="text">{item.answer}</div>
-                  </AccordionContent>
-                </AccordionItem>
+                    {item.question}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent 
+                  className="text-muted-foreground leading-relaxed pt-2 pb-4"
+                >
+                  <div>{item.answer}</div>
+                </AccordionContent>
+              </AccordionItem>
               ))}
             </Accordion>
           </div>
