@@ -126,11 +126,30 @@ export async function findCitationsWithCascade(
   minimumGovPercentage = 70,
   articleId?: string,
   supabaseClient?: SupabaseClient,
-  enableEnhancedAnalysis = true
+  enableEnhancedAnalysis = true,
+  priorityDomains?: string[] // NEW: optional override for underutilized domains
 ): Promise<BetterCitation[]> {
   const citationSentences = enableEnhancedAnalysis ? parseArticleContent(articleContent, 15) : undefined;
   const allCitations: BetterCitation[] = [];
   
+  // If priority domains provided, use them instead of tier system
+  if (priorityDomains && priorityDomains.length > 0) {
+    console.log(`🔄 Using ${priorityDomains.length} priority underutilized domains for Perplexity`);
+    const batch = await searchBatch(
+      priorityDomains,
+      articleTopic,
+      articleContent,
+      targetCount,
+      perplexityApiKey,
+      'priority-underutilized',
+      citationSentences,
+      prioritizeGovernment,
+      focusArea
+    );
+    return batch.sort((a, b) => b.authorityScore - a.authorityScore).slice(0, targetCount);
+  }
+  
+  // Otherwise, fall back to existing tier system
   let usedInArticle: string[] = [];
   let recentlyUsed: string[] = [];
   let underutilized: string[] = [];

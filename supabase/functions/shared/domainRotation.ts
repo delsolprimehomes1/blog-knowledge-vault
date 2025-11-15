@@ -105,6 +105,97 @@ export function extractDomain(url: string): string {
   }
 }
 
+/**
+ * Build a batch of 15-20 underutilized domains for Perplexity
+ * Prioritizes domains with <3 uses to ensure minimum coverage
+ */
+export async function buildUnderutilizedBatch(
+  supabaseClient: SupabaseClient,
+  articleId: string,
+  batchSize: number = 20
+): Promise<{
+  domains: string[];
+  stats: {
+    zeroUse: number;
+    minimalUse: number; // 1-2 uses
+    freshUse: number;   // 3-19 uses
+  };
+}> {
+  // Get all approved domains
+  const { data: approvedData } = await supabaseClient
+    .from('approved_domains')
+    .select('domain')
+    .eq('is_allowed', true);
+  
+  const allApproved = approvedData?.map(d => d.domain) || [];
+  
+  // Get current usage stats
+  const { data: usageData } = await supabaseClient
+    .from('domain_usage_stats')
+    .select('domain, total_uses')
+    .order('total_uses', { ascending: true });
+  
+  const usageMap = new Map(
+    usageData?.map(d => [d.domain, d.total_uses]) || []
+  );
+  
+  // Get domains already used in this article (avoid duplicates)
+  const usedInArticle = await getArticleUsedDomains(supabaseClient, articleId);
+  
+  // Get domains used in last 3 articles (for rotation)
+  const recentlyUsed = await getRecentlyUsedDomains(supabaseClient, articleId, 3);
+  
+  // Categorize all approved domains by usage
+  const zeroUse: string[] = [];
+  const minimalUse: string[] = [];  // 1-2 uses
+  const freshUse: string[] = [];     // 3-19 uses
+  
+  for (const domain of allApproved) {
+    if (usedInArticle.includes(domain)) continue; // Skip if already in article
+    if (recentlyUsed.includes(domain)) continue;  // Skip if used recently
+    
+    const uses = usageMap.get(domain) || 0;
+    
+    if (uses === 0) {
+      zeroUse.push(domain);
+    } else if (uses <= 2) {
+      minimalUse.push(domain);
+    } else if (uses < 20) {
+      freshUse.push(domain);
+    }
+    // Ignore domains with 20+ uses for this priority batch
+  }
+  
+  // Build batch: prioritize ultra-low usage first
+  const batch: string[] = [];
+  
+  // Phase 1: Add all zero-use domains (up to batchSize/2)
+  const zeroUseSample = zeroUse.slice(0, Math.floor(batchSize / 2));
+  batch.push(...zeroUseSample);
+  
+  // Phase 2: Fill remaining with 1-2 use domains
+  const remaining = batchSize - batch.length;
+  const minimalUseSample = minimalUse.slice(0, Math.ceil(remaining / 2));
+  batch.push(...minimalUseSample);
+  
+  // Phase 3: Top off with 3-19 use domains if needed
+  if (batch.length < batchSize) {
+    const freshSample = freshUse.slice(0, batchSize - batch.length);
+    batch.push(...freshSample);
+  }
+  
+  console.log(`📦 Built underutilized batch: ${batch.length} domains (${zeroUseSample.length} zero-use, ${minimalUseSample.length} minimal-use, ${batch.length - zeroUseSample.length - minimalUseSample.length} fresh)`);
+  
+  return {
+    domains: batch,
+    stats: {
+      zeroUse: zeroUse.length,
+      minimalUse: minimalUse.length,
+      freshUse: freshUse.length
+    }
+  };
+}
+
 export async function recordDomainUsage(supabaseClient: SupabaseClient, articleId: string, citationUrl: string, citationSource: string): Promise<void> {
   try {
     await supabaseClient.from('citation_usage_tracking').insert({
