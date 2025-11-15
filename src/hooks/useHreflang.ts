@@ -60,81 +60,95 @@ export function useHreflang({
   const missingLanguages: string[] = [];
   const links: HreflangLink[] = [];
 
-  const generateUrl = (lang: string, slug?: string): string => {
+  const generateUrl = (langCode: string, slug?: string): string => {
+    // Find language data to get url_prefix
+    const langData = languages.find(l => l.language_code === langCode);
+    const prefix = langData?.url_prefix || `/${langCode}`;
+    
     switch (pageType) {
       case 'home':
-        return `${baseUrl}/`;
+        return `${baseUrl}${prefix}`;
       case 'faq':
-        return `${baseUrl}/faq`;
+        return `${baseUrl}${prefix}/faq`;
       case 'about':
-        return `${baseUrl}/about`;
+        return `${baseUrl}${prefix}/about`;
       case 'blog-index':
-        return `${baseUrl}/blog`;
+        return `${baseUrl}${prefix}/blog`;
       case 'blog-article':
-        return `${baseUrl}/blog/${slug}`;
+        return `${baseUrl}${prefix}/blog/${slug}`;
       case 'case-studies':
-        return `${baseUrl}/case-studies`;
+        return `${baseUrl}${prefix}/case-studies`;
       case 'qa':
-        return `${baseUrl}/qa`;
+        return `${baseUrl}${prefix}/qa`;
       default:
-        return baseUrl;
+        return `${baseUrl}${prefix}`;
     }
   };
 
+  // ALWAYS generate complete hreflang cluster for ALL active languages
   if (pageType === 'blog-article' && currentSlug) {
-    const currentLangData = languages.find(l => l.language_code === currentLanguage);
-    if (currentLangData) {
-      links.push({
-        lang: currentLangData.hreflang_code,
-        url: generateUrl(currentLanguage, currentSlug)
-      });
-    }
-
-    Object.entries(translations).forEach(([lang, slug]) => {
-      const langData = languages.find(l => l.language_code === lang);
-      if (langData) {
-        links.push({
-          lang: langData.hreflang_code,
-          url: generateUrl(lang, slug)
-        });
-      }
-    });
-
+    // ========================================
+    // BLOG ARTICLES: Output ALL languages
+    // ========================================
+    
     languages.forEach(lang => {
-      const hasTranslation = 
-        lang.language_code === currentLanguage || 
-        translations[lang.language_code];
+      const langCode = lang.language_code;
       
-      if (!hasTranslation) {
+      // Determine the slug for this language
+      let targetSlug: string;
+      
+      if (langCode === currentLanguage) {
+        // Current language - use current slug
+        targetSlug = currentSlug;
+      } else if (translations[langCode]) {
+        // Translation exists - use translated slug
+        targetSlug = translations[langCode];
+      } else {
+        // No translation - use current slug as placeholder
+        // (Google requires the tag even if page doesn't exist yet)
+        targetSlug = currentSlug;
         missingLanguages.push(lang.language_name);
-        warnings.push(`Missing ${lang.language_name} translation`);
+        warnings.push(`⚠️ ${lang.language_name} translation missing - using placeholder URL`);
       }
+      
+      links.push({
+        lang: lang.hreflang_code,
+        url: generateUrl(langCode, targetSlug)
+      });
     });
-
+    
+    // ALWAYS add x-default (use default language version)
     const defaultSlug = currentLanguage === defaultLang.language_code 
       ? currentSlug 
-      : translations[defaultLang.language_code];
+      : (translations[defaultLang.language_code] || currentSlug);
     
-    if (defaultSlug) {
-      links.push({
-        lang: 'x-default',
-        url: generateUrl(defaultLang.language_code, defaultSlug)
-      });
-    } else {
-      warnings.push('x-default URL not available (missing default language translation)');
-    }
-  } else {
     links.push({
-      lang: defaultLang.hreflang_code,
-      url: generateUrl(defaultLang.language_code)
+      lang: 'x-default',
+      url: generateUrl(defaultLang.language_code, defaultSlug)
     });
-
+    
+  } else {
+    // ========================================
+    // STATIC PAGES: Output ALL languages
+    // ========================================
+    
+    languages.forEach(lang => {
+      links.push({
+        lang: lang.hreflang_code,
+        url: generateUrl(lang.language_code)
+      });
+    });
+    
+    // ALWAYS add x-default
     links.push({
       lang: 'x-default',
       url: generateUrl(defaultLang.language_code)
     });
-
-    warnings.push(`Static page (${pageType}) - multilingual versions not yet implemented`);
+    
+    // Note for admin: static pages need translation
+    if (languages.length > 1) {
+      warnings.push(`ℹ️ Static page (${pageType}) - create translated versions at language-prefixed URLs`);
+    }
   }
 
   const isComplete = missingLanguages.length === 0 && links.length >= 2;
