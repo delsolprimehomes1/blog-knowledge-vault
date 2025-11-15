@@ -345,6 +345,7 @@ export function generateArticleSchema(
             "ratingValue": (citation.authorityScore / 20).toFixed(1), // Convert 0-100 to 0-5
             "bestRating": "5",
             "worstRating": "0",
+            "ratingCount": "1",
             "ratingExplanation": "Authority score based on domain reputation and source type"
           }
         }),
