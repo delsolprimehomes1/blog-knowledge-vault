@@ -14,11 +14,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useHreflang } from "@/hooks/useHreflang";
 
 const About = () => {
   const schemas = generateAllAboutSchemas();
   const baseUrl = "https://delsolprimehomes.com";
   const pageUrl = `${baseUrl}/about`;
+  const { links: hreflangLinks } = useHreflang({ pageType: 'about' });
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,10 +51,15 @@ const About = () => {
         <meta name="twitter:description" content="Licensed real estate agency specializing in Costa del Sol properties with multilingual support and local expertise." />
         <meta name="twitter:image" content={`${baseUrl}/logo.png`} />
 
-        {/* Hreflang Tags (English default) */}
-        <link rel="alternate" hrefLang="x-default" href={pageUrl} />
-        <link rel="alternate" hrefLang="en-GB" href={pageUrl} />
-        <link rel="alternate" hrefLang="en" href={pageUrl} />
+        {/* Hreflang Tags - Complete Cluster */}
+        {hreflangLinks.map((link) => (
+          <link
+            key={link.lang}
+            rel="alternate"
+            hrefLang={link.lang}
+            href={link.url}
+          />
+        ))}
 
         {/* JSON-LD Structured Data */}
         <script type="application/ld+json">

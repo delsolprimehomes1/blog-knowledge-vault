@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Languages, Code, Copy, Check, AlertCircle, Plus } from "lucide-react";
 import { Language } from "@/types/blog";
 import { toast } from "sonner";
+import { useHreflang } from "@/hooks/useHreflang";
 
 interface Article {
   id: string;
@@ -54,6 +55,13 @@ export const TranslationsSection = ({
   const [showHreflang, setShowHreflang] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const { links: hreflangLinks } = useHreflang({
+    pageType: 'blog-article',
+    currentLanguage,
+    currentSlug,
+    translations,
+  });
+
   const currentLangData = LANGUAGES.find(l => l.code === currentLanguage);
   const translationCount = Object.keys(translations).length;
   const totalLanguages = LANGUAGES.length;
@@ -84,15 +92,9 @@ export const TranslationsSection = ({
   };
 
   const generateHreflangTags = () => {
-    const tags = [`<link rel="alternate" hreflang="${currentLanguage}" href="https://example.com/${currentSlug}" />`];
-    
-    Object.entries(translations).forEach(([lang, slug]) => {
-      tags.push(`<link rel="alternate" hreflang="${lang}" href="https://example.com/${slug}" />`);
-    });
-    
-    tags.push(`<link rel="alternate" hreflang="x-default" href="https://example.com/${currentSlug}" />`);
-    
-    return tags.join("\n");
+    return hreflangLinks.map(link => 
+      `<link rel="alternate" hreflang="${link.lang}" href="${link.url}" />`
+    ).join('\n');
   };
 
   const copyHreflang = () => {

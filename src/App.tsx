@@ -25,6 +25,7 @@ import FAQBackfill from "./pages/admin/FAQBackfill";
 import CitationSanitization from "./pages/admin/CitationSanitization";
 import CitationSweepDashboard from "./pages/admin/CitationSweepDashboard";
 import SitemapHealth from "./pages/admin/SitemapHealth";
+import HreflangHealth from "./pages/admin/HreflangHealth";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import BlogArticle from "./pages/BlogArticle";
@@ -90,6 +91,7 @@ const App = () => (
           <Route path="/admin/citation-sanitization" element={<ProtectedRoute><CitationSanitization /></ProtectedRoute>} />
           <Route path="/admin/citation-sweep" element={<ProtectedRoute><CitationSweepDashboard /></ProtectedRoute>} />
           <Route path="/admin/sitemap-health" element={<ProtectedRoute><SitemapHealth /></ProtectedRoute>} />
+          <Route path="/admin/hreflang-health" element={<ProtectedRoute><HreflangHealth /></ProtectedRoute>} />
           <Route path="/admin/docs/aeo-sge-guide" element={<ProtectedRoute><AEOGuide /></ProtectedRoute>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
