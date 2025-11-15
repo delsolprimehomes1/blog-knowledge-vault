@@ -7,6 +7,7 @@ import { transformImage, getResponsiveSrcSet, getResponsiveSizes } from "@/lib/i
 import { ArrowRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguageContext } from "@/hooks/useLanguageContext";
 
 interface ArticleCardProps {
   article: {
@@ -40,6 +41,7 @@ const LANGUAGE_FLAGS: Record<string, string> = {
 
 export const ArticleCard = ({ article, author, priority = false }: ArticleCardProps) => {
   const queryClient = useQueryClient();
+  const { currentLanguage } = useLanguageContext();
   const fallbackImage = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=338&fit=crop';
   // EMERGENCY FIX: Use direct URL without transformation
   const imageUrl = article.featured_image_url || fallbackImage;
@@ -79,7 +81,7 @@ export const ArticleCard = ({ article, author, priority = false }: ArticleCardPr
       onMouseEnter={handleMouseEnter}
     >
       <CardContent className="p-0">
-        <Link to={`/blog/${article.slug}`} className="block">
+        <Link to={`/${currentLanguage}/blog/${article.slug}`} className="block">
           <div className="relative overflow-hidden aspect-[16/10]">
             <OptimizedImage
               src={imageUrl}
