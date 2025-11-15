@@ -120,6 +120,15 @@ const BlogArticle = () => {
     });
   }, [slug, isLoading, isFetching, article, error]);
 
+  // ✅ HREFLANG HOOK - MUST be at top before any conditional returns
+  const { links: hreflangLinks, warnings: hreflangWarnings } = useHreflang({
+    pageType: 'blog-article',
+    pageIdentifier: slug || '',
+    currentLanguage: article?.language || 'en',
+    currentSlug: slug || '',
+    translations: article?.translations || {},
+  });
+
   // Remove static content once React data is ready
   useEffect(() => {
     if (article && staticContent && article.id === isStaticPrerendered) {
@@ -294,14 +303,6 @@ const BlogArticle = () => {
   const schemas = generateAllSchemas(article, author || null, reviewer || null);
   const baseUrl = 'https://delsolprimehomes.com';
   const currentUrl = `${baseUrl}/${article.language}/blog/${article.slug}`;
-
-  const { links: hreflangLinks, warnings: hreflangWarnings } = useHreflang({
-    pageType: 'blog-article',
-    pageIdentifier: article.slug,
-    currentLanguage: article.language,
-    currentSlug: article.slug,
-    translations: article.translations || {},
-  });
 
   if (hreflangWarnings.length > 0 && import.meta.env.DEV) {
     console.warn('⚠️ Hreflang warnings:', hreflangWarnings);
