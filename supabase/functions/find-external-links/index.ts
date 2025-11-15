@@ -6,6 +6,7 @@ import {
   getArticleUsedDomains, 
   getRecentlyUsedDomains,
   getUnderutilizedDomains,
+  getOverusedDomains,
   filterAndPrioritizeDomains,
   extractDomain
 } from '../shared/domainRotation.ts';
@@ -228,16 +229,21 @@ serve(async (req) => {
       ]);
 
       const underutilized = await getUnderutilizedDomains(supabaseClient, 100);
+      const overusedDomains = await getOverusedDomains(supabaseClient, 30);
       
-      // Prioritize fresh domains
+      console.log(`🔄 Domain rotation: ${usedInArticle.length} used in article, ${recentlyUsed.length} recently used, prioritizing ${underutilized.length} underutilized domains`);
+      console.log(`🚫 Excluding ${overusedDomains.length} overused domains (>30 uses): ${overusedDomains.slice(0, 5).join(', ')}${overusedDomains.length > 5 ? '...' : ''}`);
+      
+      // Prioritize fresh domains and exclude overused ones
       prioritizedDomains = filterAndPrioritizeDomains(
         allApprovedDomains,
         usedInArticle,
         recentlyUsed,
-        underutilized
+        underutilized,
+        overusedDomains
       );
 
-      console.log(`🔄 Domain rotation: ${usedInArticle.length} used in article, ${recentlyUsed.length} recently used, prioritizing ${prioritizedDomains.slice(0, 20).length} fresh domains`);
+      console.log(`✅ Using ${prioritizedDomains.length} domains (approved: ${allApprovedDomains.length}, excluded overused: ${overusedDomains.length})`);
     }
     
     const { findBetterCitationsWithBatch } = await import('../shared/citationFinder.ts');

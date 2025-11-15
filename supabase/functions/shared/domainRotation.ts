@@ -14,6 +14,20 @@ export async function getUnderutilizedDomains(supabaseClient: SupabaseClient, li
   } catch { return []; }
 }
 
+export async function getOverusedDomains(
+  supabaseClient: SupabaseClient,
+  threshold: number = 30
+): Promise<string[]> {
+  try {
+    const { data } = await supabaseClient
+      .from('domain_usage_stats')
+      .select('domain')
+      .gte('total_uses', threshold)
+      .order('total_uses', { ascending: false });
+    return data?.map((d: any) => d.domain) || [];
+  } catch { return []; }
+}
+
 export async function getRecentlyUsedDomains(
   supabaseClient: SupabaseClient,
   currentArticleId: string,
@@ -51,16 +65,21 @@ export function filterAndPrioritizeDomains(
   allDomains: string[], 
   usedInArticle: string[], 
   recentlyUsed: string[],
-  underutilized: string[]
+  underutilized: string[],
+  overusedDomains: string[] = []
 ): string[] {
-  // Priority 1: Never used in current article OR recent articles
+  // Priority 1: Never used in current article OR recent articles AND not overused globally
   const neverUsed = allDomains.filter(d => 
-    !usedInArticle.includes(d) && !recentlyUsed.includes(d)
+    !usedInArticle.includes(d) && 
+    !recentlyUsed.includes(d) &&
+    !overusedDomains.includes(d)
   );
   
-  // Priority 2: Not used in current article (but maybe used recently)
+  // Priority 2: Not used in current article (but maybe used recently) AND not overused globally
   const currentlyFresh = allDomains.filter(d => 
-    !usedInArticle.includes(d) && recentlyUsed.includes(d)
+    !usedInArticle.includes(d) && 
+    recentlyUsed.includes(d) &&
+    !overusedDomains.includes(d)
   );
   
   // Sort both groups by underutilization score
