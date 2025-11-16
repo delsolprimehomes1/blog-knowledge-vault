@@ -129,14 +129,16 @@ const BlogArticle = () => {
     translations: article?.translations || {},
   });
 
-  // Remove static content once React data is ready
+  // Remove static content once React data is ready - instant swap
   useEffect(() => {
     if (article && staticContent && article.id === isStaticPrerendered) {
-      // Small delay to ensure React content has painted
-      setTimeout(() => {
-        staticContent.classList.add('opacity-0');
-        setTimeout(() => staticContent.remove(), 300);
-      }, 100);
+      // React content is ready - immediately hide static content
+      (staticContent as HTMLElement).style.display = 'none';
+      
+      // Remove from DOM after a frame to avoid layout thrashing
+      requestAnimationFrame(() => {
+        staticContent.remove();
+      });
     }
   }, [article, staticContent, isStaticPrerendered]);
 
